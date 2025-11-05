@@ -1,0 +1,32 @@
+# ==== Folder yang tidak perlu di-push ====
+/db/
+/dist/
+/uploads/
+/vendor/
+/komponen/
+/plugins/
+/docs/
+
+# ==== File sementara / lokal ====
+/db.sql
+/masq2971_simpeg (struktur only).sql
+/struktur-folder.txt
+
+# ==== Sistem dan cache ====
+*.log
+*.tmp
+*.bak
+*.cache
+
+# ==== OS & IDE ====
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+
+# VSCode
+.vscode/
+.history/
