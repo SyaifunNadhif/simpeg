@@ -1,6 +1,5 @@
 # ==== Folder yang tidak perlu di-push ====
 /db/
-/dist/
 /uploads/
 /vendor/
 /komponen/
