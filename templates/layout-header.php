@@ -1,62 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title><?php echo $set['desc_app']; ?></title>
-  <link rel="icon" type="image/png" href="dist/img/bkk.png">
-
-<style>
-  .dataTables_wrapper .dataTables_paginate .paginate_button {
-    padding: 0.25rem 0.25rem !important;
-    margin-left: 0.25px !important;
-    margin-right: 0.25px !important;
-    font-size: 0.85rem;
-  }
-
-  .dataTables_wrapper .dataTables_paginate {
-    margin-top: 1rem !important;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.25rem;
-  }
-</style>
-
-<!-- Font Awesome -->
-<link rel="stylesheet" href="plugins/fontawesome-free/css/all.min.css">
-<!-- AdminLTE -->
-<link rel="stylesheet" href="dist/css/adminlte.min.css">
-<!-- Bootstrap5 -->
-<link rel="stylesheet" href="plugins/bootstrap5/css/bootstrap.min.css">
-<!-- Overlay Scrollbars -->
-<link rel="stylesheet" href="plugins/overlayScrollbars/css/OverlayScrollbars.min.css">
-<!-- DataTables -->
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
-<link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
-<link rel="stylesheet" href="plugins/datatables-responsive/css/responsive.bootstrap4.min.css">
-<link rel="stylesheet" href="plugins/datatables-buttons/css/buttons.bootstrap4.min.css">
-
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
-<!-- Select2 -->
-<link rel="stylesheet" href="plugins/select2/css/select2.min.css">
-<link rel="stylesheet" href="plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css">
-</head>
-<body class="hold-transition sidebar-mini layout-fixed text-sm pace-info">
-<div class="wrapper">
-
-<!-- Bagian navbar di layout-header.php -->
-<nav class="main-header navbar navbar-expand navbar-white py-2 navbar-light text-sm">
-  <ul class="navbar-nav">
-    <li class="nav-item">
-      <a class="nav-link" data-widget="pushmenu" href="#"><i class="fas fa-bars"></i></a>
-    </li>
-    <li class="nav-item d-none d-sm-inline-block">
-      <a href="#" class="nav-link">Home</a>
-    </li>
-  </ul>
 
   <?php
   if (!empty($_SESSION['foto']) && file_exists('dist/img/' . $_SESSION['foto'])) {
@@ -100,64 +41,228 @@
   }
   ?>
 
-  <ul class="navbar-nav ms-auto">
-    <!-- Notifikasi -->
-    <li class="nav-item dropdown">
-      <a class="nav-link dropdown-toggle position-relative" href="#" id="notifDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-        <i class="far fa-bell"></i>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><?php echo $set['desc_app']; ?></title>
+  <link rel="icon" type="image/png" href="dist/img/bkk.png">
+
+<style>
+  .dataTables_wrapper .dataTables_paginate .paginate_button {
+    padding: 0.25rem 0.25rem !important;
+    margin-left: 0.25px !important;
+    margin-right: 0.25px !important;
+    font-size: 0.85rem;
+  }
+
+  .dataTables_wrapper .dataTables_paginate {
+    margin-top: 1rem !important;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.25rem;
+  }
+</style>
+
+<!-- Font Awesome -->
+<link rel="stylesheet" href="plugins/fontawesome-free/css/all.min.css">
+<!-- AdminLTE -->
+<link rel="stylesheet" href="dist/css/adminlte.min.css">
+<!-- Bootstrap5 -->
+<link rel="stylesheet" href="plugins/bootstrap5/css/bootstrap.min.css">
+<!-- Overlay Scrollbars -->
+<link rel="stylesheet" href="plugins/overlayScrollbars/css/OverlayScrollbars.min.css">
+<!-- DataTables -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+<link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-responsive/css/responsive.bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-buttons/css/buttons.bootstrap4.min.css">
+
+
+
+<!-- Select2 -->
+<link rel="stylesheet" href="plugins/select2/css/select2.min.css">
+<link rel="stylesheet" href="plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css">
+</head><nav class="main-header navbar navbar-expand navbar-white navbar-light border-bottom-0 shadow-sm text-sm" style="transition: all 0.3s;">
+  <ul class="navbar-nav align-items-center">
+    <li class="nav-item">
+      <a class="nav-link ripple-effect" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
+    </li>
+    <li class="nav-item d-none d-sm-inline-block ms-2">
+      <span class="text-muted font-weight-bold" style="font-size: 14px; letter-spacing: 0.5px;">
+        <?php echo date('l, d F Y'); ?> </span>
+    </li>
+  </ul>
+
+  <ul class="navbar-nav ms-auto align-items-center gap-2">
+    
+    <li class="nav-item dropdown me-2">
+      <a class="nav-link position-relative icon-btn" data-bs-toggle="dropdown" href="#">
+        <i class="far fa-bell fa-lg"></i>
         <?php if ($jumlahNotif > 0): ?>
-          <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning">
-            <?= $jumlahNotif ?>
+          <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger shadow-sm" style="font-size: 0.6rem; padding: 0.3em 0.5em;">
+            <?= $jumlahNotif > 9 ? '9+' : $jumlahNotif ?>
           </span>
         <?php endif; ?>
       </a>
-      <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end" aria-labelledby="notifDropdown">
-        <li class="dropdown-header">
-          <i class="fas fa-bell"></i> <?= $jumlahNotif ?> Notifikasi
-        </li>
-        <?php while ($notif = mysqli_fetch_assoc($qNotif)): ?>
-          <li>
-            <a href="<?=
-              $hak_akses == 'kepala'
-                ? 'home-admin.php?page=otorisasi-detail&id_pending=' . $notif['id_edit']
-                : $notif['link_aksi'] ?>"
-              class="dropdown-item text-wrap"
-              style="white-space: normal; word-break: break-word; max-width: 300px;">
-              <i class="fas fa-info-circle me-2"></i>
-              <?=
-                $hak_akses == 'kepala'
-                  ? 'Permintaan dari ' . $notif['nama']
-                  : $notif['judul'] ?>
-              <span class="float-end text-muted text-sm">
-                <?php
-                  $tanggal_waktu = isset($notif['tanggal_pengajuan']) ? $notif['tanggal_pengajuan'] : (isset($notif['waktu_notif']) ? $notif['waktu_notif'] : date('Y-m-d H:i:s'));
-                  echo date('H:i', strtotime($tanggal_waktu));
-                ?>
-              </span>
+      
+      <div class="dropdown-menu dropdown-menu-lg dropdown-menu-end border-0 shadow-lg rounded-3 mt-2 p-0 overflow-hidden animate__animated animate__fadeInDown">
+        <div class="p-3 bg-light border-bottom">
+          <span class="font-weight-bold text-dark"><i class="fas fa-bell text-primary me-1"></i> Notifikasi</span>
+          <span class="float-end badge bg-primary"><?= $jumlahNotif ?> Baru</span>
+        </div>
+        
+        <div class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
+          <?php while ($notif = mysqli_fetch_assoc($qNotif)): ?>
+            <a href="<?= $hak_akses == 'kepala' ? 'home-admin.php?page=otorisasi-detail&id_pending=' . $notif['id_edit'] : $notif['link_aksi'] ?>" 
+               class="list-group-item list-group-item-action border-bottom-0 py-3">
+              <div class="d-flex w-100 justify-content-between">
+                <small class="text-muted mb-1">
+                  <i class="far fa-clock me-1"></i> 
+                  <?php 
+                    $tanggal_waktu = isset($notif['tanggal_pengajuan']) ? $notif['tanggal_pengajuan'] : (isset($notif['waktu_notif']) ? $notif['waktu_notif'] : date('Y-m-d H:i:s'));
+                    echo date('H:i', strtotime($tanggal_waktu)); 
+                  ?>
+                </small>
+              </div>
+              <p class="mb-1 text-sm text-dark font-weight-bold" style="line-height: 1.4;">
+                <?= $hak_akses == 'kepala' ? 'Permintaan dari <span class="text-primary">' . $notif['nama'] . '</span>' : $notif['judul'] ?>
+              </p>
             </a>
-          </li>
-          <li><hr class="dropdown-divider"></li>
-        <?php endwhile; ?>
-        <li><a href="<?= $targetLink ?>" class="dropdown-item dropdown-footer">Lihat Semua Notifikasi</a></li>
-      </ul>
+          <?php endwhile; ?>
+        </div>
+        <a href="<?= $targetLink ?>" class="dropdown-item dropdown-footer text-center text-primary font-weight-bold py-3 bg-white">Lihat Semua Notifikasi</a>
+      </div>
     </li>
 
-    <!-- User Info -->
-    <li class="nav-item dropdown user-menu">
-      <a href="#" class="nav-link dropdown-toggle px-5 py-1" data-bs-toggle="dropdown">
-        <img src="dist/img/<?php echo $foto; ?>" class="rounded-circle" style="height:32px; width:32px; object-fit: cover;">
-        <span class="d-none d-md-inline"><b><?php echo $_SESSION['nama_user']; ?></b></span>
+    <li class="nav-item dropdown">
+      <a class="nav-link d-flex align-items-center gap-2 profile-link ps-3 pe-2 py-1 rounded-pill bg-light border" data-bs-toggle="dropdown" href="#">
+        <img src="dist/img/<?php echo $foto; ?>" class="rounded-circle shadow-sm" alt="User Image" style="height:32px; width:32px; object-fit: cover;">
+        <div class="d-none d-md-flex flex-column text-start ms-2" style="line-height: 1.1;">
+            <span class="font-weight-bold text-dark text-xs"><?php echo $_SESSION['nama_user']; ?></span>
+            <small class="text-muted" style="font-size: 10px;"><?php echo ucfirst($_SESSION['hak_akses']); ?></small>
+        </div>
+        <i class="fas fa-chevron-down ms-2 text-muted" style="font-size: 10px;"></i>
       </a>
-      <div class="dropdown-menu dropdown-menu-end shadow" style="width:220px; background-color:#2f3336; border:none;">
-        <div class="text-center p-3">
-          <img src="dist/img/<?php echo $foto; ?>" class="rounded-circle mb-2" style="width:70px; height:70px; object-fit: cover;">
-          <div class="text-white font-weight-bold"><?php echo $_SESSION['nama_user']; ?></div>
+
+      <div class="dropdown-menu dropdown-menu-end border-0 shadow-lg rounded-4 mt-2 p-3 animate__animated animate__fadeInDown" style="min-width: 240px;">
+        
+        <div class="d-flex align-items-center mb-3">
+            <img src="dist/img/<?php echo $foto; ?>" class="rounded-circle shadow-sm" style="width:50px; height:50px; object-fit: cover;">
+            <div class="ms-3 overflow-hidden">
+                <h6 class="mb-0 font-weight-bold text-truncate"><?php echo $_SESSION['nama_user']; ?></h6>
+                <small class="text-muted">NIP. <?php echo isset($_SESSION['nip']) ? $_SESSION['nip'] : '-'; ?></small>
+            </div>
         </div>
-        <div class="dropdown-divider m-0 p-0" style="border-top: 1px solid #444;"></div>
-        <div class="p-2">
-          <a href="pages/login/act-logout.php" class="btn btn-block btn-sm btn-primary">Sign out</a>
-        </div>
+
+        <div class="dropdown-divider mb-2"></div>
+
+        <a href="home-admin.php?page=profil-pegawai" class="dropdown-item rounded-2 py-2 mb-1 text-muted hover-primary">
+            <i class="far fa-user-circle me-2 width-20 text-center"></i> Profil Saya
+        </a>
+        <a href="#" class="dropdown-item rounded-2 py-2 mb-1 text-muted hover-primary">
+            <i class="fas fa-cog me-2 width-20 text-center"></i> Pengaturan Akun
+        </a>
+        
+        <div class="dropdown-divider my-2"></div>
+        
+        <a href="pages/login/act-logout.php" class="dropdown-item rounded-2 py-2 text-danger fw-bold hover-danger bg-light-danger">
+            <i class="fas fa-sign-out-alt me-2 width-20 text-center"></i> Sign Out
+        </a>
       </div>
     </li>
   </ul>
 </nav>
+<body class="hold-transition sidebar-mini layout-fixed text-sm pace-info">
+<div class="wrapper">
+
+
+<style>
+  /* ------------------------------------------------------------- */
+/* NAVBAR MODERN STYLING */
+/* ------------------------------------------------------------- */
+
+/* 1. Navbar Base */
+.main-header {
+    /* Efek Glassmorphism (Semi Transparan) agar batik di belakang (jika ada) terlihat samar */
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(0,0,0,0.05) !important;
+}
+
+/* 2. Tombol & Ikon */
+.icon-btn {
+    transition: transform 0.2s;
+    color: #6c757d !important;
+}
+.icon-btn:hover {
+    transform: translateY(-2px);
+    color: #2c3e50 !important;
+}
+
+/* 3. Profile Section (Pill Shape) */
+.profile-link {
+    transition: all 0.3s ease;
+    border: 1px solid transparent !important;
+}
+.profile-link:hover, .profile-link[aria-expanded="true"] {
+    background-color: #fff !important;
+    border-color: #e9ecef !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+/* 4. Modern Dropdown Menu */
+.dropdown-menu {
+    border: none !important;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1) !important;
+    border-radius: 16px !important;
+}
+
+/* Header Dropdown (Notifikasi) */
+.dropdown-header {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+/* Item Dropdown Hover Effect */
+.dropdown-item {
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+.dropdown-item:hover {
+    background-color: #f8f9fa;
+    transform: translateX(3px);
+}
+.hover-primary:hover {
+    color: #007bff !important;
+    background-color: #f0f7ff !important;
+}
+.hover-danger:hover {
+    background-color: #fff5f5 !important;
+    color: #dc3545 !important;
+}
+
+/* 5. Scrollbar Cantik untuk Notifikasi */
+.list-group::-webkit-scrollbar {
+    width: 5px;
+}
+.list-group::-webkit-scrollbar-thumb {
+    background: #dee2e6;
+    border-radius: 10px;
+}
+
+/* Animasi halus saat dropdown muncul */
+@keyframes fadeInDownSmall {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.animate__fadeInDown {
+    animation: fadeInDownSmall 0.3s ease-out forwards;
+}
+
+/* Utilities */
+.width-20 { width: 20px; display: inline-block; }
+</style>
+

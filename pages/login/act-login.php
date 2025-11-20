@@ -76,7 +76,7 @@ if ($op == "in") {
           title: 'Login Berhasil',
           text: 'Selamat datang {$qry['nama_user']}',
           showConfirmButton: false,
-          timer: 1000
+          timer: 4500
         }).then(() => {
           window.location.href = '$redirectPage';
         });
@@ -102,7 +102,7 @@ if ($op == "in") {
       title: 'Logout Berhasil',
       text: 'Anda telah keluar dari sistem.',
       showConfirmButton: false,
-      timer: 1500
+      timer: 4500
     }).then(() => {
       window.location.href = 'index.php';
     });

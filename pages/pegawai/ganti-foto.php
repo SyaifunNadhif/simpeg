@@ -1,63 +1,81 @@
-<section class="content-header">
-    <h1>Change<small>Foto</small></h1>
-    <ol class="breadcrumb">
-        <li><a href="home-admin.php"><i class="fa fa-dashboard"></i>Dashboard</a></li>
-        <li class="active">Foto</li>
-    </ol>
-</section>
-<div class="register-box">
-<?php
-	if (isset($_GET['id_peg'])) {
-	$id_peg = $_GET['id_peg'];
-	}
-	else {
-		die ("Error. No Kode Selected! ");	
-	}
-				
-	if ($_POST['edit'] == "edit") {
-		$foto			=$_FILES['foto']['name'];
-		
-		if (strlen($foto)>0) {
-			if (is_uploaded_file($_FILES['foto']['tmp_name'])) {
-				move_uploaded_file ($_FILES['foto']['tmp_name'], "pages/asset/foto/".$foto);
-			}
-		}
-		
-		if (empty($_FILES['foto']['name'])) {
-		echo "<div class='register-logo'><b>Oops!</b> Data Tidak Lengkap.</div>
-			<div class='box box-primary'>
-				<div class='register-box-body'>
-					<p>Harap periksa kembali foto yang Anda pilih. Data tidak boleh kosong</p>
-					<div class='row'>
-						<div class='col-xs-8'></div>
-						<div class='col-xs-4'>
-							<button type='button' onclick=location.href='home-admin.php?page=form-ganti-foto&id_peg=$id_peg' class='btn btn-block btn-warning'>Back</button>
-						</div>
-					</div>
-				</div>
-			</div>";
-		}
-		else{
-		include "dist/koneksi.php";
-		$update= mysql_query ("UPDATE tb_pegawai SET foto='$foto' WHERE id_peg='$id_peg'");
-		if($update){
-			echo "<div class='register-logo'><b>Edit</b> Successful!</div>	
-				<div class='box box-primary'>
-					<div class='register-box-body'>
-						<p>Edit Foto Pegawai ".$id_peg." Berhasil</p>
-						<div class='row'>
-							<div class='col-xs-8'></div>
-							<div class='col-xs-4'>
-								<button type='button' onclick=location.href='home-admin.php?page=view-detail-data-pegawai&id_peg=$id_peg' class='btn btn-danger btn-block'>Next >></button>
-							</div>
-						</div>
-					</div>
-				</div>";
-		}
-		else {
-			echo "<div class='register-logo'><b>Oops!</b> 404 Error Server.</div>";
-		}
-		}		
-	}
-?>
-</div>
+<?php
+// pages/pegawai/ganti-foto.php
+include __DIR__ . '/../../dist/koneksi.php';
+
+if (!isset($_GET['id_peg'])) die("Error. No Kode Selected!");
+$id_peg = mysqli_real_escape_string($conn, $_GET['id_peg']);
+
+// ambil nama user untuk membuat nama file
+$qn = mysqli_query($conn, "SELECT nama, foto FROM tb_pegawai WHERE id_peg = '$id_peg'");
+if (!$qn || mysqli_num_rows($qn) == 0) {
+    echo "<script>alert('Pegawai tidak ditemukan.'); window.location='home-admin.php?page=form-view-data-pegawai';</script>";
+    exit;
+}
+$row = mysqli_fetch_assoc($qn);
+$nama_full = $row['nama'];
+$oldFile = trim($row['foto']); // nama file lama yang tersimpan di DB (jika ada)
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header("Location: home-admin.php?page=form-ganti-foto&id_peg=" . urlencode($id_peg));
+    exit;
+}
+
+if (empty($_POST['cropped_image'])) {
+    echo "<script>alert('Tidak ada gambar dikirim.'); history.back();</script>";
+    exit;
+}
+
+$data = $_POST['cropped_image'];
+if (!preg_match('/^data:image\/(\w+);base64,/', $data, $m)) {
+    echo "<script>alert('Format gambar tidak dikenali.'); history.back();</script>";
+    exit;
+}
+$type = strtolower($m[1]);
+$data = substr($data, strpos($data, ',') + 1);
+$imgData = base64_decode($data);
+if ($imgData === false) { echo "<script>alert('Decode gambar gagal.'); history.back();</script>"; exit; }
+
+$allowed = ['png','jpg','jpeg','gif'];
+$ext = ($type === 'jpeg') ? 'jpg' : $type;
+if (!in_array($ext, $allowed)) { echo "<script>alert('Tipe gambar tidak diperbolehkan.'); history.back();</script>"; exit; }
+
+// buat nama file berdasarkan nama user (sanitasi) + timestamp
+function safe_name($s) {
+    $s = strtolower($s);
+    $s = preg_replace('/[^a-z0-9\-_\s]/', '', $s);
+    $s = preg_replace('/\s+/', '_', trim($s));
+    return $s;
+}
+$safe = safe_name($nama_full);
+$filename = $safe . '_' . time() . '.' . $ext;
+
+// simpan ke pages/assets/foto/
+$uploadRel = 'pages/assets/foto/';
+$uploadDir = __DIR__ . '/../../' . $uploadRel;
+if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+$filepath = $uploadDir . $filename;
+if (file_put_contents($filepath, $imgData) === false) {
+    echo "<script>alert('Gagal menyimpan file.'); history.back();</script>";
+    exit;
+}
+
+// update DB: simpan hanya nama file (seperti permintaan)
+$stmt = mysqli_prepare($conn, "UPDATE tb_pegawai SET foto = ? WHERE id_peg = ?");
+mysqli_stmt_bind_param($stmt, 'ss', $filename, $id_peg);
+$ok = mysqli_stmt_execute($stmt);
+mysqli_stmt_close($stmt);
+
+if ($ok) {
+    // hapus file lama jika ada (oldFile menyimpan nama file saja)
+    if (!empty($oldFile)) {
+        $oldPath = $uploadDir . $oldFile;
+        if (file_exists($oldPath)) @unlink($oldPath);
+    }
+    // redirect ke profil
+    echo "<script>window.location='home-admin.php?page=profil-pegawai&id_peg=" . urlencode($id_peg) . "';</script>";
+    exit;
+} else {
+    @unlink($filepath);
+    echo "<script>alert('Gagal update database.'); history.back();</script>";
+    exit;
+}

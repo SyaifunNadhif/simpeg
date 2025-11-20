@@ -26,7 +26,7 @@ $set = mysqli_fetch_array($App);
 
   <link rel="shortcut icon" href="dist/favicon.ico" type="image/x-icon" />
 </head>
-<body class="hold-transition login-page">
+<body class="hold-transition login-page sidebar-mini">
       <section class="content">
         <?php
         $page = (isset($_GET['page']))? $_GET['page'] : "main";

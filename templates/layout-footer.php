@@ -1,30 +1,120 @@
+<style>
+/* ... (SEMUA KODE CSS KUSTOM ANDA SEBELUMNYA DI SINI) ... */
+
+/* ------------------------------------------------------------- */
+/* 3. KUSTOMISASI FOOTER (PERBAIKAN FINAL BATIK FULL) */
+/* ------------------------------------------------------------- */
+.main-footer {
+    background-color: #f8f9fa !important; 
+    border-top: none !important; 
+    padding: 10px 15px !important;
+    position: relative; 
+    z-index: 100;
+    overflow: hidden; 
+}
+
+/* Mengatur warna teks copyright agar terlihat jelas */
+.main-footer strong,
+.main-footer a,
+.main-footer {
+    color: #343a40 !important; /* Warna teks hitam/gelap */
+}
+
+/* Mengatur warna teks Version di kanan */
+.main-footer .float-right {
+    color: #495057 !important; /* Warna abu-abu gelap */
+}
+
+/* Motif Batik PENUH DI FOOTER */
+.main-footer::after {
+    content: '';
+    position: absolute;
+    bottom: 0; 
+    left: 0;
+    width: 100%;
+    height: 100%; /* FULL FOOTER */
+    
+    /* GRADASI DIHILANGKAN, LANGSUNG BACKGROUND BATIK */
+    background-image: url('dist/img/batik.png') !important; 
+    
+    background-repeat: repeat;
+    background-position: 0 0;
+    background-size: 100px 100px; 
+    opacity: 0.4; /* Opacity DITINGKATKAN sedikit agar batik terlihat JELAS */
+    z-index: -1; 
+}
+
+/* ... (AKHIR SEMUA KODE CSS KUSTOM ANDA SEBELUMNYA) ... */
+</style>
+
+<style>
+/* KODE CSS KUSTOM SEBELUMNYA DIMASUKKAN DI SINI */
+
+/* ------------------------------------------------------------- */
+/* 3. KUSTOMISASI FOOTER (PERBAIKAN FINAL BATIK FULL) */
+/* ------------------------------------------------------------- */
+.main-footer {
+    background-color: #f8f9fa !important; 
+    border-top: none !important; 
+    padding: 10px 15px !important;
+    position: relative; 
+    z-index: 100;
+    overflow: hidden; 
+}
+
+/* Mengatur warna teks copyright agar terlihat jelas */
+.main-footer strong,
+.main-footer a,
+.main-footer {
+    color: #343a40 !important; /* Warna teks hitam/gelap */
+}
+
+/* Mengatur warna teks Version di kanan */
+.main-footer .float-right {
+    color: #495057 !important; /* Warna abu-abu gelap */
+}
+
+/* Motif Batik PENUH DI FOOTER */
+.main-footer::after {
+    content: '';
+    position: absolute;
+    bottom: 0; 
+    left: 0;
+    width: 100%;
+    height: 100%; /* FULL FOOTER */
+    
+    /* GRADASI DIHILANGKAN, LANGSUNG BACKGROUND BATIK */
+    background-image: url('dist/img/batik.png') !important; 
+    
+    background-repeat: repeat;
+    background-position: 0 0;
+    background-size: 100px 100px; 
+    opacity: 0.4; /* Opacity DITINGKATKAN sedikit agar batik terlihat JELAS */
+    z-index: -1; 
+}
+</style>
 <footer class="main-footer text-sm">
   <strong>
     &copy; <?php echo date('Y'); ?> 
-    <a href="<?php echo isset($set['url_app']) ? $set['url_app'] : '#'; ?>" target="_blank">
-      <?php echo isset($set['nama_app']) ? $set['nama_app'] : 'SIMPEG'; ?>
-    </a>.
+    <?php echo isset($set['nama_app']) ? $set['nama_app'] : 'SIMPEG'; ?>
   </strong>
+  &nbsp;
   All rights reserved.
+  
   <div class="float-right d-none d-sm-inline-block">
     <b>Version</b> 2.0
   </div>
 </footer>
 </div>
 
-<!-- JS Libraries -->
-<!-- jQuery (tidak wajib di Bootstrap 5, tapi bisa tetap dipakai jika masih digunakan di komponen tertentu) -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-<!-- Bootstrap 5 Bundle -->
 <script src="plugins/bootstrap5/js/bootstrap.bundle.min.js"></script>
 
-<!-- AdminLTE and dependencies -->
 <script src="dist/js/adminlte.min.js"></script>
 <script src="plugins/chart.js/Chart.min.js"></script>
 <script src="plugins/overlayScrollbars/js/jquery.overlayScrollbars.min.js"></script>
 
-<!-- DataTables Core & Plugins -->
 <script src="plugins/datatables/jquery.dataTables.min.js"></script>
 <script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
 <script src="plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
@@ -37,10 +127,8 @@
 <script src="plugins/datatables-buttons/js/buttons.html5.min.js"></script>
 <script src="plugins/datatables-buttons/js/buttons.print.min.js"></script>
 
-<!-- Select2 -->
 <script src="plugins/select2/js/select2.full.min.js"></script>
 
-<!-- Enter to next input -->
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     const inputs = Array.from(document.querySelectorAll('input, select, textarea'))
@@ -58,7 +146,6 @@
   });
 </script>
 
-<!-- Atur Sesi User Aktif -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 let timer;
