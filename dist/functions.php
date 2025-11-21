@@ -219,6 +219,9 @@ function getPage($page) {
     // Tambahkan lebih lanjut sesuai kebutuhan Anda...
     // mutasi
     'form-view-data-mutasi'        => 'pages/ref-mutasi/form-view-data-mutasi.php',
+    'form-master-data-mutasi'      => 'pages/ref-mutasi/form-master-data-mutasi.php',
+    'master-data-mutasi'           => 'pages/ref-mutasi/master-data-mutasi.php',
+    'form-edit-data-mutasi'        => 'pages/ref-mutasi/form-edit-data-mutasi.php',
 
 
         // mutasi

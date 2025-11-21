@@ -2,6 +2,7 @@
 # /db/
 # /uploads/
 /vendor/
+/dist/koneksi.php
 # /komponen/
 # /plugins/
 # /docs/
