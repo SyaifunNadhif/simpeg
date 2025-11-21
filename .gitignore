@@ -1,11 +1,11 @@
 # ==== Folder yang tidak perlu di-push ====
-/db/
-/uploads/
+# /db/
+# /uploads/
 /vendor/
-/komponen/
-/plugins/
-/docs/
-/pages/assets/
+# /komponen/
+# /plugins/
+# /docs/
+# /pages/assets/
 
 # ==== File sementara / lokal ====
 /db.sql
