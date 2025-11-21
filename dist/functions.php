@@ -177,6 +177,11 @@ function getPage($page) {
 
     // Ref Pelanggaran
     'form-view-data-pelanggaran'   => 'pages/ref-pelanggaran/form-view-data-pelanggaran.php',
+    'form-edit-data-hukuman'       => 'pages/ref-pelanggaran/edit-data-hukuman.php',
+    'delete-data-hukuman'          => 'pages/ref-pelanggaran/delete-data-hukuman.php',
+    'form-master-data-hukuman'     => 'pages/ref-pelanggaran/form-master-data-pelanggaran.php',
+
+
 
     // Pendidikan
     'form-view-data-pendidikan'        => 'pages/ref-pendidikan/form-view-data-pendidikan.php',
