@@ -10,7 +10,8 @@ include "dist/library.php";
 
 // --- LOGIKA LINK KEMBALI ---
 $hak_akses_user = isset($_SESSION['hak_akses']) ? strtolower($_SESSION['hak_akses']) : '';
-$link_back = ($hak_akses_user === 'admin') ? "home-admin.php?page=dashboard-cabang" : "home-admin.php";
+$link_back = ($hak_akses_user == 'kepala') ? "home-admin.php?page=dashboard-cabang" : "home-admin.php?page=form-view-data-pegawai";
+
 
 // --- QUERY DATA ---
 $sql = "SELECT tb_mutasi.*, 
