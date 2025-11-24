@@ -1,8 +1,8 @@
 <?php
 /*********************************************************
  * FILE    : pages/pelanggaran/form-view-data-hukuman.php
- * MODULE  : Data Pelanggaran (Fix Filter Action 404)
- * VERSION : v4.0
+ * MODULE  : Data Pelanggaran (Fix Table Alignment)
+ * VERSION : v4.3
  *********************************************************/
 
 include "dist/koneksi.php";
@@ -13,17 +13,19 @@ include "dist/library.php";
 // ==========================================
 
 // --- A. FILTER TAHUN ---
-// Default ke tahun sekarang jika tidak ada filter
 $filter_tahun = isset($_GET['tahun']) ? $_GET['tahun'] : date('Y');
 
+// --- LOGIKA LINK KEMBALI ---
+$hak_akses_user = isset($_SESSION['hak_akses']) ? strtolower($_SESSION['hak_akses']) : '';
+$link_back = ($hak_akses_user == 'kepala') ? "home-admin.php?page=dashboard-cabang" : "home-admin.php?page=form-view-data-pegawai";
+
 // --- B. FILTER KANTOR ---
-$hak_akses      = isset($_SESSION['hak_akses']) ? strtolower($_SESSION['hak_akses']) : '';
 $session_kantor = isset($_SESSION['kode_kantor']) ? $_SESSION['kode_kantor'] : '';
 $filter_kantor  = isset($_GET['kantor']) ? $_GET['kantor'] : '';
 
-// Logic Kunci Kantor (Admin Bebas, User Terkunci)
+// Logic Kunci Kantor
 $kantor_locked = false;
-if ($hak_akses !== 'admin') {
+if ($hak_akses_user !== 'admin') {
     $filter_kantor = $session_kantor; 
     $kantor_locked = true;
 }
@@ -38,12 +40,12 @@ $sql = "SELECT h.*, p.nama, p.nip, k.nama_kantor
         LEFT JOIN tb_kantor k ON j.unit_kerja = k.kode_kantor_detail
         WHERE 1=1"; 
 
-// Append Filter Tahun (Jika user memilih tahun tertentu)
+// Append Filter Tahun
 if (!empty($filter_tahun)) {
     $sql .= " AND YEAR(h.tgl_sk) = '$filter_tahun'";
 }
 
-// Append Filter Kantor (Jika user memilih kantor tertentu)
+// Append Filter Kantor
 if (!empty($filter_kantor)) {
     $sql .= " AND j.unit_kerja = '$filter_kantor'";
 }
@@ -77,16 +79,22 @@ $tampilJudge = mysqli_query($conn, $sql);
     }
     .btn-modern:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
     
-    /* Tabel */
-    table.dataTable { margin-top: 0 !important; border-collapse: separate; border-spacing: 0 5px; }
+    /* Tabel Fix Alignment */
+    table.dataTable { margin-top: 0 !important; width: 100% !important; }
     table.dataTable thead th { 
-        background-color: #f8f9fa; border-bottom: 2px solid #e9ecef !important; 
-        color: #495057; font-size: 0.85rem; text-transform: uppercase; 
+        background-color: #f8f9fa; 
+        border-bottom: 2px solid #e9ecef !important; 
+        color: #495057; 
+        font-size: 0.85rem; 
+        text-transform: uppercase; 
         padding: 15px !important; 
+        white-space: nowrap; /* Header jangan wrap */
     }
     table.dataTable tbody td { 
-        padding: 12px 15px !important; vertical-align: middle; 
-        font-size: 0.9rem; background: #fff;
+        padding: 12px 15px !important; 
+        vertical-align: middle; 
+        font-size: 0.9rem; 
+        background: #fff;
     }
     table.dataTable tbody tr:hover td { background: #fdfdfd; }
     .label-filter { font-size: 0.75rem; font-weight: 700; color: #888; text-transform: uppercase; margin-bottom: 5px; display: block; }
@@ -100,7 +108,7 @@ $tampilJudge = mysqli_query($conn, $sql);
                 <p class="text-muted mb-0">Rekap data hukuman disiplin pegawai</p>
             </div>
             <div>
-                <a href="home-admin.php" class="btn btn-light rounded-pill shadow-sm px-4" style="border:1px solid #eee;">
+                <a href="<?= $link_back ?>" class="btn btn-light rounded-pill shadow-sm px-4" style="border:1px solid #eee;">
                     <i class="fa fa-arrow-left mr-2"></i> Kembali
                 </a>
             </div>
@@ -113,9 +121,7 @@ $tampilJudge = mysqli_query($conn, $sql);
         <div class="card card-modern">
             
             <div class="card-header-filter">
-                
                 <form method="GET" action="home-admin.php">
-                    
                     <input type="hidden" name="page" value="form-view-data-pelanggaran"> 
                     
                     <div class="row align-items-end">
@@ -158,11 +164,11 @@ $tampilJudge = mysqli_query($conn, $sql);
                         </div>
 
                         <div class="col-md-5 text-md-right">
-                            <?php if($hak_akses == 'admin' || $hak_akses == 'kepala'): ?>
+                            <?php if($hak_akses_user == 'admin' || $hak_akses_user == 'kepala'): ?>
                                 <a href="home-admin.php?page=form-master-data-hukuman" class="btn btn-info btn-modern mr-1">
                                     <i class="fa fa-plus-circle mr-1"></i> Tambah
                                 </a>
-                                <a href="#" class="btn btn-danger btn-modern">
+                                <a href="home-admin.php?page=form-upload-hukuman" class="btn btn-danger btn-modern">
                                     <i class="fa fa-file-import mr-1"></i> Kolektif
                                 </a>
                             <?php endif; ?>
@@ -174,14 +180,14 @@ $tampilJudge = mysqli_query($conn, $sql);
 
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table id="pelanggaran" class="table w-100 mb-0">
+                    <table id="pelanggaran" class="table w-100 mb-0" style="width: 100%;">
                         <thead>
                             <tr>
-                                <th>Pegawai</th>
-                                <th>Jenis Pelanggaran</th>
-                                <th>Keterangan</th>
-                                <th>Tgl Surat</th>
-                                <th>Kantor</th>
+                                <th width="20%">Pegawai</th>
+                                <th width="15%">Jenis Sanksi</th>
+                                <th width="25%">Keterangan</th>
+                                <th width="10%">Tgl Surat</th>
+                                <th width="15%">Kantor</th>
                                 <th class="text-center" width="10%">Aksi</th>
                             </tr>
                         </thead>
@@ -203,10 +209,10 @@ $tampilJudge = mysqli_query($conn, $sql);
                                     <div class="btn-group">
                                         <a href="home-admin.php?page=view-detail-data-pegawai&id_peg=<?=$peg['id_peg']?>" class="btn btn-sm btn-light text-primary" title="Detail"><i class="fa fa-eye"></i></a>
                                         
-                                        <?php if($hak_akses == 'admin' || $hak_akses == 'kepala'): ?>
+                                        <?php if($hak_akses_user == 'admin' || $hak_akses_user == 'kepala'): ?>
                                             <a href="home-admin.php?page=form-edit-data-hukuman&id_hukum=<?=$peg['id_hukum']?>" class="btn btn-sm btn-light text-warning" title="Edit"><i class="fa fa-edit"></i></a>
-                                            <a href="home-admin.php?page=delete-data-hukuman&id_hukum=<?=$peg['id_hukum']?>" class="btn btn-sm btn-light text-danger" onclick="return confirm('Yakin hapus?')" title="Hapus"><i class="fas fa-trash-alt"></i></a>
-                                        <?php endif; ?>
+                                            
+                                            <?php endif; ?>
                                     </div>
                                 </td>
                             </tr>
@@ -232,7 +238,7 @@ $(document).ready(function () {
     var table = $("#pelanggaran").DataTable({
         "responsive": false,
         "scrollX": true,     
-        "autoWidth": false,
+        "autoWidth": false, // PENTING: Matikan autowidth agar ikut width <th> kita
         "lengthChange": false, 
         "pageLength": 10,
         "order": [[ 3, "desc" ]], 
@@ -248,5 +254,10 @@ $(document).ready(function () {
 
     $('.dataTables_filter input').addClass('form-control input-modern').css('width', '250px');
     $('.dataTables_wrapper').css('padding', '20px');
+    
+    // Paksa refresh layout tabel saat load agar header lurus
+    setTimeout(function(){
+        table.columns.adjust().draw();
+    }, 200);
 });
 </script>

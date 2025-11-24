@@ -177,9 +177,12 @@ function getPage($page) {
 
     // Ref Pelanggaran
     'form-view-data-pelanggaran'   => 'pages/ref-pelanggaran/form-view-data-pelanggaran.php',
-    'form-edit-data-hukuman'       => 'pages/ref-pelanggaran/edit-data-hukuman.php',
+    'form-edit-data-hukuman'       => 'pages/ref-pelanggaran/form-edit-data-hukuman.php',
     'delete-data-hukuman'          => 'pages/ref-pelanggaran/delete-data-hukuman.php',
     'form-master-data-hukuman'     => 'pages/ref-pelanggaran/form-master-data-pelanggaran.php',
+    'master-data-hukuman'          => 'pages/ref-pelanggaran/master-data-hukuman.php',
+    'form-upload-hukuman'          => 'pages/ref-pelanggaran/form-upload-hukuman.php',
+    'proses-upload-hukuman'        => 'pages/ref-pelanggaran/proses-upload-hukuman.php',
 
 
 
@@ -210,6 +213,9 @@ function getPage($page) {
     'form-view-data-diklat'        => 'pages/ref-diklat/form-view-data-diklat.php',
     'form-master-data-diklat'      => 'pages/ref-diklat/form-master-data-diklat.php',    
     'form-import-data-diklat'      => 'pages/ref-diklat/form-import-data-diklat.php',
+    'proses-diklat'                => 'pages/ref-diklat/proses-diklat.php',
+    'import-diklat'                => 'pages/ref-diklat/import-diklat.php',
+    'proses-import-diklat'         => 'pages/ref-diklat/proses-import-diklat.php',
 
     // Laporan
     'nominatif'                    => 'pages/report/nominatif-pegawai.php',
@@ -217,6 +223,7 @@ function getPage($page) {
     'keadaan-pegawai'              => 'pages/report/keadaan-pegawai.php',
 
     // Tambahkan lebih lanjut sesuai kebutuhan Anda...
+    
     // mutasi
     'form-view-data-mutasi'        => 'pages/ref-mutasi/form-view-data-mutasi.php',
     'form-master-data-mutasi'      => 'pages/ref-mutasi/form-master-data-mutasi.php',
@@ -224,7 +231,7 @@ function getPage($page) {
     'form-edit-data-mutasi'        => 'pages/ref-mutasi/form-edit-data-mutasi.php',
 
 
-        // mutasi
+    // diklat
     'master-data-diklat'        => 'pages/ref-diklat/master-data-diklat.php',
     'form-diklat'               => 'pages/ref-diklat/form-diklat.php',
 
