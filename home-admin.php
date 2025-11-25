@@ -2,6 +2,7 @@
 session_start();
 include "dist/koneksi.php";
 include "dist/functions.php";
+// include "cek.php";
 
 //cekAkses(['Admin']);
 aturSessionTimeout(1800, "index.php");
@@ -22,5 +23,7 @@ include "templates/layout-sidebar.php";
     ?>
   </section>
 </div>
+
+
 
 <?php include "templates/layout-footer.php"; ?>

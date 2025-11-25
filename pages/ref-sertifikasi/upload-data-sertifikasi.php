@@ -1,61 +1,166 @@
-<?php 
-// menghubungkan dengan koneksi
-include "dist/koneksi.php";
-// menghubungkan dengan library excel reader
-include "dist/excel_reader2.php";
-?>
-
 <?php
-// upload file xls
-$target = basename($_FILES['FileSertifikasi']['name']) ;
-move_uploaded_file($_FILES['FileSertifikasi']['tmp_name'], $target);
+// =============================================================
+// FILE: pages/sertifikasi/upload-data-sertifikasi.php
+// =============================================================
 
-// beri permisi agar file xls dapat di baca
-chmod($_FILES['FileSertifikasi']['name'],0777);
+require '../../vendor/autoload.php';
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
-// mengambil isi file xls
-$data = new Spreadsheet_Excel_Reader($_FILES['FileSertifikasi']['name'],false);
-// menghitung jumlah baris data yang ada
-$jumlah_baris = $data->rowcount($sheet_index=0);
+// 1. SETTING AGAR JSON BERSIH
+error_reporting(0);
+ini_set('display_errors', 0);
 
-// jumlah default data yang berhasil di import
-$berhasil = 0;
-for ($i=2; $i<=$jumlah_baris; $i++){
+// Mulai buffer output
+ob_start();
+header('Content-Type: application/json');
 
-	// menangkap data dan memasukkan ke variabel sesuai dengan kolumnya masing-masing
-	$id_peg					= $data->val($i, 1);
-	$sertifikasi		= $data->val($i, 2);
-	$penyelenggara	= $data->val($i, 3);
-	$tgl_sertifikat	= $data->val($i, 4);
-	$tgl_expired		= $data->val($i, 5);
-	$sertifikat			= $data->val($i, 6);
-	$date_reg				= $data->val($i, 7);
-
-	
-	if($id_peg != "" && $sertifikasi != "" && $penyelenggara != ""){
-		// input data ke database (table tb_diklat)
-		$insert= "INSERT INTO tb_sertifikasi (id_sertif, id_peg, sertifikasi, penyelenggara, tgl_sertifikat, tgl_expired, sertifikat, date_reg) VALUES ('', '$id_peg', '$sertifikasi', '$penyelenggara', '$tgl_sertifikat', '$tgl_expired', '$sertifikat', '$date_reg')";
-		$query = mysql_query ($insert);
-		$berhasil++;
-	}
+// 2. FUNGSI FORMAT TANGGAL (WAJIB ADA DISINI!)
+// Tanpa ini, proses Simpan akan ERROR FATAL.
+function formatTanggal($date) {
+    if (empty($date) || $date == '-' || $date == '') return NULL;
+    
+    // Cek jika formatnya sudah yyyy-mm-dd
+    if (preg_match("/^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1])$/", $date)) {
+        return $date;
+    }
+    
+    // Coba ubah dari d-m-Y atau d/m/Y
+    try {
+        $timestamp = strtotime(str_replace('/', '-', $date));
+        return $timestamp ? date('Y-m-d', $timestamp) : NULL;
+    } catch (Exception $e) {
+        return NULL;
+    }
 }
 
+try {
+    // 3. KONEKSI DATABASE
+    $path_koneksi = '../../dist/koneksi.php'; 
+    if (!file_exists($path_koneksi)) throw new Exception("File koneksi tidak ditemukan");
+    include $path_koneksi;
 
+    // 4. CEK REQUEST
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') throw new Exception("Invalid Request Method");
 
-// hapus kembali file .xls yang di upload tadi
-unlink($_FILES['FileSertifikasi']['name']);
+    $action = isset($_POST['action']) ? $_POST['action'] : '';
 
-// alihkan halaman ke index.php
-echo "<div class='register-logo'><b>Input Data</b> Successful!</div>
-				<div class='box box-primary'>
-					<div class='register-box-body'>
-						<p>Input Data Diklat Berhasil</p>
-						<div class='row'>
-							<div class='col-xs-8'></div>
-							<div class='col-xs-4'>
-								<button type='button' onclick=location.href='home-admin.php?page=form-master-data-diklat' class='btn btn-danger btn-block'>Next >></button>
-							</div>
-						</div>
-					</div>
-				</div>";
-?>
+    // =========================================================
+    // BAGIAN A: PREVIEW DATA
+    // =========================================================
+    if ($action === 'preview') {
+        if (!isset($_FILES['file_excel'])) throw new Exception("File belum dipilih");
+
+        $file = $_FILES['file_excel'];
+        $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+        if (!in_array(strtolower($ext), ['xls', 'xlsx'])) throw new Exception("Format harus Excel (.xlsx)");
+
+        $spreadsheet = IOFactory::load($file['tmp_name']);
+        $sheet = $spreadsheet->getActiveSheet();
+        $rows = $sheet->toArray();
+
+        if (count($rows) <= 1) throw new Exception("File Excel kosong");
+
+        // Pisahkan Header
+        $header = array_shift($rows); 
+
+        // Buat HTML Tabel
+        $html = '<div class="table-responsive">';
+        $html .= '<table class="table table-bordered table-striped table-sm text-nowrap" style="font-size: 0.9em;">';
+        $html .= '<thead class="bg-info"><tr>';
+        foreach ($header as $col) {
+            $html .= '<th>' . htmlspecialchars($col) . '</th>';
+        }
+        $html .= '</tr></thead><tbody>';
+
+        $limit = 10;
+        $count = 0;
+        foreach ($rows as $row) {
+            if ($count >= $limit) break;
+            $html .= '<tr>';
+            foreach ($row as $cell) {
+                $html .= '<td>' . htmlspecialchars($cell) . '</td>';
+            }
+            $html .= '</tr>';
+            $count++;
+        }
+        $html .= '</tbody></table></div>';
+        
+        if (count($rows) > $limit) {
+            $html .= '<div class="alert alert-warning text-center p-1"><small>... menampilkan 10 dari ' . count($rows) . ' data.</small></div>';
+        }
+
+        $html .= '<hr>';
+        $html .= '<div class="text-right">';
+        $html .= '<button type="button" class="btn btn-success" id="btnSimpanKolektif"><i class="fas fa-save"></i> Simpan Semua ke Database</button>';
+        $html .= '</div>';
+        
+        $json_rows = json_encode($rows);
+        $html .= '<textarea id="json_data_sertifikasi" style="display:none;">' . $json_rows . '</textarea>';
+
+        ob_clean();
+        echo json_encode(['status' => 'success', 'html' => $html]);
+        exit;
+    }
+
+    // =========================================================
+    // BAGIAN B: SIMPAN DATA
+    // =========================================================
+    elseif ($action === 'save') {
+        if (!isset($_POST['data_sertifikasi'])) throw new Exception("Data tidak diterima");
+
+        $data = json_decode($_POST['data_sertifikasi'], true);
+        if (!$data) throw new Exception("Data korup");
+
+        $berhasil = 0;
+        $gagal = 0;
+        $pesan_error = "";
+
+        foreach ($data as $row) {
+            // MAPPING DATA
+            $id_peg = isset($row[0]) ? mysqli_real_escape_string($conn, $row[0]) : '';
+            
+            // Skip jika ID kosong
+            if(empty($id_peg)) continue;
+
+            $sertifikasi            = isset($row[1]) ? mysqli_real_escape_string($conn, $row[1]) : '';
+            $penyelenggara           = isset($row[2]) ? mysqli_real_escape_string($conn, $row[2]) : '';
+            $tempat_lhr     = isset($row[3]) ? mysqli_real_escape_string($conn, $row[3]) : '';
+            $tgl_sertifikat        = isset($row[4]) ? formatTanggal($row[4]) : NULL; // Panggil Fungsi
+            
+            $tgl_expired = isset($row[5]) ? formatTanggal($row[5]) : NULL; // Panggil Fungsi
+            $sertifikat         = isset($row[6]) ? mysqli_real_escape_string($conn, $row[6]) : '';
+          
+            // Cek Duplikat ID sertifikasi
+            // $cek = mysqli_query($conn, "SELECT id_peg FROM tb_sertifikasi_fix WHERE id_peg = '$id_peg'");
+            
+            // if (mysqli_num_rows($cek) == 0) {
+                // QUERY INSERT
+                $query = "INSERT INTO tb_sertifikasi (
+                    id_peg, sertifikasi, penyelenggara, tgl_sertifikat, tgl_expired, sertifikat
+                ) VALUES (
+                    '$id_peg', '$sertifikasi', '$penyelenggara', '$tgl_sertifikat', '$tgl_expired', '$sertifikat'
+                )";
+
+                if (mysqli_query($conn, $query)) {
+                    $berhasil++;
+                } else {
+                    $gagal++;
+                    // Simpan pesan error MySQL untuk debugging (opsional)
+                    // $pesan_error = mysqli_error($conn);
+                }
+
+        }
+
+        ob_clean();
+        echo json_encode([
+            'status' => 'success', 
+            'message' => "Proses Selesai! Data Masuk: $berhasil, Gagal/Duplikat: $gagal"
+        ]);
+        exit;
+    }
+
+} catch (Exception $e) {
+    ob_clean();
+    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    exit;
+}
