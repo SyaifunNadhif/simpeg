@@ -203,6 +203,7 @@ function getPage($page) {
     'daftar-user'                   => 'pages/user/daftar-user.php',
     'form-user'                     => 'pages/user/form-user.php',
     'simpan-user'                   => 'pages/user/simpan-user.php',
+    'proses-user'                  => 'pages/user/proses-user.php',
 
     // Sertifikasi (contoh tambahan)
     'form-view-data-sertifikasi'   => 'pages/ref-sertifikasi/form-view-data-sertifikasi.php',

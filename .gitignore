@@ -6,7 +6,7 @@
 # /komponen/
 # /plugins/
 # /docs/
-# /pages/assets/
+/pages/assets/
 
 # ==== File sementara / lokal ====
 /db.sql
