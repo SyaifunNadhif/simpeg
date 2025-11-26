@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Form Pengaduan Nasabah</title>
+  <style>
+    label { font-weight: bold; display: block; margin-top: 10px; }
+    input, textarea { width: 100%; padding: 8px; margin-top: 5px; }
+    button { margin-top: 15px; padding: 10px; background: green; color: #fff; border: none; cursor: pointer; }
+    button:hover { opacity: .8; }
+  </style>
+</head>
+<body>
+  <h2>Form Pengaduan Nasabah</h2>
+  <form id="pengaduanForm">
+    <label>Nama Nasabah:</label>
+    <input type="text" id="nama" required>
+
+    <label>No Rekening:</label>
+    <input type="text" id="rekening" required>
+
+    <label>No Telepon:</label>
+    <input type="text" id="telepon" required>
+
+    <label>Jenis Pengaduan:</label>
+    <input type="text" id="jenis" required>
+
+    <label>Detail Pengaduan:</label>
+    <textarea id="detail" rows="4" required></textarea>
+
+    <button type="submit">Kirim ke Call Center</button>
+  </form>
+
+  <script>
+    document.getElementById('pengaduanForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const nama = document.getElementById('nama').value;
+      const rekening = document.getElementById('rekening').value;
+      const telepon = document.getElementById('telepon').value;
+      const jenis = document.getElementById('jenis').value;
+      const detail = document.getElementById('detail').value;
+
+      const message =
+        `*PENGADUAN NASABAH*%0A%0A` +
+        `Nama: ${nama}%0A` +
+        `Rekening: ${rekening}%0A` +
+        `Telepon: ${telepon}%0A` +
+        `Jenis Pengaduan: ${jenis}%0A` +
+        `Detail: ${detail}`;
+
+      // ganti nomor WA berikut dengan nomor Call Center (format internasional tanpa +, misal 628xxxxxxx)
+      const waNumber = "6288228659668";
+
+      window.open(`https://wa.me/${waNumber}?text=${message}`, '_blank');
+    });
+  </script>
+</body>
+</html>

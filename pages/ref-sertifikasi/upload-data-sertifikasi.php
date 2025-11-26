@@ -1,30 +1,24 @@
 <?php
 // =============================================================
-// FILE: pages/sertifikasi/upload-data-sertifikasi.php
+// FILE: pages/ref-sertifikasi/upload-data-sertifikasi.php
 // =============================================================
 
 require '../../vendor/autoload.php';
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
-// 1. SETTING AGAR JSON BERSIH
+// 1. SETTING AGAR JSON BERSIH & AMAN
 error_reporting(0);
 ini_set('display_errors', 0);
 
-// Mulai buffer output
 ob_start();
 header('Content-Type: application/json');
 
-// 2. FUNGSI FORMAT TANGGAL (WAJIB ADA DISINI!)
-// Tanpa ini, proses Simpan akan ERROR FATAL.
+// 2. FUNGSI FORMAT TANGGAL
 function formatTanggal($date) {
     if (empty($date) || $date == '-' || $date == '') return NULL;
-    
-    // Cek jika formatnya sudah yyyy-mm-dd
     if (preg_match("/^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1])$/", $date)) {
         return $date;
     }
-    
-    // Coba ubah dari d-m-Y atau d/m/Y
     try {
         $timestamp = strtotime(str_replace('/', '-', $date));
         return $timestamp ? date('Y-m-d', $timestamp) : NULL;
@@ -39,7 +33,6 @@ try {
     if (!file_exists($path_koneksi)) throw new Exception("File koneksi tidak ditemukan");
     include $path_koneksi;
 
-    // 4. CEK REQUEST
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') throw new Exception("Invalid Request Method");
 
     $action = isset($_POST['action']) ? $_POST['action'] : '';
@@ -60,13 +53,12 @@ try {
 
         if (count($rows) <= 1) throw new Exception("File Excel kosong");
 
-        // Pisahkan Header
         $header = array_shift($rows); 
 
         // Buat HTML Tabel
         $html = '<div class="table-responsive">';
         $html .= '<table class="table table-bordered table-striped table-sm text-nowrap" style="font-size: 0.9em;">';
-        $html .= '<thead class="bg-info"><tr>';
+        $html .= '<thead class="bg-primary"><tr>';
         foreach ($header as $col) {
             $html .= '<th>' . htmlspecialchars($col) . '</th>';
         }
@@ -86,14 +78,18 @@ try {
         $html .= '</tbody></table></div>';
         
         if (count($rows) > $limit) {
-            $html .= '<div class="alert alert-warning text-center p-1"><small>... menampilkan 10 dari ' . count($rows) . ' data.</small></div>';
+            $html .= '<div class="alert alert-info text-center p-1"><small>... menampilkan 10 dari ' . count($rows) . ' data.</small></div>';
         }
 
         $html .= '<hr>';
         $html .= '<div class="text-right">';
-        $html .= '<button type="button" class="btn btn-success" id="btnSimpanKolektif"><i class="fas fa-save"></i> Simpan Semua ke Database</button>';
+        
+        // [PENTING!!!] ID INI HARUS 'btnSimpanSertifikasi' AGAR BISA DIKLIK
+        $html .= '<button type="button" class="btn btn-primary" id="btnSimpanSertifikasi"><i class="fas fa-save"></i> Simpan Sertifikasi</button>';
+        
         $html .= '</div>';
         
+        // [PENTING!!!] ID INI HARUS 'json_data_sertifikasi'
         $json_rows = json_encode($rows);
         $html .= '<textarea id="json_data_sertifikasi" style="display:none;">' . $json_rows . '</textarea>';
 
@@ -106,55 +102,43 @@ try {
     // BAGIAN B: SIMPAN DATA
     // =========================================================
     elseif ($action === 'save') {
-        if (!isset($_POST['data_sertifikasi'])) throw new Exception("Data tidak diterima");
+        // [PENTING] Tangkap 'data_sertifikasi'
+        if (!isset($_POST['data_sertifikasi'])) throw new Exception("Data tidak diterima (Key mismatch)");
 
         $data = json_decode($_POST['data_sertifikasi'], true);
-        if (!$data) throw new Exception("Data korup");
+        if (!$data) throw new Exception("Data korup/kosong");
 
         $berhasil = 0;
         $gagal = 0;
-        $pesan_error = "";
 
         foreach ($data as $row) {
-            // MAPPING DATA
+            // Mapping Index
             $id_peg = isset($row[0]) ? mysqli_real_escape_string($conn, $row[0]) : '';
-            
-            // Skip jika ID kosong
             if(empty($id_peg)) continue;
 
-            $sertifikasi            = isset($row[1]) ? mysqli_real_escape_string($conn, $row[1]) : '';
-            $penyelenggara           = isset($row[2]) ? mysqli_real_escape_string($conn, $row[2]) : '';
-            $tempat_lhr     = isset($row[3]) ? mysqli_real_escape_string($conn, $row[3]) : '';
-            $tgl_sertifikat        = isset($row[4]) ? formatTanggal($row[4]) : NULL; // Panggil Fungsi
-            
-            $tgl_expired = isset($row[5]) ? formatTanggal($row[5]) : NULL; // Panggil Fungsi
-            $sertifikat         = isset($row[6]) ? mysqli_real_escape_string($conn, $row[6]) : '';
-          
-            // Cek Duplikat ID sertifikasi
-            // $cek = mysqli_query($conn, "SELECT id_peg FROM tb_sertifikasi_fix WHERE id_peg = '$id_peg'");
-            
-            // if (mysqli_num_rows($cek) == 0) {
-                // QUERY INSERT
-                $query = "INSERT INTO tb_sertifikasi (
-                    id_peg, sertifikasi, penyelenggara, tgl_sertifikat, tgl_expired, sertifikat
-                ) VALUES (
-                    '$id_peg', '$sertifikasi', '$penyelenggara', '$tgl_sertifikat', '$tgl_expired', '$sertifikat'
-                )";
+            $sertifikasi    = isset($row[1]) ? mysqli_real_escape_string($conn, $row[1]) : '';
+            $penyelenggara  = isset($row[2]) ? mysqli_real_escape_string($conn, $row[2]) : '';
+            $tgl_sertifikat = isset($row[3]) ? formatTanggal($row[3]) : NULL;
+            $tgl_expired    = isset($row[4]) ? formatTanggal($row[4]) : NULL;
+            $no_sertifikat  = isset($row[5]) ? mysqli_real_escape_string($conn, $row[5]) : '';
 
-                if (mysqli_query($conn, $query)) {
-                    $berhasil++;
-                } else {
-                    $gagal++;
-                    // Simpan pesan error MySQL untuk debugging (opsional)
-                    // $pesan_error = mysqli_error($conn);
-                }
+            $query = "INSERT INTO tb_sertifikasi (
+                id_peg, sertifikasi, penyelenggara, tgl_sertifikat, tgl_expired, sertifikat
+            ) VALUES (
+                '$id_peg', '$sertifikasi', '$penyelenggara', '$tgl_sertifikat', '$tgl_expired', '$no_sertifikat'
+            )";
 
+            if (mysqli_query($conn, $query)) {
+                $berhasil++;
+            } else {
+                $gagal++;
+            }
         }
 
         ob_clean();
         echo json_encode([
             'status' => 'success', 
-            'message' => "Proses Selesai! Data Masuk: $berhasil, Gagal/Duplikat: $gagal"
+            'message' => "Proses Selesai! Data Masuk: $berhasil, Gagal: $gagal"
         ]);
         exit;
     }

@@ -1,113 +1,169 @@
 <?php
-/***********************
- * FILE    : pages/ref-pendidikan/form-import-data-pendidikan.php
- * VERSION : v1.2 (PHP 5.6)
- * DATE    : 2025-09-07
- * CHANGELOG
- * - v1.2: Insert tanpa ID manual (id_pendidikan auto). Kolom id_sekolah opsional ('' jika tidak diisi).
- ***********************/
-if (session_id()==='') session_start();
-@include_once __DIR__ . '/../../dist/koneksi.php';
-if (!isset($conn)) { @include_once __DIR__ . '/../../config/koneksi.php'; $conn = isset($koneksi)?$koneksi:null; }
-function e($s){ return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
+// ===========================================================
+// FILE: pages/ref-pendidikan/form-import-data-pendidikan.php
+// ===========================================================
+
+$page_title = "Import Data";
+$page_subtitle = "Riwayat Pendidikan";
+$breadcrumbs = [
+  ["label" => "Dashboard", "url" => "home-admin.php"],
+  ["label" => "Import Pendidikan"]
+];
+include "komponen/header.php";
 ?>
-<!DOCTYPE html><html lang="id"><head>
-  <meta charset="utf-8"><title>Impor Data Pendidikan</title>
-  <link rel="stylesheet" href="assets/css/bootstrap.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <style>.card{border-radius:14px;border:1px solid rgba(0,0,0,.05);box-shadow:0 6px 24px rgba(0,0,0,.06)}.card-header{background:linear-gradient(90deg,#2563eb,#0ea5e9);color:#fff;border-radius:14px 14px 0 0}</style>
-</head><body>
-<div class="container mt-3">
-  <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <div>
-        <h5 class="mb-0">Impor Data Pendidikan</h5>
-        <small>Unggah file CSV/XLSX sesuai template</small>
-      </div>
-    </div>
-    <div class="card-body">
-      <?php $flash=isset($_SESSION['flash_msg'])?$_SESSION['flash_msg']:''; unset($_SESSION['flash_msg']); if($flash!==''):?>
-        <script>Swal.fire({icon:'info',title:'Informasi',html: <?php echo json_encode($flash); ?>});</script>
-      <?php endif; ?>
-      <div class="mb-2 d-flex flex-wrap gap-2">
-        <a class="btn btn-sm btn-outline-primary"
-        href="pages/ref-pendidikan/templates/pendidikan-template.xlsx" download>Unduh Template XLSX</a>
-        <a class="btn btn-sm btn-outline-success"
-        href="pages/ref-pendidikan/templates/pendidikan-template.csv" download>Unduh Template CSV</a>
-      </div>
-      <div class="mb-2"><b>Header Template:</b>
-        <pre class="mb-0">id_peg, id_sekolah (opsional), jenjang, nama_sekolah, lokasi, jurusan, th_masuk, th_lulus, no_ijazah, tgl_ijazah, kepala, status</pre>
-      </div>
-      <form method="post" enctype="multipart/form-data" class="row g-3" action="home-admin.php?page=form-import-data-pendidikan">
-        <div class="col-md-6">
-          <label class="form-label">File CSV/XLSX</label>
-          <input type="file" name="file_import" class="form-control" accept=".csv,.xlsx" required>
+
+<style>
+    .upload-container { background: #fff; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); padding: 30px; }
+    .drop-zone { border: 2px dashed #cbd5e0; border-radius: 15px; padding: 40px; text-align: center; background-color: #f8fafc; transition: all 0.3s ease; cursor: pointer; position: relative; }
+    .drop-zone:hover { border-color: #28a745; background-color: #e8f5e9; transform: scale(1.01); }
+    .drop-zone i { color: #a0aec0; transition: color 0.3s; }
+    .drop-zone:hover i { color: #28a745; }
+    .file-input-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; }
+    .file-preview { display: none; margin-top: 20px; padding: 15px; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    .step-badge { background: #28a745; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-block; text-align: center; line-height: 28px; font-weight: bold; margin-right: 10px; }
+</style>
+
+<section class="content">
+  <div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="upload-container">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3 class="m-0 font-weight-bold text-dark"><i class="fas fa-file-import text-success mr-2"></i> Import Pendidikan</h3>
+                    <a href="home-admin.php?page=view-data-pendidikan" class="btn btn-light btn-sm rounded-pill px-3"><i class="fas fa-times"></i> Tutup</a>
+                </div>
+
+                <div class="alert alert-secondary bg-white border shadow-sm rounded-lg mb-4">
+                    <div class="d-flex align-items-center">
+                        <span class="step-badge">1</span>
+                        <div class="flex-grow-1">
+                            <h6 class="m-0 text-dark font-weight-bold">Persiapan Data</h6>
+                            <small class="text-muted">Gunakan template resmi ini.</small>
+                        </div>
+                        <a href="pages/ref-pendidikan/download-template-pendidikan.php" target="_blank" class="btn btn-success btn-sm rounded-pill px-4 shadow-sm">
+                            <i class="fas fa-download mr-1"></i> Download Excel
+                        </a>
+                    </div>
+                </div>
+
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <div class="d-flex align-items-center mb-3">
+                            <span class="step-badge">2</span>
+                            <h6 class="m-0 text-dark font-weight-bold">Upload File Excel</h6>
+                        </div>
+                        <div class="drop-zone" id="dropZone">
+                            <div class="content-wrap">
+                                <i class="fas fa-cloud-upload-alt fa-4x mb-3 text-secondary"></i>
+                                <h5 class="font-weight-bold text-dark">Klik atau Tarik File ke Sini</h5>
+                                <p class="text-muted mb-0 small">Support: .xlsx, .xls (Maks 5MB)</p>
+                            </div>
+                            <input type="file" name="file_excel" id="file_excel" class="file-input-overlay" accept=".xlsx, .xls" required>
+                        </div>
+                        <div id="filePreview" class="file-preview">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-file-excel text-success fa-2x mr-3"></i>
+                                <div><h6 class="m-0 font-weight-bold text-dark" id="fileName">file.xlsx</h6><small class="text-muted" id="fileSize">0 KB</small></div>
+                                <div class="ml-auto"><span class="text-success"><i class="fas fa-check-circle"></i> Siap</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg rounded-pill px-5 shadow-sm"><i class="fas fa-eye mr-2"></i> Preview Data</button>
+                    </div>
+                </form>
+
+                <div id="preview-area" class="mt-5"></div>
+            </div>
         </div>
-        <div class="col-12 d-flex justify-content-between mt-2">
-          <a class="btn btn-light" href="home-admin.php?page=form-view-data-pendidikan">Batal</a>
-          <button class="btn btn-primary" type="submit">Proses Impor</button>
-        </div>
-      </form>
     </div>
   </div>
-</div>
-</body></html>
-<?php
-// ==== Proses Import ====
-if($_SERVER['REQUEST_METHOD']==='POST' && isset($_FILES['file_import'])){
-  function clean($c,$s){ return mysqli_real_escape_string($c, trim($s)); }
-  function toDate($s){ $s=trim($s); if($s==='')return ''; if(preg_match('~^\n?\r?\d{2}/\d{2}/\d{4}$~',$s)){ $a=explode('/',$s); return $a[2].'-'.$a[1].'-'.$a[0]; } if(is_numeric($s)&&$s>25569){ $ts=((int)$s-25569)*86400; return gmdate('Y-m-d',$ts);} return $s; }
+</section>
 
-  $fn=$_FILES['file_import']['name']; $tmp=$_FILES['file_import']['tmp_name']; $ext=strtolower(pathinfo($fn,PATHINFO_EXTENSION));
-  $rows=array();
-  if($ext==='csv'){
-    if(($h=fopen($tmp,'r'))!==false){ $hdr=fgetcsv($h,0,','); foreach($hdr as $k=>$v){$hdr[$k]=strtolower(trim($v));}
-      while(($d=fgetcsv($h,0,','))!==false){ $r=array(); foreach($hdr as $i=>$hname){ $r[$hname]=isset($d[$i])?trim($d[$i]):''; } if(!empty(array_filter($r)))$rows[]=$r; } fclose($h);
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+// UI Logic
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('file_excel');
+const filePreview = document.getElementById('filePreview');
+const fileNameTxt = document.getElementById('fileName');
+const fileSizeTxt = document.getElementById('fileSize');
+
+['dragenter', 'dragover'].forEach(evt => dropZone.addEventListener(evt, (e) => { e.preventDefault(); dropZone.classList.add('dragover'); }));
+['dragleave', 'drop'].forEach(evt => dropZone.addEventListener(evt, (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); }));
+
+fileInput.addEventListener('change', function() {
+    if (this.files.length) {
+        filePreview.style.display = 'block';
+        fileNameTxt.textContent = this.files[0].name;
+        fileSizeTxt.textContent = (this.files[0].size / 1024).toFixed(2) + ' KB';
     }
-  } elseif($ext==='xlsx'){
-    $p=__DIR__.'/../../plugins/phpexcel/Classes/PHPExcel.php'; if(file_exists($p)){
-      require_once $p; $obj= PHPExcel_IOFactory::load($tmp); $sh=$obj->getSheet(0);
-      $hr=$sh->getHighestRow(); $hc=PHPExcel_Cell::columnIndexFromString($sh->getHighestColumn()); $hdr=array();
-      for($c=0;$c<$hc;$c++){ $hdr[$c]=strtolower(trim((string)$sh->getCellByColumnAndRow($c,1)->getValue())); }
-      for($r=2;$r<=$hr;$r++){ $row=array(); for($c=0;$c<$hc;$c++){ $row[$hdr[$c]]=trim((string)$sh->getCellByColumnAndRow($c,$r)->getValue()); } if(!empty(array_filter($row)))$rows[]=$row; }
-    } else { $_SESSION['flash_msg']='Library PHPExcel tidak ditemukan.'; header('Location: home-admin.php?page=form-import-data-pendidikan'); exit; }
-  }
+});
 
-  if(!empty($rows)){
-    $ins=0;$fail=0;$log=array(); $today=date('Y-m-d');
-    mysqli_begin_transaction($conn);
+// PREVIEW LOGIC
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    if (!fileInput.files.length) { Swal.fire('Warning', 'Pilih file dulu!', 'warning'); return; }
 
-    foreach($rows as $i=>$r){
-      $rowno=$i+2;
-      $id_peg=clean($conn,isset($r['id_peg'])?$r['id_peg']:'');
-      $id_sekolah=clean($conn,isset($r['id_sekolah'])?$r['id_sekolah']:''); // opsional
-      $jenjang=clean($conn,isset($r['jenjang'])?$r['jenjang']:'');
-      $nama_sekolah=clean($conn,isset($r['nama_sekolah'])?$r['nama_sekolah']:'');
-      $lokasi=clean($conn,isset($r['lokasi'])?$r['lokasi']:'');
-      $jurusan=clean($conn,isset($r['jurusan'])?$r['jurusan']:'');
-      $th_masuk=clean($conn,isset($r['th_masuk'])?$r['th_masuk']:'');
-      $th_lulus=clean($conn,isset($r['th_lulus'])?$r['th_lulus']:'');
-      $no_ijazah=clean($conn,isset($r['no_ijazah'])?$r['no_ijazah']:'');
-      $tgl_ijazah=clean($conn,toDate(isset($r['tgl_ijazah'])?$r['tgl_ijazah']:''));
-      $kepala=clean($conn,isset($r['kepala'])?$r['kepala']:'');
-      $status_p=clean($conn,isset($r['status'])?$r['status']:'');
+    const formData = new FormData();
+    formData.append('file_excel', fileInput.files[0]);
+    formData.append('action', 'preview');
 
-      if($id_peg==='' || $jenjang==='' || $nama_sekolah===''){ $fail++; $log[]='Baris '.$rowno.': id_peg/jenjang/nama_sekolah kosong'; continue; }
+    Swal.fire({title: 'Memproses...', didOpen: () => Swal.showLoading()});
 
-      // duplikat kasar: jenjang+sekolah+th_lulus per pegawai
-      $qdup=mysqli_query($conn,"SELECT 1 FROM tb_pendidikan WHERE id_peg='{$id_peg}' AND jenjang='{$jenjang}' AND nama_sekolah='{$nama_sekolah}' AND th_lulus='{$th_lulus}' LIMIT 1");
-      if($qdup && mysqli_num_rows($qdup)>0){ $fail++; $log[]='Baris '.$rowno.': duplikat (jenjang+sekolah+th_lulus)'; continue; }
+    fetch('pages/ref-pendidikan/upload-data-pendidikan.php', { method: 'POST', body: formData })
+    .then(res => res.json())
+    .then(res => {
+        Swal.close();
+        if (res.status === 'success') {
+            document.getElementById('preview-area').innerHTML = res.html;
+            document.getElementById('preview-area').scrollIntoView({ behavior: 'smooth' });
+            Swal.fire({icon: 'success', title: 'Preview Berhasil', timer: 1500, showConfirmButton: false});
+        } else {
+            Swal.fire('Gagal', res.message, 'error');
+        }
+    }).catch(err => Swal.fire('Error', 'Server Error', 'error'));
+});
 
-      $sql="INSERT INTO tb_pendidikan
-           (id_peg,id_peg_old,id_sekolah,jenjang,nama_sekolah,lokasi,jurusan,no_ijazah,tgl_ijazah,kepala,status,th_masuk,th_lulus,date_reg,created_by)
-           VALUES
-           ('{$id_peg}',NULL,".($id_sekolah!==''?"'{$id_sekolah}'":"''").",'{$jenjang}','{$nama_sekolah}','{$lokasi}','{$jurusan}','{$no_ijazah}','{$tgl_ijazah}','{$kepala}','{$status_p}','{$th_masuk}','{$th_lulus}','{$today}','import')";
-      $ok=mysqli_query($conn,$sql); if($ok)$ins++; else { $fail++; $log[]='Baris '.$rowno.' gagal simpan'; }
+// SIMPAN LOGIC
+document.body.addEventListener('click', function(e) {
+    if (e.target && (e.target.id == 'btnSimpanPendidikan' || e.target.closest('#btnSimpanPendidikan'))) {
+        e.preventDefault();
+        const textArea = document.getElementById('json_data_pendidikan');
+        
+        if(!textArea) { Swal.fire('Error', 'Data hilang. Upload ulang.', 'error'); return; }
+
+        Swal.fire({
+            title: 'Simpan Pendidikan?',
+            text: "Pastikan data sudah benar.",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#28a745',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Ya, Simpan!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                simpanKeDatabase(textArea.value);
+            }
+        });
     }
+});
 
-    if($fail>0){ mysqli_rollback($conn); $_SESSION['flash_msg']='Impor gagal sebagian. Sukses: '.$ins.', Gagal: '.$fail.'<br>'.e(implode('<br>',$log)); }
-    else { mysqli_commit($conn); $_SESSION['flash_msg']='Impor selesai. Sukses: '.$ins; }
-  } else { $_SESSION['flash_msg']='Tidak ada data terbaca.'; }
-  header('Location: home-admin.php?page=form-import-data-pendidikan'); exit;
-}
-?>
+function simpanKeDatabase(jsonData) {
+    const formData = new FormData();
+    formData.append('action', 'save');
+    formData.append('data_pendidikan', jsonData); 
+
+    Swal.fire({title: 'Menyimpan...', didOpen: () => Swal.showLoading()});
+
+    fetch('pages/ref-pendidikan/upload-data-pendidikan.php', { method: 'POST', body: formData })
+    .then(res => res.json())
+    .then(res => {
+        if (res.status === 'success') {
+            Swal.fire('Sukses!', res.message, 'success').then(() => {
+                window.location.href = "home-admin.php?page=form-view-data-pendidikan"; 
+            });
+        } else {
+            Swal.fire('Gagal', res.message, 'error');
+        }
+    }).catch(err => Swal.fire('Error', 'Koneksi Gagal', 'error'));
