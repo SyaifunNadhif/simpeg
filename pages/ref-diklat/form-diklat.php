@@ -1,8 +1,8 @@
 <?php
 /*********************************************************
  * FILE    : pages/diklat/form-diklat.php
- * MODULE  : Form Diklat (Fix Searchable Dropdown)
- * VERSION : v2.1
+ * MODULE  : Form Diklat (Added Biaya Column)
+ * VERSION : v2.2
  *********************************************************/
 
 if (session_id() == '') session_start();
@@ -26,9 +26,17 @@ if ($hak_akses !== 'admin') {
 // --- 2. INISIALISASI DATA ---
 $id = isset($_GET['id']) ? mysqli_real_escape_string($conn, $_GET['id']) : '';
 $isEdit = ($id != '');
+
+// Default data (Perhatikan penambahan key 'biaya')
 $data = [
-  "id_peg" => "", "diklat" => "", "penyelenggara" => "", "tempat" => "",
-  "angkatan" => "", "tahun" => date('Y'), "date_reg" => date('Y-m-d')
+  "id_peg" => "", 
+  "diklat" => "", 
+  "penyelenggara" => "", 
+  "tempat" => "",
+  "biaya" => "", // NEW: Kolom biaya
+  "angkatan" => "", 
+  "tahun" => date('Y'), 
+  "date_reg" => date('Y-m-d')
 ];
 
 if ($isEdit) {
@@ -130,6 +138,23 @@ $qPegawai = mysqli_query($conn, "SELECT id_peg, nama FROM tb_pegawai $where_pega
                             </div>
 
                             <div class="row">
+                                <div class="col-md-12 mb-3">
+                                    <div class="form-group">
+                                        <label class="form-label-modern">Biaya Diklat (Rp)</label>
+                                        <div class="input-group">
+                                            <div class="input-group-prepend">
+                                                <span class="input-group-text bg-white border-right-0" style="border-radius: 10px 0 0 10px; border-color: #e2e8f0;">Rp</span>
+                                            </div>
+                                            <input type="number" name="biaya" class="form-control input-modern border-left-0" style="border-radius: 0 10px 10px 0;" 
+                                                   value="<?= htmlspecialchars($data['biaya']) ?>" 
+                                                   placeholder="0" min="0">
+                                        </div>
+                                        <small class="text-muted">Masukkan angka saja (tanpa titik/koma). Contoh: 1500000</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
                                 <div class="col-md-4 mb-3">
                                     <div class="form-group">
                                         <label class="form-label-modern">Tahun <span class="text-danger">*</span></label>
@@ -178,7 +203,7 @@ $qPegawai = mysqli_query($conn, "SELECT id_peg, nama FROM tb_pegawai $where_pega
       theme: 'bootstrap4',
       placeholder: "Ketik Nama Pegawai...",
       allowClear: true,
-      width: '100%' // Pastikan lebar 100%
+      width: '100%' 
     });
   });
 </script>

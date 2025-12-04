@@ -1,68 +1,60 @@
 <?php
-// =============================================================
-// FILE: pages/ref-pendidikan/download-template-pendidikan.php
-// =============================================================
-
 require '../../vendor/autoload.php';
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-use PhpOffice\PhpSpreadsheet\Style\Alignment;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
-use PhpOffice\PhpSpreadsheet\Style\Border;
-use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
 $spreadsheet = new Spreadsheet();
 $sheet = $spreadsheet->getActiveSheet();
 
-// 2. Header Kolom (A-L)
+// Header Kolom (12 Kolom)
 $headers = [
-    'A' => 'ID Pegawai',
-    'B' => 'ID Sekolah (Opsional)',
-    'C' => 'Jenjang',
-    'D' => 'Nama Sekolah/Kampus',
-    'E' => 'Lokasi',
-    'F' => 'Jurusan',
-    'G' => 'Th Masuk',
-    'H' => 'Th Lulus',
-    'I' => 'No Ijazah',
-    'J' => 'Tgl Ijazah',
-    'K' => 'Kepala Sekolah/Rektor',
-    'L' => 'Status'
+    'ID Pegawai (Wajib)', // A
+    'ID Sekolah (Opsional)', // B
+    'Jenjang',            // C
+    'Nama Sekolah',       // D
+    'Lokasi',             // E
+    'Jurusan',            // F
+    'No Ijazah',          // G
+    'Tgl Ijazah (dd-mm-yyyy)', // H
+    'Kepala Sekolah',     // I
+    'Status',             // J
+    'Th Masuk',           // K
+    'Th Lulus'            // L
 ];
 
-foreach ($headers as $col => $text) {
-    $sheet->setCellValue($col . '1', $text);
-    $sheet->getStyle($col . '1')->applyFromArray([
-        'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
-        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '4472C4']],
-        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
-        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
-    ]);
+$col = 'A';
+foreach ($headers as $header) {
+    $sheet->setCellValue($col . '1', $header);
     $sheet->getColumnDimension($col)->setAutoSize(true);
+    $col++;
 }
 
-// 3. Contoh Data
-$sheet->setCellValue('A2', 'P001');
+// Styling
+$styleArray = [
+    'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+    'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '28A745']],
+    'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER],
+];
+$sheet->getStyle('A1:L1')->applyFromArray($styleArray);
+
+// Contoh Data
+$sheet->setCellValue('A2', '101-001');
 $sheet->setCellValue('B2', '');
 $sheet->setCellValue('C2', 'S1');
-$sheet->setCellValue('D2', 'Universitas Indonesia');
-$sheet->setCellValue('E2', 'Depok');
-$sheet->setCellValue('F2', 'Teknik Informatika');
-$sheet->setCellValue('G2', '2010');
-$sheet->setCellValue('H2', '2014');
-$sheet->setCellValue('I2', 'UI-2014-001');
-$sheet->setCellValue('J2', '15-08-2014'); // Format dd-mm-yyyy
-$sheet->setCellValue('K2', 'Prof. Dr. Budi');
-$sheet->setCellValue('L2', 'Lulus');
+$sheet->setCellValue('D2', 'Universitas Diponegoro');
+$sheet->setCellValue('E2', 'Semarang');
+$sheet->setCellValue('F2', 'Manajemen');
+$sheet->setCellValue('G2', 'IJZ-001/2015');
+$sheet->setCellValue('H2', date('d-m-Y')); // Contoh: 25-10-2020
+$sheet->setCellValue('I2', 'Prof. Dr. Rektor');
+$sheet->setCellValue('J2', 'Lulus');
+$sheet->setCellValue('K2', '2011');
+$sheet->setCellValue('L2', '2015');
 
-// Format Text untuk Tahun & Tanggal
-$sheet->getStyle('G:J')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
-
-// 4. Output
-$filename = 'template_pendidikan.xlsx';
+// Output
 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-header('Content-Disposition: attachment;filename="' . $filename . '"');
+header('Content-Disposition: attachment;filename="Template_Import_Pendidikan.xlsx"');
 header('Cache-Control: max-age=0');
 
 $writer = new Xlsx($spreadsheet);

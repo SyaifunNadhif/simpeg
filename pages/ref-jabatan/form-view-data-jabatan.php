@@ -103,7 +103,7 @@ if ($q) {
       </div>
       <div class="ml-auto d-flex">
         <a href="home-admin.php" class="btn btn-light btn-sm me-1"><i class="fa fa-home"></i> Dashboard</a>
-        <a href="home-admin.php?page=form-master-data-ortu&mode=add" class="btn btn-warning btn-sm me-2">Tambah Data</a>
+        <a href="home-admin.php?page=form-master-data-jabatan&mode=add" class="btn btn-warning btn-sm me-2">Tambah Data</a>
         <a href="home-admin.php?page=form-import-jabatan" class="btn btn-success btn-sm me-2">Impor Kolektif</a>
       </div>
     </div>

@@ -1,8 +1,8 @@
 <?php
 /*********************************************************
  * FILE    : pages/pegawai/view-detail-data-pegawai.php
- * MODULE  : Detail Pegawai (Admin & Kepala Bisa Edit)
- * VERSION : v5.1 (Access Update)
+ * MODULE  : Detail Pegawai (Clean View & Master Jabatan Fix)
+ * VERSION : v5.2
  *********************************************************/
 
 if (session_id() === '') session_start();
@@ -24,8 +24,7 @@ if (!isset($_GET['id_peg']) || empty($_GET['id_peg'])) {
 $id_peg = mysqli_real_escape_string($conn, $_GET['id_peg']);
 $hak_akses_session = isset($_SESSION['hak_akses']) ? strtolower($_SESSION['hak_akses']) : 'user';
 
-// --- UPDATE LOGIC DISINI ---
-// Admin DAN Kepala boleh edit. User biasa tidak boleh.
+// Admin DAN Kepala boleh edit Biodata & Keluarga (Tapi tidak di modal riwayat)
 $can_edit = ($hak_akses_session === 'admin' || $hak_akses_session === 'kepala');
 
 // Link Kembali
@@ -301,14 +300,11 @@ $src_foto   = (!empty($foto_db) && file_exists($path_foto)) ? $path_foto : $avat
                 <div class="alert alert-info py-2"><strong>Estimasi Naik:</strong> <?php if($peg['tgl_naikpangkat']){ $next = new DateTime($peg['tgl_naikpangkat']); $next->modify('+4 year'); echo $next->format('d-m-Y'); } else { echo "-"; } ?></div>
                 <div class="table-responsive">
                     <table class="table table-bordered table-sm">
-                        <thead class="bg-light"><tr><th>Pangkat</th><th>Gol</th><th>TMT</th><th>SK</th><?php if($can_edit) echo '<th>Aksi</th>'; ?></tr></thead>
+                        <thead class="bg-light"><tr><th>Pangkat</th><th>Gol</th><th>TMT</th><th>SK</th></tr></thead>
                         <tbody>
                             <?php $qPan = mysqli_query($conn,"SELECT * FROM tb_pangkat WHERE id_peg='$id_peg' ORDER BY tgl_sk DESC"); 
                             while($p=mysqli_fetch_array($qPan)){ ?>
-                            <tr>
-                                <td><?=$p['pangkat']?></td><td><?=$p['gol']?></td><td><?=$p['tmt_pangkat']?></td><td><?=$p['no_sk']?></td>
-                                <?php if($can_edit): ?><td><a href="home-admin.php?page=form-edit-data-pangkat&id_pangkat=<?=$p['id_pangkat']?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a></td><?php endif; ?>
-                            </tr>
+                            <tr><td><?=$p['pangkat']?></td><td><?=$p['gol']?></td><td><?=$p['tmt_pangkat']?></td><td><?=$p['no_sk']?></td></tr>
                             <?php } ?>
                         </tbody>
                     </table>
@@ -323,12 +319,9 @@ $src_foto   = (!empty($foto_db) && file_exists($path_foto)) ? $path_foto : $avat
         <div class="modal-content">
             <div class="modal-header bg-primary text-white"><h5 class="modal-title">Bahasa</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div>
             <div class="modal-body">
-                <table class="table table-bordered"><thead><tr><th>Bahasa</th><th>Kemampuan</th><?php if($can_edit) echo '<th>Aksi</th>'; ?></tr></thead><tbody>
+                <table class="table table-bordered"><thead><tr><th>Bahasa</th><th>Kemampuan</th></tr></thead><tbody>
                     <?php $qBhs = mysqli_query($conn,"SELECT * FROM tb_bahasa WHERE id_peg='$id_peg'"); while($b=mysqli_fetch_array($qBhs)){ ?>
-                    <tr>
-                        <td><?=$b['bahasa']?></td><td><?=$b['kemampuan']?></td>
-                        <?php if($can_edit): ?><td><a href="home-admin.php?page=form-edit-data-bahasa&id_bhs=<?=$b['id_bhs']?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a></td><?php endif; ?>
-                    </tr>
+                    <tr><td><?=$b['bahasa']?></td><td><?=$b['kemampuan']?></td></tr>
                     <?php } ?>
                 </tbody></table>
             </div>
@@ -341,12 +334,9 @@ $src_foto   = (!empty($foto_db) && file_exists($path_foto)) ? $path_foto : $avat
         <div class="modal-content">
             <div class="modal-header bg-primary text-white"><h5 class="modal-title">Riwayat Pendidikan</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div>
             <div class="modal-body table-responsive">
-                <table class="table table-bordered table-hover"><thead><tr><th>Jenjang</th><th>Nama Sekolah</th><th>Jurusan</th><th>Lulus</th><?php if($can_edit) echo '<th>Aksi</th>'; ?></tr></thead><tbody>
+                <table class="table table-bordered table-hover"><thead><tr><th>Jenjang</th><th>Nama Sekolah</th><th>Jurusan</th><th>Lulus</th></tr></thead><tbody>
                     <?php $qSek = mysqli_query($conn,"SELECT * FROM tb_pendidikan WHERE id_peg='$id_peg' ORDER BY tgl_ijazah DESC"); while($s=mysqli_fetch_array($qSek)){ ?>
-                    <tr>
-                        <td><?=$s['jenjang']?></td><td><?=$s['nama_sekolah']?></td><td><?=$s['jurusan']?></td><td><?=$s['tgl_ijazah']?></td>
-                        <?php if($can_edit): ?><td><a href="home-admin.php?page=form-edit-data-sekolah&id_sekolah=<?=$s['id_sekolah']?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a></td><?php endif; ?>
-                    </tr>
+                    <tr><td><?=$s['jenjang']?></td><td><?=$s['nama_sekolah']?></td><td><?=$s['jurusan']?></td><td><?=$s['tgl_ijazah']?></td></tr>
                     <?php } ?>
                 </tbody></table>
             </div>
@@ -358,14 +348,27 @@ $src_foto   = (!empty($foto_db) && file_exists($path_foto)) ? $path_foto : $avat
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white"><h5 class="modal-title">Riwayat Jabatan</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div>
-            <div class="modal-body"><table class="table table-bordered table-striped"><thead><tr><th>Jabatan</th><th>TMT</th><th>Status</th><?php if($can_edit) echo '<th>Aksi</th>'; ?></tr></thead><tbody>
-                <?php $qJab = mysqli_query($conn,"SELECT id_jab, tmt_jabatan, status_jab, (SELECT jabatan FROM tb_ref_jabatan WHERE kode_jabatan=tb_jabatan.kode_jabatan) nm_jab FROM tb_jabatan WHERE id_peg='$id_peg' ORDER BY tmt_jabatan DESC"); while($j=mysqli_fetch_array($qJab)){ ?>
-                <tr>
-                    <td><?=$j['nm_jab']?></td><td><?=$j['tmt_jabatan']?></td><td><?=$j['status_jab']?></td>
-                    <?php if($can_edit): ?><td><a href="home-admin.php?page=form-edit-data-jabatan&id_jab=<?=$j['id_jab']?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a></td><?php endif; ?>
-                </tr>
-                <?php } ?>
-            </tbody></table></div>
+            <div class="modal-body">
+                <table class="table table-bordered table-striped">
+                    <thead><tr><th>Jabatan</th><th>TMT</th><th>Status</th></tr></thead>
+                    <tbody>
+                        <?php 
+                        // UPDATE: Join ke tb_master_jabatan sesuai request
+                        $qJab = mysqli_query($conn,"SELECT j.tmt_jabatan, j.status_jab, m.nama_jabatan 
+                                                    FROM tb_jabatan j 
+                                                    LEFT JOIN tb_master_jabatan m ON j.kode_jabatan = m.kode_jabatan 
+                                                    WHERE j.id_peg='$id_peg' 
+                                                    ORDER BY j.tmt_jabatan DESC"); 
+                        while($j=mysqli_fetch_array($qJab)){ ?>
+                        <tr>
+                            <td><?= !empty($j['nama_jabatan']) ? $j['nama_jabatan'] : '<i>(Kode Tidak Dikenal)</i>' ?></td>
+                            <td><?=$j['tmt_jabatan']?></td>
+                            <td><?=$j['status_jab']?></td>
+                        </tr>
+                        <?php } ?>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
@@ -374,20 +377,22 @@ $src_foto   = (!empty($foto_db) && file_exists($path_foto)) ? $path_foto : $avat
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header bg-warning text-white"><h5 class="modal-title">Sasaran Kerja (SKP)</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div>
-            <div class="modal-body table-responsive"><table class="table table-bordered table-hover"><thead><tr><th>Periode</th><th>Nilai</th><th>Mutu</th><th>Aksi</th></tr></thead><tbody>
+            <div class="modal-body table-responsive">
+                <table class="table table-bordered table-hover"><thead><tr><th>Periode</th><th>Nilai</th><th>Mutu</th><th>Aksi</th></tr></thead><tbody>
                 <?php $qDp3 = mysqli_query($conn,"SELECT * FROM tb_dp3 WHERE id_peg='$id_peg' ORDER BY periode_akhir DESC"); while($d=mysqli_fetch_array($qDp3)){ $jml = $d['nilai_kesetiaan']+$d['nilai_prestasi']+$d['nilai_tgjwb']+$d['nilai_ketaatan']+$d['nilai_kejujuran']+$d['nilai_kerjasama']+$d['nilai_prakarsa']+$d['nilai_kepemimpinan']; ?>
-                <tr><td><?=$d['periode_akhir']?></td><td><?=$jml?></td><td><?=$d['hasil_penilaian']?></td><td><a href="home-admin.php?page=view-detail-data-dp3&id_dp3=<?=$d['id_dp3']?>" class="btn btn-xs btn-info">Detail</a> <?php if($can_edit): ?><a href="home-admin.php?page=form-edit-data-dp3&id_dp3=<?=$d['id_dp3']?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a><?php endif; ?></td></tr>
+                <tr><td><?=$d['periode_akhir']?></td><td><?=$jml?></td><td><?=$d['hasil_penilaian']?></td><td><a href="home-admin.php?page=view-detail-data-dp3&id_dp3=<?=$d['id_dp3']?>" class="btn btn-xs btn-info">Detail</a></td></tr>
                 <?php } ?>
-            </tbody></table></div>
+                </tbody></table>
+            </div>
         </div>
     </div>
 </div>
 
-<div id="pengangkatan" class="modal fade" tabindex="-1" role="dialog"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-primary text-white"><h5 class="modal-title">Riwayat Pengangkatan</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div><div class="modal-body"><table class="table table-bordered"><thead><tr><th>Status</th><th>Tgl</th><th>No SK</th><th>File</th><?php if($can_edit) echo '<th>Aksi</th>'; ?></tr></thead><tbody><?php $qAng = mysqli_query($conn,"SELECT * FROM tb_angkat WHERE id_peg_baru='$id_peg'"); while($a=mysqli_fetch_array($qAng)){ ?><tr><td><?=$a['jns_mutasi']?></td><td><?=$a['tgl_mutasi']?></td><td><?=$a['no_mutasi']?></td><td><a href="home-admin.php?page=view-pengangkatan&id_angkat=<?=$a['id_angkat']?>" target="_blank"><i class="fa fa-file-pdf"></i></a></td><?php if($can_edit): ?><td><a href="home-admin.php?page=form-edit-data-angkat&id_angkat=<?=$a['id_angkat']?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a></td><?php endif; ?></tr><?php } ?></tbody></table></div></div></div></div>
-<div id="mutasi" class="modal fade" tabindex="-1" role="dialog"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-primary text-white"><h5 class="modal-title">Riwayat Mutasi</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div><div class="modal-body"><table class="table table-bordered"><thead><tr><th>Jenis</th><th>Tgl</th><th>No SK</th><?php if($can_edit) echo '<th>Aksi</th>'; ?></tr></thead><tbody><?php $qMut = mysqli_query($conn,"SELECT * FROM tb_mutasi WHERE id_peg='$id_peg'"); while($m=mysqli_fetch_array($qMut)){ ?><tr><td><?=$m['jns_mutasi']?></td><td><?=$m['tgl_mutasi']?></td><td><?=$m['no_mutasi']?></td><?php if($can_edit): ?><td><a href="home-admin.php?page=form-edit-data-mutasi&id_mutasi=<?=$m['id_mutasi']?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a></td><?php endif; ?></tr><?php } ?></tbody></table></div></div></div></div>
-<div id="diklat" class="modal fade" tabindex="-1" role="dialog"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-primary text-white"><h5 class="modal-title">Riwayat Diklat</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div><div class="modal-body"><table class="table table-bordered"><thead><tr><th>Nama</th><th>Penyelenggara</th><th>Tahun</th><?php if($can_edit) echo '<th>Aksi</th>'; ?></tr></thead><tbody><?php $qDik = mysqli_query($conn,"SELECT * FROM tb_diklat WHERE id_peg='$id_peg'"); while($d=mysqli_fetch_array($qDik)){ ?><tr><td><?=$d['diklat']?></td><td><?=$d['penyelenggara']?></td><td><?=$d['tahun']?></td><?php if($can_edit): ?><td><a href="home-admin.php?page=form-edit-data-diklat&id_diklat=<?=$d['id_diklat']?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a></td><?php endif; ?></tr><?php } ?></tbody></table></div></div></div></div>
-<div id="sertifikasi" class="modal fade" tabindex="-1" role="dialog"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-primary text-white"><h5 class="modal-title">Riwayat Sertifikasi</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div><div class="modal-body"><table class="table table-bordered"><thead><tr><th>Sertifikasi</th><th>Exp</th><th>Status</th><?php if($can_edit) echo '<th>Aksi</th>'; ?></tr></thead><tbody><?php $qSer = mysqli_query($conn,"SELECT *, DATEDIFF(tgl_expired, CURDATE()) AS selisih FROM tb_sertifikasi WHERE id_peg='$id_peg'"); while($s=mysqli_fetch_array($qSer)){ ?><tr><td><?=$s['sertifikasi']?></td><td><?=$s['tgl_expired']?></td><td><?= ($s['selisih'] < 0) ? 'Exp' : 'Aktif' ?></td><?php if($can_edit): ?><td><a href="home-admin.php?page=form-edit-data-penugasan&id_penugasan=<?=$s['id_sertif']?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a></td><?php endif; ?></tr><?php } ?></tbody></table></div></div></div></div>
-<div id="hukum" class="modal fade" tabindex="-1" role="dialog"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-primary text-white"><h5 class="modal-title">Riwayat Pelanggaran</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div><div class="modal-body"><table class="table table-bordered"><thead><tr><th>Hukuman</th><th>Tgl SK</th><?php if($can_edit) echo '<th>Aksi</th>'; ?></tr></thead><tbody><?php $qHuk = mysqli_query($conn,"SELECT * FROM tb_hukuman WHERE id_peg='$id_peg'"); while($h=mysqli_fetch_array($qHuk)){ ?><tr><td><?=$h['hukuman']?></td><td><?=$h['tgl_sk']?></td><?php if($can_edit): ?><td><a href="home-admin.php?page=form-edit-data-hukuman&id_hukum=<?=$h['id_hukum']?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a></td><?php endif; ?></tr><?php } ?></tbody></table></div></div></div></div>
+<div id="pengangkatan" class="modal fade" tabindex="-1" role="dialog"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-primary text-white"><h5 class="modal-title">Riwayat Pengangkatan</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div><div class="modal-body"><table class="table table-bordered"><thead><tr><th>Status</th><th>Tgl</th><th>No SK</th><th>File</th></tr></thead><tbody><?php $qAng = mysqli_query($conn,"SELECT * FROM tb_angkat WHERE id_peg_baru='$id_peg'"); while($a=mysqli_fetch_array($qAng)){ ?><tr><td><?=$a['jns_mutasi']?></td><td><?=$a['tgl_mutasi']?></td><td><?=$a['no_mutasi']?></td><td><a href="home-admin.php?page=view-pengangkatan&id_angkat=<?=$a['id_angkat']?>" target="_blank"><i class="fa fa-file-pdf"></i></a></td></tr><?php } ?></tbody></table></div></div></div></div>
+<div id="mutasi" class="modal fade" tabindex="-1" role="dialog"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-primary text-white"><h5 class="modal-title">Riwayat Mutasi</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div><div class="modal-body"><table class="table table-bordered"><thead><tr><th>Jenis</th><th>Tgl</th><th>No SK</th></tr></thead><tbody><?php $qMut = mysqli_query($conn,"SELECT * FROM tb_mutasi WHERE id_peg='$id_peg'"); while($m=mysqli_fetch_array($qMut)){ ?><tr><td><?=$m['jns_mutasi']?></td><td><?=$m['tgl_mutasi']?></td><td><?=$m['no_mutasi']?></td></tr><?php } ?></tbody></table></div></div></div></div>
+<div id="diklat" class="modal fade" tabindex="-1" role="dialog"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-primary text-white"><h5 class="modal-title">Riwayat Diklat</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div><div class="modal-body"><table class="table table-bordered"><thead><tr><th>Nama</th><th>Penyelenggara</th><th>Tahun</th></tr></thead><tbody><?php $qDik = mysqli_query($conn,"SELECT * FROM tb_diklat WHERE id_peg='$id_peg'"); while($d=mysqli_fetch_array($qDik)){ ?><tr><td><?=$d['diklat']?></td><td><?=$d['penyelenggara']?></td><td><?=$d['tahun']?></td></tr><?php } ?></tbody></table></div></div></div></div>
+<div id="sertifikasi" class="modal fade" tabindex="-1" role="dialog"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-primary text-white"><h5 class="modal-title">Riwayat Sertifikasi</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div><div class="modal-body"><table class="table table-bordered"><thead><tr><th>Sertifikasi</th><th>Exp</th><th>Status</th></tr></thead><tbody><?php $qSer = mysqli_query($conn,"SELECT *, DATEDIFF(tgl_expired, CURDATE()) AS selisih FROM tb_sertifikasi WHERE id_peg='$id_peg'"); while($s=mysqli_fetch_array($qSer)){ ?><tr><td><?=$s['sertifikasi']?></td><td><?=$s['tgl_expired']?></td><td><?= ($s['selisih'] < 0) ? 'Exp' : 'Aktif' ?></td></tr><?php } ?></tbody></table></div></div></div></div>
+<div id="hukum" class="modal fade" tabindex="-1" role="dialog"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-primary text-white"><h5 class="modal-title">Riwayat Pelanggaran</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div><div class="modal-body"><table class="table table-bordered"><thead><tr><th>Hukuman</th><th>Tgl SK</th></tr></thead><tbody><?php $qHuk = mysqli_query($conn,"SELECT * FROM tb_hukuman WHERE id_peg='$id_peg'"); while($h=mysqli_fetch_array($qHuk)){ ?><tr><td><?=$h['hukuman']?></td><td><?=$h['tgl_sk']?></td></tr><?php } ?></tbody></table></div></div></div></div>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>

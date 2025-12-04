@@ -1,41 +1,49 @@
 <?php
 // ===========================================================
-// FILE: pages/ref-diklat/form-import-data-diklat.php
+// FILE: pages/ref-keluarga/form-import-data-pasangan.php
+// MODULE: Form Import Data Pasangan (Modern UI)
 // ===========================================================
 
-$page_title = "Import Data";
-$page_subtitle = "Riwayat Diklat";
-$breadcrumbs = [
-  ["label" => "Dashboard", "url" => "home-admin.php"],
-  ["label" => "Import Diklat"]
-];
-include "komponen/header.php";
+// Jika header belum diload di home-admin.php, uncomment baris bawah ini
+// include "komponen/header.php"; 
 ?>
 
 <style>
+    /* Styling khusus halaman upload */
     .upload-container { background: #fff; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); padding: 30px; }
     .drop-zone { border: 2px dashed #cbd5e0; border-radius: 15px; padding: 40px; text-align: center; background-color: #f8fafc; transition: all 0.3s ease; cursor: pointer; position: relative; }
-    .drop-zone:hover { border-color: #28a745; background-color: #e8f5e9; transform: scale(1.01); }
+    .drop-zone:hover, .drop-zone.dragover { border-color: #007bff; background-color: #e3f2fd; transform: scale(1.01); }
     .drop-zone i { color: #a0aec0; transition: color 0.3s; }
-    .drop-zone:hover i { color: #28a745; }
+    .drop-zone:hover i, .drop-zone.dragover i { color: #007bff; }
     .file-input-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; }
     .file-preview { display: none; margin-top: 20px; padding: 15px; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-    .step-badge { background: #28a745; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-block; text-align: center; line-height: 28px; font-weight: bold; margin-right: 10px; }
+    .step-badge { background: #007bff; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-block; text-align: center; line-height: 28px; font-weight: bold; margin-right: 10px; }
 </style>
+
+<section class="content-header">
+  <div class="container-fluid">
+    <div class="row mb-2">
+      <div class="col-sm-6">
+        <h1>Import Data Pasangan</h1>
+      </div>
+      <div class="col-sm-6">
+        <ol class="breadcrumb float-sm-right">
+          <li class="breadcrumb-item"><a href="home-admin.php">Home</a></li>
+          <li class="breadcrumb-item active">Import Pasangan</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
 
 <section class="content">
   <div class="container-fluid">
     <div class="row justify-content-center">
         <div class="col-md-10">
-            
             <div class="upload-container">
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h3 class="m-0 font-weight-bold text-dark">
-                        <i class="fas fa-file-import text-success mr-2"></i> Import Data Diklat
-                    </h3>
-                    <a href="home-admin.php?page=form-view-data-diklat" class="btn btn-light btn-sm rounded-pill px-3">
-                        <i class="fas fa-times"></i> Tutup
-                    </a>
+                    <h3 class="m-0 font-weight-bold text-dark"><i class="fas fa-file-import text-primary mr-2"></i> Import Suami/Istri</h3>
+                    <a href="home-admin.php?page=view-data-pasangan" class="btn btn-light btn-sm rounded-pill px-3"><i class="fas fa-times"></i> Tutup</a>
                 </div>
 
                 <div class="alert alert-secondary bg-white border shadow-sm rounded-lg mb-4">
@@ -43,10 +51,10 @@ include "komponen/header.php";
                         <span class="step-badge">1</span>
                         <div class="flex-grow-1">
                             <h6 class="m-0 text-dark font-weight-bold">Persiapan Data</h6>
-                            <small class="text-muted">Urutan: ID Pegawai, Diklat, Penyelenggara, Tempat, <b>Biaya</b>, Angkatan, Tahun.</small>
+                            <small class="text-muted">Unduh template Excel Data Pasangan.</small>
                         </div>
-                        <a href="pages/ref-diklat/download-template-diklat.php" target="_blank" class="btn btn-success btn-sm rounded-pill px-4 shadow-sm">
-                            <i class="fas fa-download mr-1"></i> Download Excel
+                        <a href="pages/ref-keluarga/download-template-pasangan.php" target="_blank" class="btn btn-success btn-sm rounded-pill px-4 shadow-sm">
+                            <i class="fas fa-download mr-1"></i> Download Template
                         </a>
                     </div>
                 </div>
@@ -57,6 +65,7 @@ include "komponen/header.php";
                             <span class="step-badge">2</span>
                             <h6 class="m-0 text-dark font-weight-bold">Upload File Excel</h6>
                         </div>
+                        
                         <div class="drop-zone" id="dropZone">
                             <div class="content-wrap">
                                 <i class="fas fa-cloud-upload-alt fa-4x mb-3 text-secondary"></i>
@@ -65,6 +74,7 @@ include "komponen/header.php";
                             </div>
                             <input type="file" name="file_excel" id="file_excel" class="file-input-overlay" accept=".xlsx, .xls" required>
                         </div>
+
                         <div id="filePreview" class="file-preview">
                             <div class="d-flex align-items-center">
                                 <i class="fas fa-file-excel text-success fa-2x mr-3"></i>
@@ -72,10 +82,11 @@ include "komponen/header.php";
                                     <h6 class="m-0 font-weight-bold text-dark" id="fileName">file.xlsx</h6>
                                     <small class="text-muted" id="fileSize">0 KB</small>
                                 </div>
-                                <div class="ml-auto"><span class="text-success"><i class="fas fa-check-circle"></i> Siap</span></div>
+                                <div class="ml-auto"><span class="text-success fw-bold"><i class="fas fa-check-circle"></i> Siap Upload</span></div>
                             </div>
                         </div>
                     </div>
+                    
                     <div class="text-center mt-4">
                         <button type="submit" class="btn btn-primary btn-lg rounded-pill px-5 shadow-sm">
                             <i class="fas fa-eye mr-2"></i> Preview Data
@@ -92,16 +103,18 @@ include "komponen/header.php";
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-// UI Logic
+// UI Interactions
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('file_excel');
 const filePreview = document.getElementById('filePreview');
 const fileNameTxt = document.getElementById('fileName');
 const fileSizeTxt = document.getElementById('fileSize');
 
+// Drag & Drop Effects
 ['dragenter', 'dragover'].forEach(evt => dropZone.addEventListener(evt, (e) => { e.preventDefault(); dropZone.classList.add('dragover'); }));
 ['dragleave', 'drop'].forEach(evt => dropZone.addEventListener(evt, (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); }));
 
+// File Selection Handler
 fileInput.addEventListener('change', function() {
     if (this.files.length) {
         filePreview.style.display = 'block';
@@ -110,18 +123,18 @@ fileInput.addEventListener('change', function() {
     }
 });
 
-// PREVIEW LOGIC
+// 1. PROSES PREVIEW
 document.getElementById('uploadForm').addEventListener('submit', function(e) {
     e.preventDefault();
-    if (!fileInput.files.length) { Swal.fire('Warning', 'Pilih file dulu!', 'warning'); return; }
+    if (!fileInput.files.length) { Swal.fire('Warning', 'Pilih file terlebih dahulu!', 'warning'); return; }
 
     const formData = new FormData();
     formData.append('file_excel', fileInput.files[0]);
     formData.append('action', 'preview');
 
-    Swal.fire({title: 'Memproses...', didOpen: () => Swal.showLoading()});
+    Swal.fire({title: 'Memproses Preview...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
-    fetch('pages/ref-diklat/upload-data-diklat.php', { method: 'POST', body: formData })
+    fetch('pages/ref-keluarga/upload-data-pasangan.php', { method: 'POST', body: formData })
     .then(res => res.json())
     .then(res => {
         Swal.close();
@@ -132,25 +145,30 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
         } else {
             Swal.fire('Gagal', res.message, 'error');
         }
-    }).catch(err => Swal.fire('Error', 'Server Error', 'error'));
+    }).catch(err => {
+        Swal.close();
+        Swal.fire('Error', 'Terjadi kesalahan pada server.', 'error');
+        console.error(err);
+    });
 });
 
-// SIMPAN LOGIC
+// 2. PROSES SIMPAN (Event Delegation)
 document.body.addEventListener('click', function(e) {
-    if (e.target && (e.target.id == 'btnSimpanDiklat' || e.target.closest('#btnSimpanDiklat'))) {
+    if (e.target && (e.target.id == 'btnSimpanPasangan' || e.target.closest('#btnSimpanPasangan'))) {
         e.preventDefault();
-        const textArea = document.getElementById('json_data_diklat');
+        const textArea = document.getElementById('json_data_pasangan');
         
-        if(!textArea) { Swal.fire('Error', 'Data hilang.', 'error'); return; }
+        if(!textArea) { Swal.fire('Error', 'Data preview tidak ditemukan.', 'error'); return; }
 
         Swal.fire({
-            title: 'Simpan Diklat?',
-            text: "Pastikan data sudah benar.",
+            title: 'Simpan Data Pasangan?',
+            text: "Data akan disimpan ke database (Update jika ID Pegawai + Nama sama).",
             icon: 'question',
             showCancelButton: true,
-            confirmButtonColor: '#28a745',
+            confirmButtonColor: '#007bff',
             cancelButtonColor: '#d33',
-            confirmButtonText: 'Ya, Simpan!'
+            confirmButtonText: 'Ya, Proses!',
+            cancelButtonText: 'Batal'
         }).then((result) => {
             if (result.isConfirmed) {
                 simpanKeDatabase(textArea.value);
@@ -162,20 +180,28 @@ document.body.addEventListener('click', function(e) {
 function simpanKeDatabase(jsonData) {
     const formData = new FormData();
     formData.append('action', 'save');
-    formData.append('data_diklat', jsonData); 
+    formData.append('data_pasangan', jsonData); 
 
-    Swal.fire({title: 'Menyimpan...', didOpen: () => Swal.showLoading()});
+    Swal.fire({title: 'Menyimpan Data...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
-    fetch('pages/ref-diklat/upload-data-diklat.php', { method: 'POST', body: formData })
+    fetch('pages/ref-keluarga/upload-data-pasangan.php', { method: 'POST', body: formData })
     .then(res => res.json())
     .then(res => {
         if (res.status === 'success') {
-            Swal.fire('Sukses!', res.message, 'success').then(() => {
-                window.location.href = "home-admin.php?page=form-view-data-diklat"; 
+            Swal.fire({
+                title: 'Selesai!',
+                html: res.message,
+                icon: 'success'
+            }).then(() => {
+                // Redirect ke halaman view data pasangan
+                window.location.href = "home-admin.php?page=view-data-pasangan"; 
             });
         } else {
             Swal.fire('Gagal', res.message, 'error');
         }
-    }).catch(err => Swal.fire('Error', 'Koneksi Gagal', 'error'));
+    }).catch(err => {
+        Swal.close();
+        Swal.fire('Error', 'Koneksi ke server gagal.', 'error');
+    });
 }
 </script>

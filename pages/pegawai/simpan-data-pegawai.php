@@ -1,18 +1,29 @@
 <?php
 /*********************************************************
  * FILE    : pages/pegawai/simpan-data-pegawai.php
- * MODULE  : Simpan Pegawai (Fix Redirect 404 Error)
- * VERSION : v2.2
+ * MODULE  : Simpan Pegawai (Fix: Tambah UUID)
+ * VERSION : v2.3 (Fixed)
  *********************************************************/
 
 if (session_id()=='') session_start();
-include('../../dist/koneksi.php');   
+include('../../dist/koneksi.php');    
 include('../../dist/functions.php'); 
 
 /* ========================= Helper ========================= */
 function postv($key, $def='') { return isset($_POST[$key]) ? trim($_POST[$key]) : $def; }
 function clean_str($conn, $s){ return mysqli_real_escape_string($conn, trim($s)); }
 function ensure_dir($path){ if (!is_dir($path)) { @mkdir($path, 0775, true); } }
+
+// [FIX] Fungsi untuk generate UUID (v4)
+function gen_uuid() {
+    return sprintf( '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+        mt_rand( 0, 0xffff ), mt_rand( 0, 0xffff ),
+        mt_rand( 0, 0xffff ),
+        mt_rand( 0, 0x0fff ) | 0x4000,
+        mt_rand( 0, 0x3fff ) | 0x8000,
+        mt_rand( 0, 0xffff ), mt_rand( 0, 0xffff ), mt_rand( 0, 0xffff )
+    );
+}
 
 $user       = isset($_SESSION['id_user']) ? $_SESSION['id_user'] : 'admin';
 $hak_akses  = isset($_SESSION['hak_akses']) ? strtolower($_SESSION['hak_akses']) : 'user';
@@ -47,7 +58,7 @@ $bpjskes       = clean_str($conn, postv('bpjskes'));
 $mode          = postv('mode', 'tambah');
 
 // Data Akun Lama (Agar tidak reset)
-$hak_akses_akun  = clean_str($conn, postv('hak_akses_lama', 'User')); 
+$hak_akses_akun   = clean_str($conn, postv('hak_akses_lama', 'User')); 
 $status_aktif_akun = clean_str($conn, postv('status_aktif_lama', 'Y')); 
 
 /* ---------- Upload Foto ---------- */
@@ -77,11 +88,15 @@ if ($mode == 'tambah') {
   if ($cek && mysqli_num_rows($cek) > 0) {
     $status = 'duplikat';
   } else {
+    // [FIX] Generate UID baru
+    $uid_baru = gen_uuid();
+
+    // [FIX] Insert query menyertakan pegawai_uid
     $sql = "INSERT INTO tb_pegawai (
-      id_peg, nip, nama, tempat_lhr, tgl_lhr, agama, jk, gol_darah, status_nikah,
+      pegawai_uid, id_peg, nip, nama, tempat_lhr, tgl_lhr, agama, jk, gol_darah, status_nikah,
       status_kepeg, alamat, telp, email, bpjstk, bpjskes, foto, status_aktif, date_reg, created_by
     ) VALUES (
-      '$id_peg', '$nip', '$nama', '$tempat_lhr', '$tgl_lhr', '$agama', '$jk', '$gol_darah', '$status_nikah',
+      '$uid_baru', '$id_peg', '$nip', '$nama', '$tempat_lhr', '$tgl_lhr', '$agama', '$jk', '$gol_darah', '$status_nikah',
       '$status_kepeg', '$alamat', '$telp', '$email', '$bpjstk', '$bpjskes', '$foto_name', '1', '$tanggal', '$user'
     )";
 
@@ -99,7 +114,7 @@ else if ($mode == 'edit') {
      $qOld = mysqli_query($conn, "SELECT * FROM tb_pegawai WHERE id_peg = '$id_peg' LIMIT 1");
      $dataLama = $qOld ? mysqli_fetch_assoc($qOld) : null;
      if ($dataLama) {
-        // Logika insert pending (disingkat)
+        // Logic insert pending (disingkat)
         // ...
         $status = 'ajukan'; 
      } else {
@@ -128,7 +143,7 @@ else if ($mode == 'edit') {
 
         $status = 'sukses';
     } else {
-        $status = 'gagal';
+      $status = 'gagal';
     }
   }
 }
@@ -153,9 +168,7 @@ if ($status == 'sukses' || $status == 'ajukan') {
     }
 }
 
-// 2. TAMBAHKAN PREFIKS DIRECTORY (PENTING!)
-// Karena file ini ada di /pages/pegawai/, kita harus mundur 2 folder (../../) 
-// untuk mencapai home-admin.php di root folder aplikasi.
+// 2. TAMBAHKAN PREFIKS DIRECTORY
 $final_redirect_url = "../../" . $redirect_to;
 
 ?>

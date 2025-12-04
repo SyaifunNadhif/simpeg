@@ -152,6 +152,8 @@ function getPage($page) {
     'preview-edit'                 => 'pages/pegawai/preview-edit.php',  
     'form-ganti-foto'              => 'pages/pegawai/form-ganti-foto.php',
     'ganti-foto'                   => 'pages/pegawai/ganti-foto.php',  
+    'form-ubah-id-peg'             => 'pages/pegawai/form-ubah-id-peg.php',
+    'proses-ubah-id'               => 'pages/pegawai/proses-ubah-id.php',
 
     // Otorisasi    
     'otorisasi-approval'           => 'pages/otorisasi/otorisasi-approval.php',
@@ -174,6 +176,7 @@ function getPage($page) {
     'form-master-data-ortu'        => 'pages/ref-keluarga/form-master-data-ortu.php',
     'form-import-data-ortu'        => 'pages/ref-keluarga/form-import-data-ortu.php',
     'form-edit-data-ortu'          => 'pages/ref-keluarga/form-edit-data-ortu.php',
+    'form-import-data-pasangan'    => 'pages/ref-keluarga/form-import-data-pasangan.php',
 
     // Ref Pelanggaran
     'form-view-data-pelanggaran'   => 'pages/ref-pelanggaran/form-view-data-pelanggaran.php',
@@ -189,12 +192,13 @@ function getPage($page) {
     // Pendidikan
     'form-view-data-pendidikan'        => 'pages/ref-pendidikan/form-view-data-pendidikan.php',
     'form-master-data-pendidikan'      => 'pages/ref-pendidikan/form-master-data-pendidikan.php',
-    'form-import-data-pendidikan'           => 'pages/ref-pendidikan/form-import-data-pendidikan.php',
+    'form-import-data-pendidikan'      => 'pages/ref-pendidikan/form-import-data-pendidikan.php',
 
     // Jabatan
     'form-view-data-jabatan'        => 'pages/ref-jabatan/form-view-data-jabatan.php',
     'form-master-data-jabatan'      => 'pages/ref-jabatan/form-master-data-jabatan.php',
     'form-import-jabatan'           => 'pages/ref-jabatan/form-import-jabatan.php',
+    'form-add-master-data-jabatan'  => 'pages/ref-jabatan/form-add-master-data-jabatan.php',
 
     // Kantor
     'form-view-data-kantor'        => 'pages/kantor/form-view-data-kantor.php',
@@ -209,6 +213,7 @@ function getPage($page) {
     'form-view-data-sertifikasi'   => 'pages/ref-sertifikasi/form-view-data-sertifikasi.php',
     'form-master-data-sertifikasi' => 'pages/ref-sertifikasi/form-master-data-sertifikasi.php',
     'form-import-data-sertifikasi' => 'pages/ref-sertifikasi/form-import-data-sertifikasi.php',
+    'form-edit-data-sertifikasi'   => 'pages/ref-sertifikasi/form-edit-data-sertifikasi.php',
 
     // Diklat
     'form-view-data-diklat'        => 'pages/ref-diklat/form-view-data-diklat.php',
@@ -235,6 +240,8 @@ function getPage($page) {
     // diklat
     'master-data-diklat'        => 'pages/ref-diklat/master-data-diklat.php',
     'form-diklat'               => 'pages/ref-diklat/form-diklat.php',
+    'ref-diklat'                => 'pages/ref-diklat/ref-diklat.php',
+    'rekap-biaya-diklat'      => 'pages/ref-diklat/rekap-biaya-diklat.php'
 
   ];
 

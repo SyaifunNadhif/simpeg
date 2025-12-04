@@ -1,13 +1,13 @@
 <?php
 /*********************************************************
  * FILE    : pages/diklat/proses-diklat.php
- * MODULE  : Proses Simpan/Edit/Hapus Diklat
- * VERSION : v2.4 (Integrated UI Fix)
+ * MODULE  : Proses Simpan/Edit/Hapus Diklat (+ Biaya)
+ * VERSION : v2.5
  *********************************************************/
 
 // Gunakan include_once agar tidak error jika koneksi sudah ada dari home-admin.php
 include_once 'dist/koneksi.php'; 
-// Fallback jika dipanggil langsung (jarang terjadi jika via routing home-admin)
+// Fallback jika dipanggil langsung
 if (!isset($conn)) { include_once '../../dist/koneksi.php'; }
 
 $status_aksi = '';
@@ -19,6 +19,10 @@ if (isset($_POST['simpan'])) {
     $diklat        = mysqli_real_escape_string($conn, $_POST['diklat']);
     $penyelenggara = mysqli_real_escape_string($conn, $_POST['penyelenggara']);
     $tempat        = mysqli_real_escape_string($conn, $_POST['tempat']);
+    
+    // Tangkap Biaya (Jika kosong, set jadi 0)
+    $biaya         = !empty($_POST['biaya']) ? mysqli_real_escape_string($conn, $_POST['biaya']) : 0;
+
     $angkatan      = mysqli_real_escape_string($conn, $_POST['angkatan']);
     $tahun         = mysqli_real_escape_string($conn, $_POST['tahun']);
     $date_reg      = mysqli_real_escape_string($conn, $_POST['date_reg']);
@@ -27,8 +31,9 @@ if (isset($_POST['simpan'])) {
     if(empty($id_peg) || empty($diklat)) {
         $status_aksi = 'kosong';
     } else {
-        $query = "INSERT INTO tb_diklat (id_peg, diklat, penyelenggara, tempat, angkatan, tahun, date_reg, created_by)
-                  VALUES ('$id_peg', '$diklat', '$penyelenggara', '$tempat', '$angkatan', '$tahun', '$date_reg', '$created_by')";
+        // PERUBAHAN: Tambahkan kolom biaya
+        $query = "INSERT INTO tb_diklat (id_peg, diklat, penyelenggara, tempat, biaya, angkatan, tahun, date_reg, created_by)
+                  VALUES ('$id_peg', '$diklat', '$penyelenggara', '$tempat', '$biaya', '$angkatan', '$tahun', '$date_reg', '$created_by')";
         
         if (mysqli_query($conn, $query)) {
             $status_aksi = 'sukses_tambah';
@@ -46,16 +51,22 @@ if (isset($_POST['update'])) {
     $diklat        = mysqli_real_escape_string($conn, $_POST['diklat']);
     $penyelenggara = mysqli_real_escape_string($conn, $_POST['penyelenggara']);
     $tempat        = mysqli_real_escape_string($conn, $_POST['tempat']);
+    
+    // Tangkap Biaya (Jika kosong, set jadi 0)
+    $biaya         = !empty($_POST['biaya']) ? mysqli_real_escape_string($conn, $_POST['biaya']) : 0;
+
     $angkatan      = mysqli_real_escape_string($conn, $_POST['angkatan']);
     $tahun         = mysqli_real_escape_string($conn, $_POST['tahun']);
     $date_reg      = mysqli_real_escape_string($conn, $_POST['date_reg']);
     $updated_by    = isset($_SESSION['id_user']) ? $_SESSION['id_user'] : 'admin';
 
+    // PERUBAHAN: Tambahkan update kolom biaya
     $query = "UPDATE tb_diklat SET
               id_peg        = '$id_peg',
               diklat        = '$diklat',
               penyelenggara = '$penyelenggara',
               tempat        = '$tempat',
+              biaya         = '$biaya',
               angkatan      = '$angkatan',
               tahun         = '$tahun',
               date_reg      = '$date_reg',

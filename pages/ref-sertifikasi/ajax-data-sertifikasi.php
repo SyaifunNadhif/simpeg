@@ -1,85 +1,79 @@
 <?php
-/*********************************************************
- * FILE    : pages/ref-sertifikasi/ajax-data-sertifikasi.php
- * MODULE  : SIMPEG — Sertifikasi (DataTables server-side)
- * VERSION : v1.2 (PHP 5.6)
- * DATE    : 2025-09-07
- * CHANGELOG
- * - v1.2: Dukung filter f_sertif & f_tahun; badge expired <6 bln.
- * - v1.1: Perapihan count.
- * - v1.0: Versi awal.
- *********************************************************/
-if (session_id()==='') session_start();
-@include_once __DIR__ . '/../../dist/koneksi.php';
-if (!isset($conn)) { @include_once __DIR__ . '/../../config/koneksi.php'; $conn = isset($koneksi)?$koneksi:null; }
-header('Content-Type: application/json; charset=utf-8');
+// FILE: pages/ref-sertifikasi/ajax-data-sertifikasi.php
+include '../../dist/koneksi.php'; 
 
-function esc($s){ global $conn; return mysqli_real_escape_string($conn, trim($s)); }
-
-$draw   = isset($_GET['draw'])   ? (int)$_GET['draw']   : 1;
-$start  = isset($_GET['start'])  ? (int)$_GET['start']  : 0;
-$length = isset($_GET['length']) ? (int)$_GET['length'] : 10;
+// 1. Ambil Parameter DataTables
+$draw   = isset($_GET['draw']) ? intval($_GET['draw']) : 1;
+$start  = isset($_GET['start']) ? intval($_GET['start']) : 0;
+$length = isset($_GET['length']) ? intval($_GET['length']) : 10;
 $search = isset($_GET['search']['value']) ? $_GET['search']['value'] : '';
 
-$uid      = isset($_GET['uid']) ? preg_replace('~[^A-Za-z0-9_\-]~','', $_GET['uid']) : '';
-$f_sertif = isset($_GET['f_sertif']) ? esc($_GET['f_sertif']) : '';
-$f_tahun  = isset($_GET['f_tahun'])  ? esc($_GET['f_tahun'])  : '';
+// 2. Ambil Parameter Filter
+$uid      = isset($_GET['uid']) ? mysqli_real_escape_string($conn, $_GET['uid']) : '';
+$f_sertif = isset($_GET['f_sertif']) ? mysqli_real_escape_string($conn, $_GET['f_sertif']) : '';
+$f_tahun  = isset($_GET['f_tahun']) ? mysqli_real_escape_string($conn, $_GET['f_tahun']) : '';
 
+// 3. Query WHERE
 $where = " WHERE 1=1 ";
-if ($uid!=='') { $where .= " AND s.id_peg='".esc($uid)."' "; }
-if ($search!=='') {
-  $s = esc($search);
-  $where .= " AND (s.sertifikasi LIKE '%$s%' OR s.penyelenggara LIKE '%$s%' OR s.sertifikat LIKE '%$s%' OR p.nama LIKE '%$s%') ";
+if (!empty($uid)) { $where .= " AND s.id_peg = '$uid' "; }
+if (!empty($f_sertif)) { $where .= " AND s.sertifikasi = '$f_sertif' "; }
+if (!empty($f_tahun)) { $where .= " AND YEAR(s.tgl_sertifikat) = '$f_tahun' "; }
+if (!empty($search)) {
+    $search = mysqli_real_escape_string($conn, $search);
+    $where .= " AND (p.nama LIKE '%$search%' OR s.sertifikasi LIKE '%$search%' OR s.penyelenggara LIKE '%$search%') ";
 }
-if ($f_sertif!=='') { $where .= " AND s.sertifikasi='{$f_sertif}' "; }
-if ($f_tahun!=='')  { $where .= " AND YEAR(s.tgl_sertifikat)='{$f_tahun}' "; }
 
-/* counts */
-$qTotal = mysqli_query($conn, "SELECT COUNT(*) c FROM tb_sertifikasi s ".$where);
-$totalFiltered = 0; if($qTotal){ $r=mysqli_fetch_assoc($qTotal); $totalFiltered=(int)$r['c']; }
-$qAll = mysqli_query($conn, "SELECT COUNT(*) c FROM tb_sertifikasi"); $totalAll = 0; if($qAll){ $ra=mysqli_fetch_assoc($qAll); $totalAll=(int)$ra['c']; }
+// 4. Hitung Total
+$sqlCount = "SELECT count(*) as total FROM tb_sertifikasi s JOIN tb_pegawai p ON s.id_peg = p.id_peg $where";
+$resCount = mysqli_query($conn, $sqlCount);
+$rowC = mysqli_fetch_assoc($resCount);
+$totalRecords = $rowC['total'];
 
-/* data */
-$sql = "SELECT s.*, p.nama AS nama_peg
-        FROM tb_sertifikasi s
-        LEFT JOIN tb_pegawai p ON p.id_peg=s.id_peg
-        $where
-        ORDER BY COALESCE(s.tgl_sertifikat,'1000-01-01') DESC, s.id_sertif DESC
-        LIMIT ".(int)$start.",".(int)$length;
-$q = mysqli_query($conn,$sql);
+// 5. Ambil Data
+$sqlData = "SELECT s.*, p.nama as nama_pegawai 
+            FROM tb_sertifikasi s 
+            JOIN tb_pegawai p ON s.id_peg = p.id_peg 
+            $where 
+            ORDER BY s.tgl_sertifikat DESC 
+            LIMIT $start, $length";
 
+$resData = mysqli_query($conn, $sqlData);
+$data = array();
+$no = $start + 1;
 $today = date('Y-m-d');
-$sixm  = date('Y-m-d', strtotime('+6 months'));
 
-$data = array(); $no=$start+1;
-if($q){ while($r=mysqli_fetch_assoc($q)){
-  $exp = $r['tgl_expired'];
-  $statusBadge = '-';
-  if($exp && $exp!='0000-00-00'){
-    if($exp < $today){
-      $statusBadge = '<span class="badge bg-danger">Expired</span>';
-    } elseif($exp <= $sixm){
-      $statusBadge = '<span class="badge bg-warning text-dark">Warning</span>';
+while ($row = mysqli_fetch_assoc($resData)) {
+    // Status Badge
+    if (!empty($row['tgl_expired']) && $row['tgl_expired'] != '0000-00-00') {
+        if ($row['tgl_expired'] < $today) {
+            $sb = '<span class="badge bg-danger">Expired</span>';
+        } else {
+            $sb = '<span class="badge bg-success">Aktif</span>';
+        }
     } else {
-      $statusBadge = '<span class="badge bg-success">Aktif</span>';
+        $sb = '<span class="badge bg-info text-dark">Permanen</span>';
     }
-  }
 
-  $data[] = array(
-    'no'            => $no++,
-    'idpeg_nama'    => ($r['id_peg']?$r['id_peg']:'-').' — '.($r['nama_peg']?$r['nama_peg']:'-'),
-    'sertifikasi'   => $r['sertifikasi'],
-    'penyelenggara' => $r['penyelenggara'],
-    'sertifikat'    => $r['sertifikat'],               // akan dimasukkan ke child
-    'tgl_sertifikat'=> $r['tgl_sertifikat'],
-    'tgl_expired'   => ($exp && $exp!='0000-00-00') ? $exp : '',
-    'status_badge'  => $statusBadge                    // tampil di kolom utama
-  );
-} }
+    $nestedData = array();
+    $nestedData['no']             = $no++;
+    $nestedData['idpeg_nama']     = '<strong>' . $row['nama_pegawai'] . '</strong><br><small class="text-muted">' . $row['id_peg'] . '</small>';
+    $nestedData['sertifikasi']    = $row['sertifikasi'];
+    $nestedData['penyelenggara']  = $row['penyelenggara'] ? $row['penyelenggara'] : '-';
+    $nestedData['tgl_expired']    = ($row['tgl_expired'] && $row['tgl_expired']!='0000-00-00') ? date('d-m-Y', strtotime($row['tgl_expired'])) : '-';
+    $nestedData['status_badge']   = $sb;
+    $nestedData['sertifikat']     = $row['sertifikat'] ? $row['sertifikat'] : '-';
+    $nestedData['tgl_sertifikat'] = ($row['tgl_sertifikat'] && $row['tgl_sertifikat']!='0000-00-00') ? date('d-m-Y', strtotime($row['tgl_sertifikat'])) : '-';
+    
+    // --- PERBAIKAN DI SINI (Gunakan id_sertif) ---
+    $nestedData['id_sertif']      = $row['id_sertif']; 
+
+    $data[] = $nestedData;
+}
 
 echo json_encode(array(
-  'draw'=>$draw,
-  'recordsTotal'=>$totalAll,
-  'recordsFiltered'=>$totalFiltered,
-  'data'=>$data
+    "draw" => $draw,
+    "recordsTotal" => $totalRecords,
+    "recordsFiltered" => $totalRecords,
+    "data" => $data
 ));
+?>

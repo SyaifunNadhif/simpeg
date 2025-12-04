@@ -1,110 +1,169 @@
-<?php
-/*********************************************************
- * FILE    : pages/ref-jabatan/form-import-jabatan.php
- * MODULE  : SIMPEG — Import Jabatan Pegawai (Kolektif)
- * VERSION : v1.0 (PHP 5.6 compatible)
- * DATE    : 2025-09-07
- * AUTHOR  : EWS/SIMPEG BKK Jateng — by ChatGPT
- *
- * PURPOSE :
- *   - Upload & impor jabatan pegawai secara kolektif dari Excel/CSV.
- *   - Mendukung .xlsx (PHPExcel) dan .csv.
- *   - Aturan SIMPAN:
- *       • tmt_jabatan = tgl_sk
- *       • unit_kerja menyimpan kode_kantor_detail
- *       • status_jab='Aktif' → otomatis menutup jabatan aktif lama (Non, sampai_tgl = tgl_sk_baru - 1)
- *
- * FORMAT TEMPLATE (header kolom persis):
- *   id_peg | kode_jabatan | jabatan | unit_kerja | status_jab | no_sk | tgl_sk
- *   - id_peg        : kode pegawai (PK skema lama)
- *   - kode_jabatan  : wajib (sesuai tb_ref_jabatan)
- *   - jabatan       : opsional (jika kosong akan diisi dari tb_ref_jabatan berdasarkan kode_jabatan)
- *   - unit_kerja    : wajib; isi kode_kantor_detail (contoh KC01.01)
- *   - status_jab    : Aktif/Non (default Aktif jika kosong)
- *   - no_sk         : teks
- *   - tgl_sk        : yyyy-mm-dd atau dd/mm/yyyy
- *
- * DEPENDENCY:
- *   - PHPExcel (plugins/phpexcel/Classes/PHPExcel.php)
- *********************************************************/
-if (session_id()==='') session_start();
-require_once __DIR__ . '/../../dist/koneksi.php';
+<style>
+    .upload-container { background: #fff; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); padding: 30px; }
+    .drop-zone { border: 2px dashed #cbd5e0; border-radius: 15px; padding: 40px; text-align: center; background-color: #f8fafc; transition: all 0.3s ease; cursor: pointer; position: relative; }
+    .drop-zone:hover, .drop-zone.dragover { border-color: #007bff; background-color: #e3f2fd; transform: scale(1.01); }
+    .file-input-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; }
+    .file-preview { display: none; margin-top: 20px; padding: 15px; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; }
+    .step-badge { background: #007bff; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-block; text-align: center; line-height: 28px; font-weight: bold; margin-right: 10px; }
+</style>
 
-function e($s){ return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
-$maxSize = 2 * 1024 * 1024; // 2MB
-$today   = date('Y-m-d');
-
-$flash = isset($_SESSION['flash_msg']) ? $_SESSION['flash_msg'] : '';
-unset($_SESSION['flash_msg']);
-?>
-<!DOCTYPE html>
-<html lang="id">
-<head>
-  <meta charset="UTF-8">
-  <title>Impor Jabatan Pegawai (Kolektif)</title>
-  <link rel="stylesheet" href="assets/css/bootstrap.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <style>
-    .card{border-radius:14px;border:1px solid rgba(0,0,0,.05);box-shadow:0 6px 24px rgba(0,0,0,.06)}
-    .card-header{background:linear-gradient(90deg,#2563eb,#0ea5e9);color:#fff;border-radius:14px 14px 0 0}
-  </style>
-</head>
-<body>
-<div class="container my-4">
-  <div class="card">
-    <div class="card-header">
-      <h5 class="mb-0">Impor Jabatan Pegawai (Kolektif)</h5>
-      <small>Unggah file Excel/CSV sesuai template</small>
-    </div>
-    <div class="card-body">
-      <?php if ($flash!=''): ?>
-        <script>Swal.fire({icon:'info', title:'Info', html: <?php echo json_encode($flash); ?>});</script>
-      <?php endif; ?>
-
-      <div class="mb-3">
-        <b>Unduh Template:</b>
-        <a class="btn btn-sm btn-outline-primary" href="pages/ref-jabatan/template-jabatan.xlsx">template-jabatan.xlsx</a>
-        <a class="btn btn-sm btn-outline-secondary" href="pages/ref-jabatan/template-jabatan.csv">template-jabatan.csv</a>
-      </div>
-
-      <form class="row g-3" method="post" action="home-admin.php?page=simpan-import-jabatan" enctype="multipart/form-data">
-        <div class="col-md-6">
-          <label class="form-label">File Excel/CSV (max 2MB)</label>
-          <input type="file" name="file_import" accept=".xlsx,.csv" class="form-control" required>
-        </div>
-        <div class="col-md-3">
-          <label class="form-label">Mode</label>
-          <select name="mode" class="form-select">
-            <option value="insert">Insert Only</option>
-            <option value="upsert">Update jika duplikat</option>
-          </select>
-        </div>
-        <div class="col-md-3">
-          <label class="form-label">Simulasi</label>
-          <select name="dryrun" class="form-select">
-            <option value="1">Ya, cek dulu</option>
-            <option value="0">Tidak, langsung proses</option>
-          </select>
-        </div>
-        <div class="col-12 d-flex justify-content-between mt-2">
-          <button type="button" class="btn btn-outline-secondary" onclick="history.back()">Kembali</button>
-          <button type="submit" class="btn btn-primary">Proses Impor</button>
-        </div>
-        <input type="hidden" name="MAX_FILE_SIZE" value="<?php echo (int)$maxSize; ?>">
-      </form>
-
-      <hr>
-      <div>
-        <b>Catatan:</b>
-        <ul>
-          <li>Kolom wajib: <code>id_peg, kode_jabatan, unit_kerja, no_sk, tgl_sk</code></li>
-          <li><code>status_jab</code> default <code>Aktif</code> bila dikosongkan.</li>
-          <li>Tanggal boleh <code>yyyy-mm-dd</code> atau <code>dd/mm/yyyy</code>.</li>
-          <li>Bila <code>status_jab = 'Aktif'</code>, sistem otomatis menutup jabatan aktif lama (sampai_tgl = tgl_sk - 1).</li>
-        </ul>
+<section class="content-header">
+  <div class="container-fluid">
+    <div class="row mb-2">
+      <div class="col-sm-6"><h1>Import Riwayat Jabatan</h1></div>
+      <div class="col-sm-6">
+        <ol class="breadcrumb float-sm-right">
+          <li class="breadcrumb-item"><a href="home-admin.php">Home</a></li>
+          <li class="breadcrumb-item active">Import Jabatan</li>
+        </ol>
       </div>
     </div>
   </div>
-</div>
-</body>
-</html>
+</section>
+
+<section class="content">
+  <div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="upload-container">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3 class="m-0 font-weight-bold text-dark"><i class="fas fa-briefcase text-primary mr-2"></i> Import Jabatan</h3>
+                    <a href="home-admin.php?page=view-data-jabatan" class="btn btn-light btn-sm rounded-pill px-3"><i class="fas fa-times"></i> Tutup</a>
+                </div>
+
+                <div class="alert alert-info shadow-sm mb-4">
+                    <h5><i class="icon fas fa-magic"></i> Fitur Smart Import:</h5>
+                    <ul class="mb-0 small">
+                        <li><b>Opsi 1:</b> Isi <u>Kode Jabatan</u> saja (Nama Jabatan akan otomatis terisi).</li>
+                        <li><b>Opsi 2:</b> Isi <u>Nama Jabatan</u> saja (Kode Jabatan akan otomatis dicari di Master).</li>
+                        <li>Jika status <b>'Aktif'</b>, jabatan lama pegawai otomatis ditutup (Non-Aktif).</li>
+                    </ul>
+                </div>
+
+                <div class="alert alert-secondary bg-white border shadow-sm rounded-lg mb-4">
+                    <div class="d-flex align-items-center">
+                        <span class="step-badge">1</span>
+                        <div class="flex-grow-1">
+                            <h6 class="m-0 text-dark font-weight-bold">Persiapan Data</h6>
+                            <small class="text-muted">Unduh template Excel Data Jabatan.</small>
+                        </div>
+                        <a href="pages/ref-jabatan/download-template-jabatan.php" target="_blank" class="btn btn-success btn-sm rounded-pill px-4 shadow-sm">
+                            <i class="fas fa-download mr-1"></i> Download Template
+                        </a>
+                    </div>
+                </div>
+
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <div class="d-flex align-items-center mb-3">
+                            <span class="step-badge">2</span>
+                            <h6 class="m-0 text-dark font-weight-bold">Upload File Excel</h6>
+                        </div>
+                        <div class="drop-zone" id="dropZone">
+                            <div class="content-wrap">
+                                <i class="fas fa-cloud-upload-alt fa-4x mb-3 text-secondary"></i>
+                                <h5 class="font-weight-bold text-dark">Klik atau Tarik File ke Sini</h5>
+                                <p class="text-muted mb-0 small">Support: .xlsx, .xls (Maks 5MB)</p>
+                            </div>
+                            <input type="file" name="file_excel" id="file_excel" class="file-input-overlay" accept=".xlsx, .xls" required>
+                        </div>
+                        <div id="filePreview" class="file-preview">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-file-excel text-success fa-2x mr-3"></i>
+                                <div><h6 class="m-0 font-weight-bold text-dark" id="fileName">file.xlsx</h6><small class="text-muted" id="fileSize">0 KB</small></div>
+                                <div class="ml-auto"><span class="text-success fw-bold"><i class="fas fa-check-circle"></i> Siap Upload</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg rounded-pill px-5 shadow-sm"><i class="fas fa-eye mr-2"></i> Preview Data</button>
+                    </div>
+                </form>
+
+                <div id="preview-area" class="mt-5"></div>
+            </div>
+        </div>
+    </div>
+  </div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('file_excel');
+const filePreview = document.getElementById('filePreview');
+const fileNameTxt = document.getElementById('fileName');
+const fileSizeTxt = document.getElementById('fileSize');
+
+['dragenter', 'dragover'].forEach(evt => dropZone.addEventListener(evt, (e) => { e.preventDefault(); dropZone.classList.add('dragover'); }));
+['dragleave', 'drop'].forEach(evt => dropZone.addEventListener(evt, (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); }));
+
+fileInput.addEventListener('change', function() {
+    if (this.files.length) {
+        filePreview.style.display = 'block';
+        fileNameTxt.textContent = this.files[0].name;
+        fileSizeTxt.textContent = (this.files[0].size / 1024).toFixed(2) + ' KB';
+    }
+});
+
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    if (!fileInput.files.length) { Swal.fire('Warning', 'Pilih file terlebih dahulu!', 'warning'); return; }
+
+    const formData = new FormData();
+    formData.append('file_excel', fileInput.files[0]);
+    formData.append('action', 'preview');
+
+    Swal.fire({title: 'Memproses Preview...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+
+    fetch('pages/ref-jabatan/upload-data-jabatan.php', { method: 'POST', body: formData })
+    .then(res => res.json())
+    .then(res => {
+        Swal.close();
+        if (res.status === 'success') {
+            document.getElementById('preview-area').innerHTML = res.html;
+            document.getElementById('preview-area').scrollIntoView({ behavior: 'smooth' });
+            Swal.fire({icon: 'success', title: 'Preview Berhasil', timer: 1500, showConfirmButton: false});
+        } else {
+            Swal.fire('Gagal', res.message, 'error');
+        }
+    }).catch(err => { Swal.close(); Swal.fire('Error', 'Terjadi kesalahan server.', 'error'); });
+});
+
+document.body.addEventListener('click', function(e) {
+    if (e.target && (e.target.id == 'btnSimpanJabatan' || e.target.closest('#btnSimpanJabatan'))) {
+        e.preventDefault();
+        const textArea = document.getElementById('json_data_jabatan');
+        if(!textArea) { Swal.fire('Error', 'Data preview tidak ditemukan.', 'error'); return; }
+
+        Swal.fire({
+            title: 'Simpan Data Jabatan?',
+            text: "Sistem akan otomatis menutup jabatan lama jika status 'Aktif'.",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Proses!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const formData = new FormData();
+                formData.append('action', 'save');
+                formData.append('data_jabatan', textArea.value); 
+
+                Swal.fire({title: 'Menyimpan Data...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+
+                fetch('pages/ref-jabatan/upload-data-jabatan.php', { method: 'POST', body: formData })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status === 'success') {
+                        Swal.fire('Selesai!', res.message, 'success').then(() => { 
+                            // Refresh atau redirect
+                            location.reload(); 
+                        });
+                    } else {
+                        Swal.fire('Gagal', res.message, 'error');
+                    }
+                }).catch(err => { Swal.close(); Swal.fire('Error', 'Koneksi gagal.', 'error'); });
+            }
+        });
+    }
+});
+</script>

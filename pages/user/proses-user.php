@@ -1,42 +1,53 @@
 <?php
 /*********************************************************
  * FILE    : pages/user/proses-user.php
- * MODULE  : Backend CRUD User (Standalone & Secure)
- * VERSION : v2.0
+ * MODULE  : Backend CRUD (Created By & Jabatan Name)
+ * VERSION : v3.3
  *********************************************************/
 
 include_once __DIR__ . '/../../dist/koneksi.php';
+// Pastikan session dimulai untuk mengambil ID Admin yang login
 if (session_id() == '') session_start();
+
+// Cek apakah user sudah login (Optional, sesuaikan dengan sistem login Anda)
+// $admin_login = isset($_SESSION['id_user']) ? $_SESSION['id_user'] : 'System'; 
+// Asumsi: Variabel session login Anda adalah 'id_user' atau 'ses_id'
+// Jika error undefined index, ganti 'id_user' dengan nama session yang benar di file login.php Anda
+$admin_login = isset($_SESSION['id_user']) ? $_SESSION['id_user'] : 'Admin'; 
 
 $status_aksi = '';
 $pesan_error = '';
 
-// ==========================================
-// 1. PROSES SIMPAN (CREATE & UPDATE)
-// ==========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
-    $mode           = $_POST['mode']; // 'create' atau 'edit'
-    $id_user        = mysqli_real_escape_string($conn, $_POST['id_user']);
-    $nama_user      = mysqli_real_escape_string($conn, $_POST['nama_user']);
-    $password_raw   = $_POST['password']; 
-    $hak_akses      = mysqli_real_escape_string($conn, $_POST['hak_akses']);
-    $id_pegawai     = !empty($_POST['id_pegawai']) ? mysqli_real_escape_string($conn, $_POST['id_pegawai']) : NULL;
-    $unit_kerja     = !empty($_POST['unit_kerja']) ? mysqli_real_escape_string($conn, $_POST['unit_kerja']) : NULL;
-    $status_aktif   = isset($_POST['status_aktif']) ? 'Y' : 'N';
+    $mode       = $_POST['mode']; 
+    $id_user    = mysqli_real_escape_string($conn, $_POST['id_user']);
+    $nama_user  = mysqli_real_escape_string($conn, $_POST['nama_user']);
+    $password_raw = $_POST['password']; 
+    $hak_akses  = mysqli_real_escape_string($conn, $_POST['hak_akses']);
+    $id_pegawai = !empty($_POST['id_pegawai']) ? mysqli_real_escape_string($conn, $_POST['id_pegawai']) : NULL;
+    
+    // Variabel ini sekarang berisi TEXT (Contoh: "Kepala Cabang")
+    $jabatan    = !empty($_POST['jabatan']) ? mysqli_real_escape_string($conn, $_POST['jabatan']) : NULL;
+    
+    $status_aktif = isset($_POST['status_aktif']) ? 'Y' : 'N';
 
-    // --- LOGIKA TAMBAH BARU ---
+    // --- INSERT ---
     if ($mode == 'create') {
-        // Cek Duplikat Username
         $cek = mysqli_query($conn, "SELECT id_user FROM tb_user WHERE id_user = '$id_user'");
         if (mysqli_num_rows($cek) > 0) {
             $status_aksi = 'duplikat';
         } else {
-            // Enkripsi Password (MD5 standar legacy, ganti password_hash jika perlu)
             $password_hash = md5($password_raw); 
 
-            $query = "INSERT INTO tb_user (id_user, nama_user, password, hak_akses, id_pegawai, unit_kerja, status_aktif, created_at) 
-                      VALUES ('$id_user', '$nama_user', '$password_hash', '$hak_akses', '$id_pegawai', '$unit_kerja', '$status_aktif', NOW())";
+            // Tambahkan created_by & created_at
+            $query = "INSERT INTO tb_user (
+                        id_user, nama_user, password, hak_akses, id_pegawai, jabatan, status_aktif, 
+                        created_at, created_by
+                      ) VALUES (
+                        '$id_user', '$nama_user', '$password_hash', '$hak_akses', '$id_pegawai', '$jabatan', '$status_aktif', 
+                        NOW(), '$admin_login'
+                      )";
             
             if (mysqli_query($conn, $query)) {
                 $status_aksi = 'sukses_tambah';
@@ -47,23 +58,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     
-    // --- LOGIKA UPDATE ---
+    // --- UPDATE ---
     elseif ($mode == 'edit') {
         $id_user_lama = mysqli_real_escape_string($conn, $_POST['id_user_lama']);
-
-        // Cek apakah password diubah?
         $sql_pass = "";
         if (!empty($password_raw)) {
             $password_hash = md5($password_raw);
             $sql_pass = ", password = '$password_hash'";
         }
 
+        // Tambahkan updated_by & updated_at
         $query = "UPDATE tb_user SET 
-                  nama_user = '$nama_user',
-                  hak_akses = '$hak_akses',
-                  id_pegawai = '$id_pegawai',
-                  unit_kerja = '$unit_kerja',
-                  status_aktif = '$status_aktif'
+                  nama_user    = '$nama_user',
+                  hak_akses    = '$hak_akses',
+                  id_pegawai   = '$id_pegawai',
+                  jabatan      = '$jabatan',
+                  status_aktif = '$status_aktif',
+                  updated_at   = NOW(),
+                  updated_by   = '$admin_login'
                   $sql_pass
                   WHERE id_user = '$id_user_lama'";
 
@@ -76,14 +88,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// ==========================================
-// 2. PROSES HAPUS (DELETE)
-// ==========================================
+// --- DELETE ---
 if (isset($_GET['act']) && $_GET['act'] == 'hapus' && isset($_GET['id'])) {
     $id = mysqli_real_escape_string($conn, $_GET['id']);
     
-    // Cegah hapus diri sendiri (Opsional, tapi bagus)
-    if ($id == $_SESSION['id_user']) {
+    if (isset($_SESSION['id_user']) && $id == $_SESSION['id_user']) {
         $status_aksi = 'gagal';
         $pesan_error = "Tidak bisa menghapus akun sendiri!";
     } else {
@@ -115,40 +124,26 @@ if (isset($_GET['act']) && $_GET['act'] == 'hapus' && isset($_GET['id'])) {
   </style>
 </head>
 <body>
-
     <div class="loading-card">
         <i class="fas fa-circle-notch fa-3x loading-icon"></i>
         <h4>Memproses User...</h4>
     </div>
-
     <script>
         var status = "<?= $status_aksi ?>";
         var errorMsg = "<?= $pesan_error ?>";
-        
-        // Redirect ke halaman data user (Mundur 2 folder)
-        var redirectUrl = '../../home-admin.php?page=view-data-user';
+        var redirectUrl = '../../home-admin.php?page=daftar-user';
 
         if (status == 'sukses_tambah') {
-            Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'User baru ditambahkan.', showConfirmButton: false, timer: 1500 })
-            .then(() => { window.location.href = redirectUrl; });
-        } 
-        else if (status == 'sukses_edit') {
-            Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'Data user diperbarui.', showConfirmButton: false, timer: 1500 })
-            .then(() => { window.location.href = redirectUrl; });
-        } 
-        else if (status == 'sukses_hapus') {
-            Swal.fire({ icon: 'success', title: 'Terhapus!', text: 'User berhasil dihapus.', showConfirmButton: false, timer: 1500 })
-            .then(() => { window.location.href = redirectUrl; });
-        } 
-        else if (status == 'duplikat') {
-            Swal.fire({ icon: 'warning', title: 'Gagal!', text: 'Username sudah terdaftar.' })
-            .then(() => { window.history.back(); });
-        } 
-        else if (status == 'gagal') {
-            Swal.fire({ icon: 'error', title: 'Gagal!', text: 'Error: ' + errorMsg })
-            .then(() => { window.history.back(); });
+            Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'User baru ditambahkan.', showConfirmButton: false, timer: 1500 }).then(() => { window.location.href = redirectUrl; });
+        } else if (status == 'sukses_edit') {
+            Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'Data user diperbarui.', showConfirmButton: false, timer: 1500 }).then(() => { window.location.href = redirectUrl; });
+        } else if (status == 'sukses_hapus') {
+            Swal.fire({ icon: 'success', title: 'Terhapus!', text: 'User berhasil dihapus.', showConfirmButton: false, timer: 1500 }).then(() => { window.location.href = redirectUrl; });
+        } else if (status == 'duplikat') {
+            Swal.fire({ icon: 'warning', title: 'Gagal!', text: 'Username sudah terdaftar.' }).then(() => { window.history.back(); });
+        } else if (status == 'gagal') {
+            Swal.fire({ icon: 'error', title: 'Gagal!', text: 'Error: ' + errorMsg }).then(() => { window.history.back(); });
         }
     </script>
-
 </body>
 </html>

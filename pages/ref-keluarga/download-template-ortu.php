@@ -1,6 +1,6 @@
 <?php
 // =============================================================
-// FILE: pages/ref-diklat/download-template-diklat.php
+// FILE: pages/ref-ortu/download-template-ortu.php
 // =============================================================
 
 require '../../vendor/autoload.php';
@@ -15,16 +15,17 @@ use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 $spreadsheet = new Spreadsheet();
 $sheet = $spreadsheet->getActiveSheet();
 
-// Header Kolom (A-H)
+// Header Kolom (A-I)
 $headers = [
     'A' => 'ID Pegawai',
-    'B' => 'Nama Diklat',
-    'C' => 'Penyelenggara',
-    'D' => 'Tempat',
-    'E' => 'Biaya (Rp)',      // <--- POSISI BARU (Sebelah Tempat)
-    'F' => 'Angkatan',
-    'G' => 'Tahun',
-    'H' => 'Tgl Registrasi (yyyy-mm-dd)'
+    'B' => 'NIK',
+    'C' => 'Nama Orang Tua',
+    'D' => 'Tempat Lahir',
+    'E' => 'Tgl Lahir (dd-mm-yyyy)',
+    'F' => 'Pendidikan',
+    'G' => 'ID Pekerjaan',
+    'H' => 'Pekerjaan',
+    'I' => 'Status Hubungan'
 ];
 
 foreach ($headers as $col => $text) {
@@ -38,20 +39,34 @@ foreach ($headers as $col => $text) {
     $sheet->getColumnDimension($col)->setAutoSize(true);
 }
 
-// Contoh Data
+// Contoh Data (Ayah & Ibu)
+// Baris 2: Ayah
 $sheet->setCellValue('A2', 'P001');
-$sheet->setCellValue('B2', 'Diklat Pim IV');
-$sheet->setCellValue('C2', 'BPSDM');
-$sheet->setCellValue('D2', 'Bandung');
-$sheet->setCellValue('E2', '5000000'); // Contoh Biaya
-$sheet->setCellValue('F2', 'XIX');
-$sheet->setCellValue('G2', '2023');
-$sheet->setCellValue('H2', '2023-05-20');
+$sheet->setCellValue('B2', '3374010101550001');
+$sheet->setCellValue('C2', 'H. Ahmad Dahlan');
+$sheet->setCellValue('D2', 'Yogyakarta');
+$sheet->setCellValue('E2', '01-01-1950');
+$sheet->setCellValue('F2', 'S1');
+$sheet->setCellValue('G2', 'K01');
+$sheet->setCellValue('H2', 'Pensiunan');
+$sheet->setCellValue('I2', 'Ayah');
 
-// Format Text
-$sheet->getStyle('G:H')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
+// Baris 3: Ibu
+$sheet->setCellValue('A3', 'P001');
+$sheet->setCellValue('B3', '3374020202600002');
+$sheet->setCellValue('C3', 'Hj. Siti Walidah');
+$sheet->setCellValue('D3', 'Yogyakarta');
+$sheet->setCellValue('E3', '15-05-1955');
+$sheet->setCellValue('F3', 'SMA');
+$sheet->setCellValue('G3', 'K02');
+$sheet->setCellValue('H3', 'Ibu Rumah Tangga');
+$sheet->setCellValue('I3', 'Ibu');
 
-$filename = 'template_diklat.xlsx';
+// Format Teks
+$sheet->getStyle('B:B')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
+$sheet->getStyle('E:E')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
+
+$filename = 'template_orangtua.xlsx';
 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 header('Content-Disposition: attachment;filename="' . $filename . '"');
 header('Cache-Control: max-age=0');

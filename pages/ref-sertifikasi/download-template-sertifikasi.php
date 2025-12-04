@@ -1,6 +1,6 @@
 <?php
 // =============================================================
-// FILE: pages/ref-diklat/download-template-diklat.php
+// FILE: pages/ref-sertifikasi/download-template-sertifikasi.php
 // =============================================================
 
 require '../../vendor/autoload.php';
@@ -10,22 +10,12 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Border;
-use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
 $spreadsheet = new Spreadsheet();
 $sheet = $spreadsheet->getActiveSheet();
 
-// Header Kolom (A-H)
-$headers = [
-    'A' => 'ID Pegawai',
-    'B' => 'Nama Diklat',
-    'C' => 'Penyelenggara',
-    'D' => 'Tempat',
-    'E' => 'Biaya (Rp)',      // <--- POSISI BARU (Sebelah Tempat)
-    'F' => 'Angkatan',
-    'G' => 'Tahun',
-    'H' => 'Tgl Registrasi (yyyy-mm-dd)'
-];
+// Header Kolom
+$headers = ['A'=>'ID Pegawai', 'B'=>'Nama Sertifikasi', 'C'=>'Penyelenggara', 'D'=>'Tgl Sertifikat', 'E'=>'Tgl Expired', 'F'=>'No Sertifikat'];
 
 foreach ($headers as $col => $text) {
     $sheet->setCellValue($col . '1', $text);
@@ -38,22 +28,19 @@ foreach ($headers as $col => $text) {
     $sheet->getColumnDimension($col)->setAutoSize(true);
 }
 
-// Contoh Data
+// Data Contoh
 $sheet->setCellValue('A2', 'P001');
-$sheet->setCellValue('B2', 'Diklat Pim IV');
-$sheet->setCellValue('C2', 'BPSDM');
-$sheet->setCellValue('D2', 'Bandung');
-$sheet->setCellValue('E2', '5000000'); // Contoh Biaya
-$sheet->setCellValue('F2', 'XIX');
-$sheet->setCellValue('G2', '2023');
-$sheet->setCellValue('H2', '2023-05-20');
+$sheet->setCellValue('B2', 'Ahli K3 Umum');
+$sheet->setCellValue('C2', 'Kemnaker RI');
+$sheet->setCellValue('D2', '10-01-2023');
+$sheet->setCellValue('E2', '10-01-2026');
+$sheet->setCellValue('F2', 'SERT-K3-001');
 
 // Format Text
-$sheet->getStyle('G:H')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
+$sheet->getStyle('D:E')->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT);
 
-$filename = 'template_diklat.xlsx';
 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-header('Content-Disposition: attachment;filename="' . $filename . '"');
+header('Content-Disposition: attachment;filename="template_sertifikasi.xlsx"');
 header('Cache-Control: max-age=0');
 
 $writer = new Xlsx($spreadsheet);

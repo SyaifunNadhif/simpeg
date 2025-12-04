@@ -189,7 +189,7 @@ $qKantor = mysqli_query($conn, "SELECT * FROM tb_kantor WHERE level IN ('KC','KP
                     <h6 class="m-0 font-weight-bold text-primary"><i class="fa fa-list mr-2"></i> Daftar Peserta Diklat</h6>
                     <div class="btn-group">
                         <a href="home-admin.php?page=form-diklat" class="btn btn-success btn-sm shadow-sm"><i class="fa fa-plus mr-1"></i> Tambah Data</a>
-                        <a href="home-admin.php?page=import-diklat" class="btn btn-info btn-sm shadow-sm"><i class="fa fa-file-upload mr-1"></i> Import</a>
+                        <a href="home-admin.php?page=form-import-data-diklat" class="btn btn-info btn-sm shadow-sm"><i class="fa fa-file-upload mr-1"></i> Import</a>
                     </div>
                 </div>
 

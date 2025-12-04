@@ -69,6 +69,18 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a href="home-admin.php?page=form-ubah-id-peg" class="nav-link <?php echo ($page == 'form-master-data-pegawai') ? 'active' : ''; ?>">
+                                <i class="far fa-dot-circle nav-icon"></i> 
+                                <p>Ubah Id Pegawai</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="home-admin.php?page=form-upload-data-pegawai" class="nav-link <?php echo ($page == 'form-upload-data-pegawai') ? 'active' : ''; ?>">
+                                <i class="far fa-dot-circle nav-icon"></i> 
+                                <p>Import Data Pegawai</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a href="home-admin.php?page=form-upload-data-pegawai" class="nav-link <?php echo ($page == 'form-upload-data-pegawai') ? 'active' : ''; ?>">
                                 <i class="far fa-dot-circle nav-icon"></i> 
                                 <p>Import Data Pegawai</p>
@@ -139,7 +151,7 @@
                             </a>
                         </li> 
                         <li class="nav-item">
-                            <a href="home-admin.php?page=form-view-data-diklat" class="nav-link <?php echo ($page == 'form-view-data-diklat') ? 'active' : ''; ?>">
+                            <a href="home-admin.php?page=master-data-diklat" class="nav-link <?php echo ($page == 'master-data-diklat') ? 'active' : ''; ?>">
                                 <i class="far fa-dot-circle nav-icon"></i> 
                                 <p>Pelatihan</p>
                             </a>
@@ -178,6 +190,12 @@
                             <a href="home-admin.php?page=formasi" class="nav-link <?php echo ($page == 'formasi') ? 'active' : ''; ?>">
                                 <i class="far fa-dot-circle nav-icon"></i> 
                                 <p>Laporan Formasi</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="home-admin.php?page=rekap-biaya-diklat" class="nav-link <?php echo ($page == 'formasi') ? 'active' : ''; ?>">
+                                <i class="far fa-dot-circle nav-icon"></i> 
+                                <p>Laporan Biaya Diklat</p>
                             </a>
                         </li>
                     </ul>

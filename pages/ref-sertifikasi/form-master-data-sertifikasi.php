@@ -2,19 +2,24 @@
 /*********************************************************
  * FILE    : pages/ref-sertifikasi/form-master-data-sertifikasi.php
  * MODULE  : SIMPEG — Data Sertifikasi (Entry)
- * VERSION : v1.0 (PHP 5.6)
+ * VERSION : v1.1 (PHP 5.6)
  * DATE    : 2025-09-07
- * Fitur   : Select2 picker, duplikat (id_peg+sertifikasi+tgl_sertifikat).
+ * Fitur   : Select2 picker, duplikat check, auto created_by from session.
  *********************************************************/
 if (session_id()==='') session_start();
 @include_once __DIR__ . '/../../dist/koneksi.php';
 @include_once __DIR__ . '/../../dist/functions.php';
 if (!isset($conn) || !$conn) { @include_once __DIR__ . '/../../config/koneksi.php'; if(isset($koneksi)) $conn=$koneksi; }
+
 function e($s){ return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
 function postv($k,$d=''){ return isset($_POST[$k])?trim($_POST[$k]):$d; }
 function clean($c,$s){ return mysqli_real_escape_string($c, trim($s)); }
 
 $today=date('Y-m-d'); $status=''; $msg='';
+
+// --- PERUBAHAN 1: Ambil ID User dari Session ---
+$created_by = isset($_SESSION['id_user']) ? clean($conn, $_SESSION['id_user']) : 'admin';
+
 $uid = isset($_GET['uid']) ? preg_replace('~[^A-Za-z0-9_\-]~','', $_GET['uid']) : '';
 $pegawai=null; if($uid!==''){ $q=mysqli_query($conn,"SELECT id_peg,nama FROM tb_pegawai WHERE id_peg='".clean($conn,$uid)."' LIMIT 1"); if($q&&mysqli_num_rows($q)>0)$pegawai=mysqli_fetch_assoc($q); }
 
@@ -30,8 +35,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $qDup=mysqli_query($conn,"SELECT 1 FROM tb_sertifikasi WHERE id_peg='{$id_peg}' AND sertifikasi='{$sertifikasi}' AND tgl_sertifikat".($tgl_sertifikat!==''?"='{$tgl_sertifikat}'":" IS NULL")." LIMIT 1");
     if($qDup && mysqli_num_rows($qDup)>0){ $status='duplikat'; $msg='Sertifikasi sudah ada pada tanggal tersebut.'; }
     if($status===''){
+      // --- PERUBAHAN 2: Masukkan variabel $created_by ke dalam query ---
       $sql="INSERT INTO tb_sertifikasi(id_peg,sertifikasi,penyelenggara,tgl_sertifikat,tgl_expired,sertifikat,date_reg,created_by)
-            VALUES('{$id_peg}','{$sertifikasi}','{$penyelenggara}',".($tgl_sertifikat!==''?"'{$tgl_sertifikat}'":"NULL").",".($tgl_expired!==''?"'{$tgl_expired}'":"NULL").",'{$sertifikat}',NOW(),'admin')";
+            VALUES('{$id_peg}','{$sertifikasi}','{$penyelenggara}',".($tgl_sertifikat!==''?"'{$tgl_sertifikat}'":"NULL").",".($tgl_expired!==''?"'{$tgl_expired}'":"NULL").",'{$sertifikat}',NOW(),'{$created_by}')";
+      
       $ok=mysqli_query($conn,$sql); $status=$ok?'sukses':'gagal'; if(!$ok)$msg='Gagal menyimpan data.';
     }
   } else { $status='gagal'; $msg='Pegawai & sertifikasi wajib diisi.'; }

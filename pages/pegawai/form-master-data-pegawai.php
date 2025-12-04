@@ -100,10 +100,10 @@ if(isset($_SESSION['id_pegawai']) && $_SESSION['id_pegawai'] == $id_peg){
                         <div class="section-title"><i class="fas fa-id-card mr-2"></i> Identitas Utama</div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label>ID Pegawai / NIP <span class="text-danger">*</span></label>
+                                <label>ID Pegawai <span class="text-danger">*</span></label>
                                 <div class="input-group">
                                     <div class="input-group-prepend"><span class="input-group-text"><i class="fas fa-id-badge"></i></span></div>
-                                    <input type="text" name="id_peg_display" class="form-control" value="<?php echo htmlspecialchars($data['id_peg']); ?>" 
+                                    <input type="text" name="id_peg" class="form-control" value="<?php echo htmlspecialchars($data['id_peg']); ?>" 
                                            <?php echo $mode == 'edit' ? 'disabled' : 'name="id_peg" required'; ?> placeholder="Masukkan ID Pegawai">
                                 </div>
                                 <?php if($mode == 'edit'): ?><small class="text-muted">ID Pegawai tidak dapat diubah.</small><?php endif; ?>

@@ -1,7 +1,7 @@
 <?php
 // ===========================================================
 // FILE: pages/ref-sertifikasi/form-import-data-sertifikasi.php
-// TAMPILAN: MODERN, TOMBOL HIJAU, NO PIN (LANGSUNG SIMPAN)
+// STATUS: FIX TOMBOL DOWNLOAD (AUTO GENERATE)
 // ===========================================================
 
 $page_title = "Import Data";
@@ -28,15 +28,10 @@ include "komponen/header.php";
   <div class="container-fluid">
     <div class="row justify-content-center">
         <div class="col-md-10">
-            
             <div class="upload-container">
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h3 class="m-0 font-weight-bold text-dark">
-                        <i class="fas fa-file-import text-success mr-2"></i> Import Sertifikasi
-                    </h3>
-                    <a href="home-admin.php?page=view-data-sertifikasi" class="btn btn-light btn-sm rounded-pill px-3">
-                        <i class="fas fa-times"></i> Tutup
-                    </a>
+                    <h3 class="m-0 font-weight-bold text-dark"><i class="fas fa-file-import text-success mr-2"></i> Import Sertifikasi</h3>
+                    <a href="home-admin.php?page=form-view-data-sertifikasi" class="btn btn-light btn-sm rounded-pill px-3"><i class="fas fa-times"></i> Tutup</a>
                 </div>
 
                 <div class="alert alert-secondary bg-white border shadow-sm rounded-lg mb-4">
@@ -47,9 +42,7 @@ include "komponen/header.php";
                             <small class="text-muted">Gunakan template resmi ini agar data terbaca sistem.</small>
                         </div>
                         
-                        <a href="pages/ref-sertifikasi/template_sertifikasi.xlsx" 
-                           download 
-                           class="btn btn-success btn-sm rounded-pill px-4 shadow-sm">
+                        <a href="pages/ref-sertifikasi/download-template-sertifikasi.php" target="_blank" class="btn btn-success btn-sm rounded-pill px-4 shadow-sm">
                             <i class="fas fa-download mr-1"></i> Download Excel (.xlsx)
                         </a>
                     </div>
@@ -61,7 +54,6 @@ include "komponen/header.php";
                             <span class="step-badge">2</span>
                             <h6 class="m-0 text-dark font-weight-bold">Upload File Excel</h6>
                         </div>
-
                         <div class="drop-zone" id="dropZone">
                             <div class="content-wrap">
                                 <i class="fas fa-cloud-upload-alt fa-4x mb-3 text-secondary"></i>
@@ -70,30 +62,20 @@ include "komponen/header.php";
                             </div>
                             <input type="file" name="file_excel" id="file_excel" class="file-input-overlay" accept=".xlsx, .xls" required>
                         </div>
-
                         <div id="filePreview" class="file-preview">
                             <div class="d-flex align-items-center">
                                 <i class="fas fa-file-excel text-success fa-2x mr-3"></i>
-                                <div>
-                                    <h6 class="m-0 font-weight-bold text-dark" id="fileName">nama_file.xlsx</h6>
-                                    <small class="text-muted" id="fileSize">0 KB</small>
-                                </div>
-                                <div class="ml-auto">
-                                    <span class="text-success"><i class="fas fa-check-circle"></i> Siap</span>
-                                </div>
+                                <div><h6 class="m-0 font-weight-bold text-dark" id="fileName">file.xlsx</h6><small class="text-muted" id="fileSize">0 KB</small></div>
+                                <div class="ml-auto"><span class="text-success"><i class="fas fa-check-circle"></i> Siap</span></div>
                             </div>
                         </div>
                     </div>
-
                     <div class="text-center mt-4">
-                        <button type="submit" class="btn btn-primary btn-lg rounded-pill px-5 shadow-sm">
-                            <i class="fas fa-eye mr-2"></i> Preview Data
-                        </button>
+                        <button type="submit" class="btn btn-primary btn-lg rounded-pill px-5 shadow-sm"><i class="fas fa-eye mr-2"></i> Preview Data</button>
                     </div>
                 </form>
 
                 <div id="preview-area" class="mt-5"></div>
-            
             </div>
         </div>
     </div>
@@ -101,9 +83,8 @@ include "komponen/header.php";
 </section>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
 <script>
-// --- UI LOGIC ---
+// UI Logic
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('file_excel');
 const filePreview = document.getElementById('filePreview');
@@ -121,7 +102,7 @@ fileInput.addEventListener('change', function() {
     }
 });
 
-// --- 1. LOGIKA PREVIEW ---
+// PREVIEW LOGIC
 document.getElementById('uploadForm').addEventListener('submit', function(e) {
     e.preventDefault();
     if (!fileInput.files.length) { Swal.fire('Warning', 'Pilih file dulu!', 'warning'); return; }
@@ -146,21 +127,17 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
     }).catch(err => Swal.fire('Error', 'Server Error', 'error'));
 });
 
-// --- 2. LOGIKA SIMPAN (NO PIN - LANGSUNG KONFIRMASI) ---
+// SIMPAN LOGIC
 document.body.addEventListener('click', function(e) {
     if (e.target && (e.target.id == 'btnSimpanSertifikasi' || e.target.closest('#btnSimpanSertifikasi'))) {
         e.preventDefault();
         const textArea = document.getElementById('json_data_sertifikasi');
         
-        if(!textArea) {
-            Swal.fire('Error', 'Data tidak ditemukan. Upload ulang.', 'error');
-            return;
-        }
+        if(!textArea) { Swal.fire('Error', 'Data hilang. Upload ulang.', 'error'); return; }
 
-        // KONFIRMASI BIASA (Tanpa PIN)
         Swal.fire({
             title: 'Simpan Data?',
-            text: "Pastikan data sudah benar. Data valid akan masuk database.",
+            text: "Pastikan data sudah benar.",
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#28a745',
