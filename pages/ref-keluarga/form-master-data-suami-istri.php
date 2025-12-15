@@ -2,15 +2,13 @@
 /*********************************************************
  * DIR     : pages/ref-keluarga/form-master-data-suami-istri.php
  * MODULE  : SIMPEG — Data Suami/Istri (tb_suamiistri)
- * VERSION : v1.5 (PHP 5.6 + CDN Select2)
- * DATE    : 2025-10-11
+ * VERSION : v1.6 (v1.5 + Smart Redirect Logic)
+ * DATE    : 2025-12-10
  *
  * CHANGELOG
- * - v1.5: Saat mode=edit -> dropdown Pegawai otomatis terpilih & dikunci (disabled),
- *         namun nilai tetap terkirim via hidden field. Inisialisasi Select2 disesuaikan.
- * - v1.4: Pakai CDN Select2; cek otomatis pasangan (SweetAlert);
- *         dropdown pekerjaan tampil desc_pekerjaan tapi simpan id_pekerjaan;
- *         auto-isi nama pekerjaan dari opsi; semua select pakai Select2.
+ * - v1.6: Menambahkan logic redirect pintar. Jika akses dari Detail Pegawai,
+ * tombol kembali/simpan akan mengarah ke Detail Pegawai lagi.
+ * Jika tidak, kembali ke List Pasangan ter-filter.
  *********************************************************/
 
 if (session_id()==='') session_start();
@@ -28,24 +26,47 @@ $mode  = isset($_GET['mode']) ? $_GET['mode'] : 'tambah';
 $id_si = isset($_GET['id_si']) ? trim($_GET['id_si']) : '';
 $uid   = isset($_GET['uid'])   ? preg_replace('~[^A-Za-z0-9_\-]~','', $_GET['uid']) : '';
 
+// Ambil Data Suami Istri (Jika Edit) untuk memastikan UID terisi
+$rowEdit = null;
+if ($mode==='edit' && $id_si!=='') {
+  $qe = mysqli_query($conn, "SELECT * FROM tb_suamiistri WHERE id_si='".clean($conn,$id_si)."' LIMIT 1");
+  if ($qe && mysqli_num_rows($qe)>0) {
+    $rowEdit = mysqli_fetch_assoc($qe);
+    // Update UID dari database jika mode edit
+    $uid = $rowEdit['id_peg'];
+  }
+}
+
+// Ambil Data Pegawai
 $pegawai = null;
 if ($uid!=='') {
   $q = mysqli_query($conn, "SELECT id_peg,nama,jk,tempat_lhr,tgl_lhr FROM tb_pegawai WHERE id_peg='".clean($conn,$uid)."' LIMIT 1");
   if ($q && mysqli_num_rows($q)>0) $pegawai = mysqli_fetch_assoc($q);
 }
 
-$rowEdit = null;
-if ($mode==='edit' && $id_si!=='') {
-  $qe = mysqli_query($conn, "SELECT * FROM tb_suamiistri WHERE id_si='".clean($conn,$id_si)."' LIMIT 1");
-  if ($qe && mysqli_num_rows($qe)>0) {
-    $rowEdit = mysqli_fetch_assoc($qe);
-    $uid = $rowEdit['id_peg'];
-    if (!$pegawai && $uid!=='') {
-      $p2 = mysqli_query($conn, "SELECT id_peg,nama,jk,tempat_lhr,tgl_lhr FROM tb_pegawai WHERE id_peg='".clean($conn,$uid)."' LIMIT 1");
-      if ($p2 && mysqli_num_rows($p2)>0) $pegawai = mysqli_fetch_assoc($p2);
-    }
-  }
+// ==========================================================
+// [LOGIC REDIRECT PINTAR] - Disisipkan disini brother
+// ==========================================================
+
+// 1. Default: Ke List Pasangan Ter-filter
+$url_redirect = 'home-admin.php?page=form-view-data-suami-istri'; 
+if($uid !== '') {
+    $url_redirect .= '&uid=' . urlencode($uid);
 }
+
+// 2. Cek apakah form disubmit? (Ambil dari input hidden agar konsisten)
+if (isset($_POST['url_asal']) && !empty($_POST['url_asal'])) {
+    $url_redirect = $_POST['url_asal'];
+} 
+// 3. Cek Referer (Deteksi Datang dari Detail Pegawai)
+elseif (isset($_SERVER['HTTP_REFERER']) && !empty($_SERVER['HTTP_REFERER'])) {
+    $ref = $_SERVER['HTTP_REFERER'];
+    if (strpos($ref, 'view-detail-data-pegawai') !== false) {
+        $url_redirect = 'home-admin.php?page=view-detail-data-pegawai&id_peg=' . urlencode($uid);
+    }
+}
+// ==========================================================
+
 
 $status=''; $errMsg='';
 
@@ -123,10 +144,8 @@ if ($_SERVER['REQUEST_METHOD']==='POST'){
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title><?php echo ($mode==='edit'?'Ubah':'Tambah'); ?> Data Suami/Istri</title>
 
-<!-- Bootstrap 4 (CSS) -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
 
-<!-- Select2 (CDN) + Theme Bootstrap4 -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <link href="https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@1.6.2/dist/select2-bootstrap4.min.css" rel="stylesheet" />
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -153,8 +172,9 @@ if ($_SERVER['REQUEST_METHOD']==='POST'){
 
 <?php if($status==='sukses'): ?>
 <script>
-Swal.fire({icon:'success',title:'Tersimpan',text:'Data pasangan berhasil disimpan.'}).then(function(){
-  window.location='home-admin.php?page=form-view-data-suami-istri<?php echo ($uid? '&uid='.urlencode($uid):''); ?>';
+Swal.fire({icon:'success',title:'Tersimpan',text:'Data pasangan berhasil disimpan.', timer: 1500, showConfirmButton: false}).then(function(){
+  // Menggunakan URL Redirect Pintar
+  window.location='<?php echo $url_redirect; ?>';
 });
 </script>
 <?php elseif($status==='gagal' && $errMsg!=''): ?>
@@ -164,6 +184,8 @@ Swal.fire({icon:'success',title:'Tersimpan',text:'Data pasangan berhasil disimpa
 <?php endif; ?>
 
 <form method="post" action="" autocomplete="off">
+  <input type="hidden" name="url_asal" value="<?php echo e($url_redirect); ?>">
+
 <?php if($mode==='edit'): ?>
   <input type="hidden" name="id_si" value="<?php echo e($rowEdit?$rowEdit['id_si']:''); ?>">
 <?php endif; ?>
@@ -175,7 +197,6 @@ Swal.fire({icon:'success',title:'Tersimpan',text:'Data pasangan berhasil disimpa
 <div class="form-group">
   <label>Pilih Pegawai <span class="text-danger">*</span></label>
 
-  <!-- Select utama: dikunci saat edit, required saat tambah -->
   <select name="id_peg" id="id_peg" class="form-control select2bs4" <?php echo ($mode==='edit' ? 'disabled' : 'required'); ?> style="width:100%">
     <option value="">— pilih pegawai —</option>
     <?php
@@ -188,7 +209,6 @@ Swal.fire({icon:'success',title:'Tersimpan',text:'Data pasangan berhasil disimpa
   </select>
 
   <?php if($mode==='edit' && $currentPeg!=''): ?>
-    <!-- Hidden agar nilai tetap terkirim saat select disabled -->
     <input type="hidden" name="id_peg" value="<?php echo e($currentPeg); ?>">
   <?php endif; ?>
 </div>
@@ -266,7 +286,7 @@ Swal.fire({icon:'success',title:'Tersimpan',text:'Data pasangan berhasil disimpa
 </div>
 
 <div class="mt-4 d-flex justify-content-between">
-  <a href="home-admin.php?page=form-view-data-suami-istri" class="btn btn-outline-secondary">Kembali</a>
+  <a href="<?php echo $url_redirect; ?>" class="btn btn-outline-secondary">Kembali</a>
   <button type="submit" class="btn btn-primary">Simpan</button>
 </div>
 </form>
@@ -274,55 +294,141 @@ Swal.fire({icon:'success',title:'Tersimpan',text:'Data pasangan berhasil disimpa
 </div></div></div>
 
 <script>
-$(function () {
-  $('.select2bs4').select2({ theme: 'bootstrap4', width: '100%' });
+$(document).ready(function(){
 
-  // Auto-fill nama pekerjaan (tampilkan deskripsi, simpan id)
-  $('#id_pekerjaan').on('change', function () {
-    var txt = $('#id_pekerjaan option:selected').text();
-    $('#pekerjaan_text').val($.trim(txt));
-  }).trigger('change');
+  // cari key yang kemungkinan berisi id_si dalam objek (rekursif, aman)
+  function findIdSiRecursive(obj, depth) {
+    depth = (typeof depth === 'number') ? depth : 3; // max depth
+    if (obj === null || typeof obj === 'undefined') return null;
 
-  // ====== MODE: EDIT — kunci dropdown pegawai & set value ======
-  var pageMode    = <?php echo json_encode($mode); ?>; // 'tambah' | 'edit'
-  var currentPeg  = <?php echo json_encode(isset($currentPeg)?$currentPeg:''); ?>;
-  var currentIdSi = <?php echo json_encode(isset($rowEdit['id_si']) ? $rowEdit['id_si'] : ''); ?>;
+    // jika primitif (string/number) tidak cocok
+    if (typeof obj === 'string' || typeof obj === 'number') return null;
 
-  if (currentPeg) {
-    $('#id_peg').val(currentPeg).trigger('change'); // tampilkan pilihan saat render
-  }
-  if (pageMode === 'edit') {
-    $('#id_peg').prop('disabled', true); // readonly saat edit
-  }
+    // if it's array, iterate elements
+    if (Array.isArray(obj)) {
+      for (var i=0;i<obj.length;i++){
+        var v = findIdSiRecursive(obj[i], depth-1);
+        if (v) return v;
+      }
+      return null;
+    }
 
-  // ====== CEK PASANGAN — hanya saat TAMBAH ======
-  function checkExisting(idPeg) {
-    if (!idPeg || pageMode === 'edit') return;
-    $.getJSON('pages/ref-keluarga/api-mini.php', { act: 'check_si', id_peg: idPeg }, function (res) {
-      if (!res || !res.exists) return;
-      Swal.fire({
-        icon: 'info',
-        title: 'Pasangan sudah terdata',
-        text: 'Pegawai ini sudah memiliki data pasangan. Ingin mengedit?',
-        showCancelButton: true,
-        confirmButtonText: 'Edit Sekarang',
-        cancelButtonText: 'Tutup',
-        allowOutsideClick: false,
-        allowEscapeKey: false
-      }).then(function (r) {
-        if (r.isConfirmed) {
-          window.location = 'home-admin.php?page=form-master-data-suami-istri&mode=edit&id_si=' + encodeURIComponent(res.id_si);
+    // object: check direct keys first (case-insensitive)
+    var keys = Object.keys(obj || {});
+    for (var k=0;k<keys.length;k++){
+      var key = keys[k];
+      var low = key.toLowerCase();
+
+      // direct matches likely to be id fields
+      if (low === 'id_si' || low === 'id' || low === 'id_si_str' || low === 'idsi' || low === 'idpasangan' || low.indexOf('id_si') !== -1) {
+        var val = obj[key];
+        if (val !== null && typeof val !== 'undefined' && String(val).trim() !== '') return String(val);
+      }
+
+      // sometimes id is nested under data or DT_RowData etc.
+      if (low === 'data' || low === 'dt_rowdata' || low === 'dt_row' || low === 'row' || low === 'attributes') {
+        if (depth > 0) {
+          var v2 = findIdSiRecursive(obj[key], depth-1);
+          if (v2) return v2;
         }
-      });
-    });
+      }
+    }
+
+    // fallback: check any key containing both 'id' and 'si'
+    for (var k2=0;k2<keys.length;k2++){
+      var kk = keys[k2].toLowerCase();
+      if (kk.indexOf('id') !== -1 && kk.indexOf('si') !== -1) {
+        var valk = obj[keys[k2]];
+        if (valk !== null && typeof valk !== 'undefined' && String(valk).trim() !== '') return String(valk);
+      }
+    }
+
+    // deep dive into values (if depth left)
+    if (depth > 0) {
+      for (var k3=0;k3<keys.length;k3++){
+        var nested = obj[keys[k3]];
+        if (typeof nested === 'object' && nested !== null) {
+          var v3 = findIdSiRecursive(nested, depth-1);
+          if (v3) return v3;
+        }
+      }
+    }
+
+    return null;
   }
 
-  $('#id_peg').on('select2:select', function () {
-    var idPeg = $(this).val();
-    checkExisting(idPeg);
+  var table = $('#tblPasangan').DataTable({
+    processing: true, serverSide: true, searching: true, responsive: true,
+    lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Semua"]],
+    ajax: { 
+        url: 'pages/ref-keluarga/ajax-data-pasangan.php', 
+        type: 'GET', 
+        data: { uid: <?php echo json_encode($uid); ?> },
+        dataSrc: function(json){
+            // debug: tampilkan sample 1 row agar kita lihat struktur
+            try {
+              if (json && json.data && json.data.length) {
+                console.info('AJAX sample row (cek struktur):', json.data[0]);
+              } else {
+                console.info('AJAX response (no data or different structure):', json);
+              }
+            } catch(e){ console.warn('debug log error', e); }
+            return json.data || [];
+        }
+    },
+    columns: [
+      { data: 'no', orderable:false, className: 'text-center fw-bold text-secondary' },
+      { data: 'nama_peg', className: 'fw-bold text-dark', render: function(data, type, row) { if(row.id_peg && data) return `<div>${data}</div><small class='text-muted'>${row.id_peg}</small>`; return data || '-'; } },
+      { data: 'nama', className: 'text-primary fw-medium', defaultContent: '-' },
+      { data: 'nik', defaultContent: '-' },
+      { data: 'pendidikan', defaultContent: '-' },
+      { data: 'pekerjaan_desc', defaultContent: '-' },
+      { data: 'status_hub', render: function(data) {
+            var txt = data?data:'-';
+            var cls = 'bg-light text-dark border';
+            if(data && data.toLowerCase() === 'suami') cls = 'bg-info bg-opacity-10 text-info border-info border-opacity-25';
+            else if(data && data.toLowerCase() === 'istri') cls = 'bg-danger bg-opacity-10 text-danger border-danger border-opacity-25';
+            return '<span class="badge '+cls+' px-2 py-1 rounded-pill">'+txt+'</span>';
+        }, defaultContent: '-' 
+      },
+      { 
+        data: null, orderable: false, className: 'text-center',
+        render: function(data, type, row) {
+            // coba cari id_si rekursif di object row
+            var idSi = findIdSiRecursive(row, 4);
+            // jika belum, coba juga row.data, row.DT_RowData, row[0]
+            if(!idSi) {
+                idSi = findIdSiRecursive(row.data || row.DT_RowData || row.row || row[0] || null, 3);
+            }
+
+            if (!idSi) {
+                console.warn('Tidak menemukan id_si pada row (render):', row);
+                return '<span class="text-muted">-</span>';
+            }
+
+            // pastikan string (agar leading zero tidak hilang)
+            idSi = String(idSi);
+            // dapatkan uid pegawai jika ada
+            var uidPeg = row.id_peg || row.idPeg || (row.data && row.data.id_peg) || '';
+
+            var href = 'home-admin.php?page=form-master-data-suami-istri&mode=edit&id_si=' + encodeURIComponent(idSi) + '&uid=' + encodeURIComponent(uidPeg || '');
+            return `
+                <a href="${href}" 
+                   class="btn btn-primary btn-sm rounded-circle d-inline-flex justify-content-center align-items-center" 
+                   style="width: 34px; height: 34px;"
+                   title="Edit Data">
+                    <i class="fas fa-pencil-alt" style="font-size:13px;"></i>
+                </a>`;
+        }
+      }
+    ],
+    language: { search: "", searchPlaceholder: "Cari data...", lengthMenu: "_MENU_", info: "Menampilkan _START_ - _END_ dari _TOTAL_ data", paginate: { first: "«", last: "»", next: "›", previous: "‹" }, processing: '<div class="spinner-border text-primary spinner-border-sm" role="status"></div> Memuat...' },
+    dom: "<'row px-3 pt-3 align-items-center'<'col-6 col-md-6'l><'col-6 col-md-6'f>>" + "<'row px-3'<'col-sm-12'tr>>" + "<'row px-3 pb-3'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>"
   });
+
 });
 </script>
+
 
 </body>
 </html>

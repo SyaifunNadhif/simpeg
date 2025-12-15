@@ -2,7 +2,7 @@
 /*********************************************************
  * FILE    : pages/kepegawaian/form-ubah-id-peg.php
  * MODULE  : Form Pengangkatan (Ubah ID Pegawai)
- * VERSION : v1.0
+ * VERSION : v1.1 (Blue Theme)
  * NOTE    : Hanya meload pegawai dengan ID awalan 'K' atau 'O'
  *********************************************************/
 
@@ -19,7 +19,8 @@ $qPegawai = mysqli_query($conn, $sqlPegawai);
 
 <style>
     .card-modern { border: none; border-radius: 16px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); background: #fff; }
-    .form-header-modern { background: #6f42c1; color: #fff; border-bottom: 1px solid #f1f1f1; padding: 20px; border-radius: 16px 16px 0 0; }
+    /* UBAH KE BIRU DI SINI */
+    .form-header-modern { background: #007bff; color: #fff; border-bottom: 1px solid #f1f1f1; padding: 20px; border-radius: 16px 16px 0 0; }
     .input-modern { border-radius: 10px; border: 1px solid #e2e8f0; padding: 10px 15px; height: 45px; width: 100%; }
     .form-label-modern { font-size: 0.85rem; font-weight: 700; color: #6c757d; text-transform: uppercase; margin-bottom: 8px; }
     
@@ -39,7 +40,7 @@ $qPegawai = mysqli_query($conn, $sqlPegawai);
                 <p class="text-muted mb-0">Perubahan Status & ID Pegawai (K/O menjadi Tetap)</p>
             </div>
             <div>
-                <a href="home-admin.php?page=data-pegawai" class="btn btn-light rounded-pill border shadow-sm">
+                <a href="home-admin.php?page=form-view-data-pegawai" class="btn btn-light rounded-pill border shadow-sm">
                     <i class="fa fa-arrow-left mr-2"></i> Kembali
                 </a>
             </div>
@@ -58,7 +59,7 @@ $qPegawai = mysqli_query($conn, $sqlPegawai);
                     </div>
                     
                     <div class="card-body p-4">
-                        <form action="pages/pegawai/proses-ubah-id.php" method="POST" enctype="multipart/form-data">
+                        <form action="pages/kepegawaian/proses-ubah-id.php" method="POST" enctype="multipart/form-data">
                             
                             <div class="alert alert-info border-0 shadow-sm mb-4">
                                 <i class="fas fa-info-circle mr-2"></i> 
@@ -130,7 +131,7 @@ $qPegawai = mysqli_query($conn, $sqlPegawai);
 
                             <div class="form-group text-right mt-4 pt-3 border-top">
                                 <button type="submit" name="simpan" class="btn btn-primary btn-modern shadow-sm px-4">
-                                    <i class="fa fa-save mr-2"></i> Proses Pengangkatan
+                                    <i class="fa fa-save mr-2"></i> Simpan Data
                                 </button>
                             </div>
 

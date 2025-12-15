@@ -28,7 +28,7 @@
             <div class="upload-container">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h3 class="m-0 font-weight-bold text-dark"><i class="fas fa-users text-primary mr-2"></i> Import Pegawai Baru</h3>
-                    <a href="home-admin.php?page=view-data-pegawai" class="btn btn-light btn-sm rounded-pill px-3"><i class="fas fa-times"></i> Tutup</a>
+                    <a href="home-admin.php?page=form-view-data-pegawai" class="btn btn-light btn-sm rounded-pill px-3"><i class="fas fa-times"></i> Tutup</a>
                 </div>
 
                 <div class="alert alert-secondary bg-white border shadow-sm rounded-lg mb-4">
@@ -145,7 +145,7 @@ document.body.addEventListener('click', function(e) {
                 .then(res => res.json())
                 .then(res => {
                     if (res.status === 'success') {
-                        Swal.fire('Selesai!', res.message, 'success').then(() => { window.location.href = "home-admin.php?page=view-data-pegawai"; });
+                        Swal.fire('Selesai!', res.message, 'success').then(() => { window.location.href = "home-admin.php?page=form-view-data-pegawai"; });
                     } else {
                         Swal.fire('Gagal', res.message, 'error');
                     }

@@ -2,7 +2,7 @@
 /*********************************************************
  * FILE    : pages/pegawai/view-detail-data-pegawai.php
  * MODULE  : Detail Pegawai (Clean View & Master Jabatan Fix)
- * VERSION : v5.2
+ * VERSION : v5.5 (Link Edit Ortu Updated)
  *********************************************************/
 
 if (session_id() === '') session_start();
@@ -199,7 +199,11 @@ $src_foto   = (!empty($foto_db) && file_exists($path_foto)) ? $path_foto : $avat
                                                     $id_si = isset($si['id_si']) ? $si['id_si'] : 0; ?>
                                                 <tr>
                                                     <td><?=$si['nama']?></td><td><?=$si['tmp_lhr']?>, <?=$si['tgl_lhr']?></td><td><?=$si['nm_kerja']?></td><td><?=$si['status_hub']?></td>
-                                                    <?php if($can_edit): ?><td class="text-center"><a href="home-admin.php?page=form-edit-data-suami-istri&id_si=<?=$id_si?>" class="btn btn-xs btn-info"><i class="fa fa-edit"></i></a></td><?php endif; ?>
+                                                    <?php if($can_edit): ?>
+                                                        <td class="text-center">
+                                                            <a href="home-admin.php?page=form-master-data-suami-istri&mode=edit&id_si=<?=$id_si?>&uid=<?=$id_peg?>" class="btn btn-xs btn-info"><i class="fa fa-edit"></i></a>
+                                                        </td>
+                                                    <?php endif; ?>
                                                 </tr>
                                             <?php } } else { echo "<tr><td colspan='5' class='text-center text-muted small'>Tidak ada data</td></tr>"; } ?>
                                         </tbody>
@@ -217,7 +221,11 @@ $src_foto   = (!empty($foto_db) && file_exists($path_foto)) ? $path_foto : $avat
                                                     $id_ak = isset($ak['id_anak']) ? $ak['id_anak'] : 0; ?>
                                                 <tr>
                                                     <td><?=$ak['nama']?></td><td><?=$ak['tmp_lhr']?>, <?=$ak['tgl_lhr']?></td><td><?=$ak['pendidikan']?></td><td><?=$ak['anak_ke']?></td>
-                                                    <?php if($can_edit): ?><td class="text-center"><a href="home-admin.php?page=form-edit-data-anak&id_anak=<?=$id_ak?>" class="btn btn-xs btn-info"><i class="fa fa-edit"></i></a></td><?php endif; ?>
+                                                    <?php if($can_edit): ?>
+                                                        <td class="text-center">
+                                                            <a href="home-admin.php?page=form-master-data-anak&id=<?=$id_ak?>&uid=<?=$id_peg?>" class="btn btn-xs btn-info"><i class="fa fa-edit"></i></a>
+                                                        </td>
+                                                    <?php endif; ?>
                                                 </tr>
                                             <?php } } else { echo "<tr><td colspan='5' class='text-center text-muted small'>Tidak ada data</td></tr>"; } ?>
                                         </tbody>
@@ -235,7 +243,11 @@ $src_foto   = (!empty($foto_db) && file_exists($path_foto)) ? $path_foto : $avat
                                                     $id_or = isset($or['id_ortu']) ? $or['id_ortu'] : 0; ?>
                                                 <tr>
                                                     <td><?=$or['nama']?></td><td><?=$or['tmp_lhr']?>, <?=$or['tgl_lhr']?></td><td><?=$or['status_hub']?></td>
-                                                    <?php if($can_edit): ?><td class="text-center"><a href="home-admin.php?page=form-edit-data-ortu&id_ortu=<?=$id_or?>" class="btn btn-xs btn-info"><i class="fa fa-edit"></i></a></td><?php endif; ?>
+                                                    <?php if($can_edit): ?>
+                                                        <td class="text-center">
+                                                            <a href="home-admin.php?page=form-master-data-ortu&mode=edit&id_ortu=<?=$id_or?>&uid=<?=$id_peg?>" class="btn btn-xs btn-info"><i class="fa fa-edit"></i></a>
+                                                        </td>
+                                                    <?php endif; ?>
                                                 </tr>
                                             <?php } } else { echo "<tr><td colspan='4' class='text-center text-muted small'>Tidak ada data</td></tr>"; } ?>
                                         </tbody>
@@ -353,7 +365,6 @@ $src_foto   = (!empty($foto_db) && file_exists($path_foto)) ? $path_foto : $avat
                     <thead><tr><th>Jabatan</th><th>TMT</th><th>Status</th></tr></thead>
                     <tbody>
                         <?php 
-                        // UPDATE: Join ke tb_master_jabatan sesuai request
                         $qJab = mysqli_query($conn,"SELECT j.tmt_jabatan, j.status_jab, m.nama_jabatan 
                                                     FROM tb_jabatan j 
                                                     LEFT JOIN tb_master_jabatan m ON j.kode_jabatan = m.kode_jabatan 

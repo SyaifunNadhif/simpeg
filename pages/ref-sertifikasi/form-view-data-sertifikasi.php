@@ -1,168 +1,241 @@
 <?php
 /*********************************************************
- * FILE    : pages/ref-sertifikasi/form-view-data-sertifikasi.php
- * MODULE  : View Data Sertifikasi (Final Fix Primary Key)
+ * FILE    : pages/ref-sertifikasi/master-data-sertifikasi.php
+ * MODULE  : View Sertifikasi (Clean UI like Diklat)
  *********************************************************/
-if (session_id()==='') session_start();
-@include_once __DIR__ . '/../../dist/koneksi.php';
-@include_once __DIR__ . '/../../dist/functions.php';
-if (!isset($conn)) { @include_once __DIR__ . '/../../config/koneksi.php'; $conn = isset($koneksi)?$koneksi:null; }
-function e($s){ return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
 
-$uid = isset($_GET['uid']) ? preg_replace('~[^A-Za-z0-9_\-]~','', $_GET['uid']) : '';
+if (session_id() == '') session_start();
+include "dist/koneksi.php";
 
-// Data Filter
-$optSert = array();
-$rs=mysqli_query($conn,"SELECT DISTINCT sertifikasi FROM tb_sertifikasi WHERE sertifikasi<>'' ORDER BY sertifikasi ASC");
-if($rs){ while($r=mysqli_fetch_assoc($rs)){ $optSert[]=$r['sertifikasi']; } }
+$hak_akses   = isset($_SESSION['hak_akses']) ? strtolower($_SESSION['hak_akses']) : 'user';
+$kode_kantor = isset($_SESSION['kode_kantor']) ? $_SESSION['kode_kantor'] : '';
+$is_kepala   = ($hak_akses == 'kepala');
+$tahun_default = date('Y');
 
-$optTh = array();
-$rs2=mysqli_query($conn,"SELECT DISTINCT YEAR(tgl_sertifikat) th FROM tb_sertifikasi WHERE tgl_sertifikat IS NOT NULL AND tgl_sertifikat<>'0000-00-00' ORDER BY th DESC");
-if($rs2){ while($r=mysqli_fetch_assoc($rs2)){ $optTh[]=$r['th']; } }
+// --- QUERY DROPDOWN ---
+$qTahun  = mysqli_query($conn, "SELECT DISTINCT YEAR(tgl_sertifikat) as th FROM tb_sertifikasi WHERE tgl_sertifikat IS NOT NULL AND tgl_sertifikat != '0000-00-00' ORDER BY th DESC");
+$qSertif = mysqli_query($conn, "SELECT DISTINCT sertifikasi FROM tb_sertifikasi WHERE sertifikasi != '' ORDER BY sertifikasi ASC");
+$qKantor = mysqli_query($conn, "SELECT * FROM tb_kantor WHERE level IN ('KC','KP') ORDER BY nama_kantor ASC");
 ?>
-<!DOCTYPE html>
-<html lang="id">
-<head>
-  <meta charset="utf-8">
-  <title>Daftar Sertifikasi Pegawai</title>
-  <link rel="stylesheet" href="assets/css/bootstrap.min.css">
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
-  <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.dataTables.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-  <style>
-    body { background-color: #f8f9fa; font-family: 'Segoe UI', sans-serif; }
-    .card-modern { border: none; border-radius: 16px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); background: #fff; margin-bottom: 20px; }
-    .card-header-modern { background: #fff; border-bottom: 1px solid #f1f1f1; padding: 20px 25px; border-radius: 16px 16px 0 0; display: flex; justify-content: space-between; align-items: center; }
-    .filter-box { background: #f8f9fa; border-radius: 12px; padding: 20px; border: 1px solid #e9ecef; }
+<style>
+    /* --- STYLE UTAMA (SAMA DENGAN DIKLAT) --- */
+    .content-wrapper { background-color: #f8f9fa; }
     
-    /* Table Styling */
-    .table thead th { background-color: #f1f3f5; color: #495057; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; border-bottom: 2px solid #dee2e6; padding: 12px; }
-    .table tbody td { vertical-align: middle; padding: 12px; color: #495057; }
+    .card-clean {
+        border: 1px solid #e3e6f0;
+        border-radius: 10px;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.05);
+        background: #fff;
+    }
+
+    .card-header-clean {
+        background-color: #fff;
+        border-bottom: 1px solid #f1f3f9;
+        padding: 20px 25px;
+        border-radius: 10px 10px 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap; 
+        gap: 15px;
+    }
+
+    /* TYPOGRAPHY JUDUL */
+    .title-text { font-size: 1.25rem; font-weight: 700; color: #2e343a; margin: 0; }
+    .subtitle-text { font-size: 0.85rem; color: #858796; margin-top: 4px; display: block; }
+
+    /* TOMBOL BUTTONS (WARNA SESUAI GAMBAR) */
+    .btn-custom-home { background: #fff; border: 1px solid #d1d3e2; color: #5a5c69; padding: 7px 12px; border-radius: 8px; }
     
-    .btn-edit-action { background-color: #e0f2fe; color: #0284c7; border: none; padding: 6px 14px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; text-decoration: none; transition: 0.2s; }
-    .btn-edit-action:hover { background-color: #0284c7; color: #fff; transform: translateY(-2px); }
-  </style>
-</head>
-<body>
+    /* Hijau Tosca Modern (Import) */
+    .btn-custom-import { background-color: #00C9A7; border: none; color: white; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 0.9rem; }
+    .btn-custom-import:hover { background-color: #00b394; color: white; }
 
-<div class="container-fluid mt-4">
-  <div class="card card-modern">
-    <div class="card-header-modern">
-      <div>
-        <h5 class="mb-1 font-weight-bold text-dark"><i class="fas fa-certificate text-primary me-2"></i>Daftar Sertifikasi Pegawai</h5>
-        <p class="text-muted mb-0 small">Kelola data sertifikasi dan kompetensi pegawai</p>
-      </div>
-      <div class="d-flex gap-2">
-        <a class="btn btn-light border" href="home-admin.php"><i class="fas fa-home me-1"></i> Dashboard</a>
-        <a class="btn btn-success" href="home-admin.php?page=form-import-data-sertifikasi"><i class="fas fa-file-excel me-1"></i> Impor</a>
-        <a class="btn btn-primary" href="home-admin.php?page=form-master-data-sertifikasi"><i class="fas fa-plus me-1"></i> Tambah Data</a>
-      </div>
-    </div>
+    /* Ungu Modern (Tambah) */
+    .btn-custom-add { background-color: #5D5FEF; border: none; color: white; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 0.9rem; }
+    .btn-custom-add:hover { background-color: #4a4cd4; color: white; }
 
-    <div class="card-body p-4">
-      <div class="filter-box mb-4">
-        <div class="row g-3 align-items-end">
-          <div class="col-md-6">
-            <label class="form-label text-muted small fw-bold text-uppercase">Filter Nama Sertifikasi</label>
-            <select id="f_sertif" class="form-select"><option value="">— Semua Sertifikasi —</option><?php foreach($optSert as $v){ echo '<option value="'.e($v).'">'.e($v).'</option>'; } ?></select>
-          </div>
-          <div class="col-md-3">
-            <label class="form-label text-muted small fw-bold text-uppercase">Tahun</label>
-            <select id="f_tahun_s" class="form-select"><option value="">— Semua —</option><?php foreach($optTh as $v){ echo '<option value="'.e($v).'">'.e($v).'</option>'; } ?></select>
-          </div>
-          <div class="col-md-3 text-end">
-            <button id="btnResetSertif" class="btn btn-outline-secondary w-100"><i class="fas fa-sync-alt me-1"></i> Reset Filter</button>
-          </div>
+    /* FORM INPUT */
+    .label-filter { font-size: 0.7rem; font-weight: 700; color: #b7b9cc; text-transform: uppercase; margin-bottom: 5px; display: block; letter-spacing: 0.5px; }
+    .form-control-clean { border-radius: 6px; height: 38px; border: 1px solid #d1d3e2; font-size: 0.85rem; color: #6e707e; }
+
+    /* TABLE HEADERS */
+    table.dataTable thead th {
+        background-color: #fff; color: #5a5c69;
+        font-weight: 700; font-size: 0.8rem; text-transform: uppercase;
+        border-bottom: 2px solid #e3e6f0 !important; padding: 15px !important;
+    }
+    table.dataTable tbody td { padding: 12px 15px !important; vertical-align: middle; font-size: 0.9rem; color: #5a5c69; border-top: 1px solid #f1f3f9; }
+
+
+    /* --- FIX UI DATATABLES (Show & Search 1 Baris) --- */
+    div.dataTables_wrapper div.dataTables_length label {
+        display: flex !important; align-items: center !important; white-space: nowrap !important;
+        margin-bottom: 0 !important; font-weight: normal !important;
+    }
+    div.dataTables_wrapper div.dataTables_length select {
+        width: 60px !important; margin: 0 8px !important; padding: 4px;
+    }
+    div.dataTables_wrapper div.dataTables_filter input {
+        border-radius: 6px; border: 1px solid #d1d3e2; padding: 6px 12px; outline: none; margin-left: 0.5em; width: 200px;
+    }
+
+    /* --- MOBILE RESPONSIVE (Filter 1 Baris) --- */
+    @media (max-width: 768px) {
+        .card-header-clean { padding: 15px; flex-direction: column; align-items: flex-start; }
+        .header-actions { width: 100%; margin-top: 15px; display: flex; gap: 8px; }
+        .btn-custom-import, .btn-custom-add { flex: 1; text-align: center; font-size: 0.8rem; }
+
+        /* Filter Grid (50:50) */
+        .filter-grid-mobile { padding-right: 5px !important; }
+        .filter-grid-mobile:last-child { padding-left: 5px !important; padding-right: 15px !important; }
+
+        /* Search Full Width */
+        div.dataTables_wrapper div.dataTables_filter { text-align: left !important; margin-top: 10px; }
+        div.dataTables_wrapper div.dataTables_filter input { width: 100% !important; margin-left: 0 !important; }
+    }
+</style>
+
+<div class="content pt-4 px-3">
+    
+    <div class="card card-clean mb-4">
+        
+        <div class="card-header-clean">
+            <div>
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-certificate text-warning fa-lg mr-2"></i>
+                    <h5 class="title-text">Daftar Sertifikasi Pegawai</h5>
+                </div>
+                <span class="subtitle-text pl-1">Menampilkan data kompetensi & sertifikat pegawai.</span>
+            </div>
+            
+            <div class="header-actions">
+                <a href="home-admin.php" class="btn btn-custom-home shadow-sm" title="Dashboard">
+                    <i class="fa fa-home"></i>
+                </a>
+                <a href="home-admin.php?page=form-import-data-sertifikasi" class="btn btn-custom-import shadow-sm">
+                    <i class="fas fa-file-excel mr-1"></i> Import
+                </a>
+                <a href="home-admin.php?page=form-master-data-sertifikasi" class="btn btn-custom-add shadow-sm">
+                    <i class="fas fa-plus mr-1"></i> Tambah Data
+                </a>
+            </div>
         </div>
-      </div>
 
-      <div class="table-responsive">
-        <table id="tblSertif" class="display nowrap table table-hover" style="width:100%">
-          <thead>
-            <tr>
-              <th width="5%">No</th>
-              <th>ID Peg — Nama</th>
-              <th>Sertifikasi</th>
-              <th>Penyelenggara</th>
-              <th>Tgl Expired</th>
-              <th class="text-center">Status</th>
-              <th>No. Sertifikat</th>
-              <th>Tgl Sertifikat</th>
-              <th class="text-center" width="10%">Aksi</th>
-            </tr>
-          </thead>
-        </table>
-      </div>
+        <div class="card-body">
+            
+            <div class="row mb-3">
+                
+                <div class="col-6 col-md-2 mb-2 filter-grid-mobile">
+                    <span class="label-filter">Tahun</span>
+                    <select id="filter_tahun" class="form-control form-control-clean select2bs4">
+                        <option value="">- Semua -</option>
+                        <?php while ($t = mysqli_fetch_assoc($qTahun)) { ?>
+                            <option value="<?= $t['th'] ?>" <?= ($tahun_default == $t['th']) ? 'selected' : '' ?>><?= $t['th'] ?></option>
+                        <?php } ?>
+                    </select>
+                </div>
+
+                <div class="col-6 col-md-3 mb-2 filter-grid-mobile">
+                    <span class="label-filter">Nama Sertifikasi</span>
+                    <select id="filter_sertifikasi" class="form-control form-control-clean select2bs4">
+                        <option value="">- Semua Sertifikasi -</option>
+                        <?php while ($s = mysqli_fetch_assoc($qSertif)) { ?>
+                            <option value="<?= $s['sertifikasi'] ?>"><?= $s['sertifikasi'] ?></option>
+                        <?php } ?>
+                    </select>
+                </div>
+
+                <div class="col-12 col-md-4 mb-2">
+                    <span class="label-filter">Unit Kerja</span>
+                    <select id="filter_kantor" class="form-control form-control-clean select2bs4" <?= $is_kepala ? 'disabled' : '' ?>>
+                        <option value="">- Semua Kantor -</option>
+                        <?php while ($k = mysqli_fetch_assoc($qKantor)) { ?>
+                            <option value="<?= $k['kode_kantor_detail'] ?>" <?= ($kode_kantor == $k['kode_kantor_detail']) ? 'selected' : '' ?>>
+                                <?= $k['nama_kantor'] ?>
+                            </option>
+                        <?php } ?>
+                    </select>
+                    <?php if($is_kepala): ?><input type="hidden" id="hidden_kantor" value="<?= $kode_kantor ?>"><?php endif; ?>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table w-100" id="tabelSertifikasiAjax">
+                    <thead>
+                        <tr>
+                            <th width="5%" class="text-center">No</th>
+                            <th>Nama Pegawai</th>
+                            <th>Info Sertifikasi</th>
+                            <th>Penyelenggara / Tgl</th>
+                            <th>Unit Kerja</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-center" width="8%">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+        </div>
     </div>
-  </div>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap4.min.css">
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme/dist/select2-bootstrap4.min.css">
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap4.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <script>
-$(function(){
-  try{ $('#f_sertif,#f_tahun_s').select2({theme:'bootstrap-5',width:'100%',placeholder:'— Pilih Filter —',allowClear:true}); }catch(e){}
+$(document).ready(function() {
+    $('.select2bs4').select2({ theme: 'bootstrap4', width: '100%' });
 
-  var tbl = $('#tblSertif').DataTable({
-    processing: true, serverSide: true, searching: true, responsive: true, autoWidth: false,
-    ajax:{
-      url:'pages/ref-sertifikasi/ajax-data-sertifikasi.php', 
-      type:'GET',
-      data:function(d){
-        d.uid = <?php echo json_encode($uid); ?>;
-        d.f_sertif = $('#f_sertif').val()||'';
-        d.f_tahun  = $('#f_tahun_s').val()||'';
-      }
-    },
-    columns:[
-      {data:'no', orderable:false},
-      {data:'idpeg_nama'},
-      {data:'sertifikasi'},
-      {data:'penyelenggara'},
-      {data:'tgl_expired'},   
-      {data:'status_badge', className:'text-center'},
-      {data:'sertifikat'},    
-      {data:'tgl_sertifikat'},
-      // --- PERBAIKAN DI SINI (Gunakan id_sertif) ---
-      {
-        data: 'id_sertif', 
-        orderable: false,
-        className: 'text-center',
-        render: function(data, type, row) {
-            // Gunakan data (which is id_sertif from AJAX)
-            if(data) {
-                return '<a href="home-admin.php?page=form-edit-data-sertifikasi&id='+data+'" class="btn-edit-action" title="Edit Data"><i class="fas fa-edit me-1"></i> Edit</a>';
+    var table = $('#tabelSertifikasiAjax').DataTable({
+        "processing": true,
+        "serverSide": true,
+        "ordering": false,
+        "ajax": {
+            "url": "pages/ref-sertifikasi/ajax-data-sertifikasi.php", 
+            "type": "GET",
+            "data": function (d) {
+                d.tahun       = $('#filter_tahun').val();
+                d.sertifikasi = $('#filter_sertifikasi').val();
+                var kantorVal = $('#filter_kantor').val();
+                if(!kantorVal && $('#hidden_kantor').length) kantorVal = $('#hidden_kantor').val();
+                d.kantor = kantorVal;
             }
-            return '-';
-        }
-      } 
-    ],
-    columnDefs:[
-      {targets:[0,1,2,8], className:'all'},     
-      {targets:[5], className:'min-tablet'},    
-      {targets:[3,4,6,7], className:'none'}     
-    ],
-    language:{
-        search: "_INPUT_",
-        searchPlaceholder: "Cari data...",
-        processing: '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>',
-        emptyTable: "Tidak ada data sertifikasi ditemukan."
-    }
-  });
+        },
+        "columns": [
+            { "data": "no", "className": "text-center font-weight-bold" },
+            { "data": "nama_peg" },
+            { "data": "sertifikasi" },
+            { "data": "penyelenggara" },
+            { "data": "unit_kerja" },
+            { "data": "status", "className": "text-center" },
+            { "data": "aksi", "className": "text-center" }
+        ],
+        "language": {
+            "search": "", 
+            "searchPlaceholder": "Cari data...",
+            "zeroRecords": "Tidak ada data",
+            "lengthMenu": "Tampil _MENU_",
+            "info": "_START_ - _END_ dari _TOTAL_",
+            "processing": "<div class='spinner-border text-primary spinner-border-sm'></div> Memuat..."
+        },
+        // Layout Custom 1 Baris (Mobile Friendly)
+        "dom": "<'row'<'col-6 col-md-6'l><'col-12 col-md-6'f>>" +
+               "<'row'<'col-sm-12'tr>>" +
+               "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>"
+    });
 
-  $('#f_sertif,#f_tahun_s').on('change', function(){ tbl.ajax.reload(null,false); });
-  $('#btnResetSertif').on('click', function(){
-    $('#f_sertif').val(null).trigger('change');
-    $('#f_tahun_s').val(null).trigger('change');
-    tbl.ajax.reload(null,false);
-  });
+    // Auto Filter
+    $('#filter_tahun, #filter_sertifikasi, #filter_kantor').change(function(){
+        table.ajax.reload();
+    });
 });
 </script>
-</body>
-</html>

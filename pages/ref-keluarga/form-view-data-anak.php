@@ -1,8 +1,8 @@
 <?php
 /*********************************************************
- * FILE    : pages/keluarga/form-view-data-anak.php
- * MODULE  : SIMPEG — Data Anak (Modern View + Actions)
- * VERSION : v1.2
+ * FILE    : pages/ref-keluarga/form-view-data-anak.php
+ * MODULE  : SIMPEG — Data Anak (Modern View Clean)
+ * VERSION : v2.2 (Mobile Responsive 1 Line Header)
  *********************************************************/
 
 if (session_id()==='') session_start();
@@ -11,10 +11,11 @@ if (session_id()==='') session_start();
 if (!isset($conn)) { @include_once __DIR__ . '/../../config/koneksi.php'; $conn = isset($koneksi)?$koneksi:null; }
 function e($s){ return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
 
+// Get UID jika ada (Filter per pegawai)
 $uid = isset($_GET['uid']) ? preg_replace('~[^A-Za-z0-9_\-]~','', $_GET['uid']) : '';
 $pegawai = null;
 if ($uid!==''){
-  $q = mysqli_query($conn, "SELECT id_peg, id_peg_old, nama FROM tb_pegawai WHERE id_peg='".mysqli_real_escape_string($conn,$uid)."' LIMIT 1");
+  $q = mysqli_query($conn, "SELECT id_peg, nama FROM tb_pegawai WHERE id_peg='".mysqli_real_escape_string($conn,$uid)."' LIMIT 1");
   if ($q && mysqli_num_rows($q)>0){ $pegawai = mysqli_fetch_assoc($q); }
 }
 ?>
@@ -25,75 +26,164 @@ if ($uid!==''){
   <title>Daftar Anak Pegawai</title>
   
   <link rel="stylesheet" href="assets/css/bootstrap.min.css">
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
   <style>
-    body { background-color: #f8f9fa; font-family: 'Segoe UI', sans-serif; }
-    
-    /* Card Modern */
-    .card-modern { border: none; border-radius: 16px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); background: #fff; margin-bottom: 20px; }
-    .card-header-modern { background: #fff; border-bottom: 1px solid #f1f1f1; padding: 20px 25px; border-radius: 16px 16px 0 0; display: flex; justify-content: space-between; align-items: center; }
-    
-    /* Table Styling */
-    .table thead th { background-color: #f1f3f5; color: #495057; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; border-bottom: 2px solid #dee2e6; padding: 12px; }
-    .table tbody td { vertical-align: middle; padding: 12px; color: #495057; }
-
-    /* Action Buttons */
-    .btn-action {
-        border: none;
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        text-decoration: none;
-        transition: 0.2s;
-        display: inline-block;
-        margin-right: 4px;
+    body { 
+        background-color: #f4f6f9; 
+        font-family: 'Inter', sans-serif; 
+        color: #343a40;
     }
-    .btn-edit { background-color: #e0f2fe; color: #0284c7; }
-    .btn-edit:hover { background-color: #0284c7; color: #fff; transform: translateY(-2px); }
     
-    .btn-profile { background-color: #eef2ff; color: #4f46e5; }
-    .btn-profile:hover { background-color: #4338ca; color: #fff; transform: translateY(-2px); }
+    .card-modern { 
+        border: none; 
+        border-radius: 12px; 
+        box-shadow: 0 2px 12px rgba(0,0,0,0.04); 
+        background: #fff; 
+        margin-bottom: 20px; 
+        overflow: hidden;
+    }
+    .card-header-modern { 
+        background: #fff; 
+        border-bottom: 1px solid #f0f2f5; 
+        padding: 20px 25px; 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center;
+        flex-wrap: wrap; 
+        gap: 15px;
+    }
+    
+    .page-title { font-size: 1.1rem; font-weight: 700; color: #111827; margin: 0; }
+    .page-subtitle { font-size: 0.85rem; color: #6b7280; margin-top: 4px; }
 
-    .btn-modern { border-radius: 8px; font-weight: 500; font-size: 0.9rem; padding: 8px 16px; }
+    .badge-user {
+        background-color: #eef2ff;
+        color: #4338ca;
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    /* Table Styling */
+    .table thead th { 
+        background-color: #f9fafb; 
+        color: #374151; 
+        font-weight: 600; 
+        font-size: 0.75rem; 
+        text-transform: uppercase; 
+        letter-spacing: 0.05em;
+        border-bottom: 1px solid #e5e7eb !important; 
+        padding: 12px 15px;
+    }
+    .table tbody td { 
+        vertical-align: middle; 
+        padding: 12px 15px; 
+        font-size: 0.9rem;
+        border-bottom: 1px solid #f3f4f6;
+    }
+    
+    /* Tombol Edit Biru Solid */
+    .btn-edit-modern {
+        width: 36px; height: 36px;
+        display: inline-flex;
+        align-items: center; justify-content: center;
+        border-radius: 8px;
+        background-color: #0d6efd; 
+        color: #fff !important; 
+        border: none;
+        text-decoration: none !important;
+        transition: all 0.2s;
+        box-shadow: 0 2px 4px rgba(13, 110, 253, 0.2);
+    }
+    .btn-edit-modern:hover { 
+        background-color: #0b5ed7; 
+        color: #fff !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(13, 110, 253, 0.3);
+    }
+
+    /* Tombol Header */
+    .btn-custom { 
+        border-radius: 8px; font-weight: 500; font-size: 0.875rem; 
+        padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px; transition: 0.2s; text-decoration: none;
+    }
+    .btn-primary-soft { background: #4f46e5; color: white; border: none; }
+    .btn-primary-soft:hover { background: #4338ca; color: white; transform: translateY(-1px); }
+    .btn-success-soft { background: #10b981; color: white; border: none; }
+    .btn-success-soft:hover { background: #059669; color: white; transform: translateY(-1px); }
+    .btn-light-soft { background: #fff; border: 1px solid #d1d5db; color: #374151; }
+    .btn-light-soft:hover { background: #f9fafb; border-color: #9ca3af; }
+
+    /* Custom CSS buat Mobile Search 1 Baris */
+    @media (max-width: 576px) {
+        .dataTables_filter input {
+            width: 120px !important; /* Paksa lebar search box di HP biar gak kegedean */
+            font-size: 0.8rem;
+        }
+        .dataTables_length select {
+            font-size: 0.8rem;
+        }
+        .btn-custom {
+            padding: 6px 12px;
+            font-size: 0.8rem;
+        }
+    }
+    
+    .dataTables_wrapper .row { margin-bottom: 10px; padding: 0 15px; }
   </style>
 </head>
 <body>
 
-<div class="container-fluid mt-4">
+<div class="container-fluid py-4">
   <div class="card card-modern">
     
     <div class="card-header-modern">
       <div>
-        <h5 class="mb-1 font-weight-bold text-dark"><i class="fas fa-child text-primary me-2"></i>Daftar Anak Pegawai</h5>
-        <small class="text-muted">
-            <?php echo $pegawai ? 'Data anak dari: <b>'.e($pegawai['nama']).'</b> ('.e($pegawai['id_peg']).')' : 'Menampilkan seluruh data anak pegawai'; ?>
-        </small>
+        <div class="d-flex align-items-center gap-2">
+            <h4 class="page-title"><i class="fas fa-child text-primary me-2"></i>Daftar Anak Pegawai</h4>
+        </div>
+        
+        <?php if($pegawai): ?>
+            <div class="mt-2">
+                <span class="badge-user">
+                    <i class="fas fa-user-circle"></i> <?= e($pegawai['nama']) ?> 
+                    <span class="opacity-75 fw-normal">(<?= e($pegawai['id_peg']) ?>)</span>
+                </span>
+            </div>
+        <?php else: ?>
+            <div class="page-subtitle">Menampilkan seluruh data anak dari semua pegawai aktif.</div>
+        <?php endif; ?>
       </div>
+      
       <div class="d-flex gap-2">
-        <a href="home-admin.php" class="btn btn-light btn-modern border"><i class="fas fa-home me-1"></i> Dashboard</a>
-        <a href="home-admin.php?page=form-import-data-anak" class="btn btn-success btn-modern"><i class="fas fa-file-excel me-1"></i> Impor</a>
-        <a href="home-admin.php?page=form-master-data-anak<?php echo $uid? '&uid='.urlencode($uid):''; ?>" class="btn btn-primary btn-modern"><i class="fas fa-plus me-1"></i> Tambah Data</a>
+        <a href="home-admin.php" class="btn-custom btn-light-soft"><i class="fas fa-home"></i></a>
+        <a href="home-admin.php?page=form-import-data-anak" class="btn-custom btn-success-soft"><i class="fas fa-file-excel"></i> Import</a>
+        <a href="home-admin.php?page=form-master-data-anak<?php echo $uid? '&uid='.urlencode($uid):''; ?>" class="btn-custom btn-primary-soft"><i class="fas fa-plus"></i> Tambah Data</a>
       </div>
     </div>
 
-    <div class="card-body p-4">
-      <div class="table-responsive">
-        <table id="tblAnak" class="display nowrap table table-hover" style="width:100%">
+    <div class="card-body p-0">
+      <div class="table-responsive pt-2">
+        <table id="tblAnak" class="table table-hover w-100">
           <thead>
             <tr>
-              <th width="5%">No</th>
-              <th>ID Peg — Nama</th>
+              <th width="5%" class="text-center">No</th>
+              <th>Nama Pegawai</th>
               <th>Nama Anak</th>
               <th>Tgl Lahir</th>
               <th>Pendidikan</th>
               <th>Pekerjaan</th>
-              <th>Status Hub</th>
-              <th>Anak ke</th>
+              <th class="text-center">Anak Ke</th>
               <th>BPJS</th>
-              <th width="15%" class="text-center">Aksi</th>
+              <th width="8%" class="text-center">Aksi</th>
             </tr>
           </thead>
         </table>
@@ -104,70 +194,65 @@ if ($uid!==''){
 
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
 
 <script>
-$(function(){
+$(document).ready(function(){
   $('#tblAnak').DataTable({
     processing: true, 
     serverSide: true, 
     searching: true,
     responsive: true,
-    autoWidth: false,
+    lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Semua"]],
     ajax: { 
         url: 'pages/ref-keluarga/ajax-data-anak.php', 
         type: 'GET', 
         data: { uid: <?php echo json_encode($uid); ?> } 
     },
     columns: [
-      { data: 'no', orderable:false },
-      { data: 'idpeg_nama' }, 
-      { data: 'nama' },
+      { data: 'no', orderable:false, className: 'text-center fw-bold text-secondary' },
+      { data: 'idpeg_nama', className: 'fw-bold text-dark' },
+      { data: 'nama', className: 'text-primary fw-medium' },
       { data: 'tgl_lhr' },
       { data: 'pendidikan' },
       { data: 'pekerjaan' },
-      { data: 'status_hub' },
-      { data: 'anak_ke' },
+      { data: 'anak_ke', className: 'text-center' },
       { data: 'bpjs_anak' },
-      // KOLOM AKSI
       { 
         data: null, 
         orderable: false,
         className: 'text-center',
         render: function(data, type, row) {
-            // Gunakan ID Pegawai untuk tombol profil
-            var idPeg = row.id_peg || ''; 
-            
-            // Gunakan ID Anak (Primary Key) untuk tombol edit
-            // Pastikan file AJAX mengembalikan kolom 'id_anak' atau 'id'
             var idAnak = row.id_anak || row.id; 
-
-            var btnHtml = '';
-
-            // Tombol 1: Profile Pegawai
-            if(idPeg) {
-                btnHtml += '<a href="home-admin.php?page=view-detail-pegawai&id='+idPeg+'" class="btn-action btn-profile" title="Lihat Profil Pegawai"><i class="fas fa-user-tie"></i></a>';
-            }
-
-            // Tombol 2: Edit Data Anak
+            var uidPeg = row.id_peg || '';
             if(idAnak) {
-                btnHtml += '<a href="home-admin.php?page=form-edit-data-anak&id='+idAnak+'" class="btn-action btn-edit" title="Edit Data Anak"><i class="fas fa-edit"></i></a>';
+                return `
+                    <a href="home-admin.php?page=form-master-data-anak&id=${idAnak}&uid=${uidPeg}" 
+                       class="btn-edit-modern" 
+                       title="Edit Data" 
+                       data-bs-toggle="tooltip">
+                        <i class="fas fa-pencil-alt"></i>
+                    </a>
+                `;
             }
-
-            return btnHtml;
+            return '-';
         }
       }
     ],
-    columnDefs: [
-        { targets: [0, 2, 9], className: 'all' }, // No, Nama Anak, Aksi selalu tampil
-        { targets: [3, 4, 5, 6, 7, 8], className: 'min-tablet' } 
-    ],
     language: {
-        search: "_INPUT_",
+        search: "",
         searchPlaceholder: "Cari data...",
-        processing: '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>',
-        emptyTable: "Tidak ada data anak ditemukan."
-    }
+        lengthMenu: "_MENU_", // Dipendekkan biar muat di HP
+        info: "Menampilkan _START_ - _END_ dari _TOTAL_ data",
+        paginate: { first: "«", last: "»", next: "›", previous: "‹" },
+        processing: '<div class="spinner-border text-primary spinner-border-sm" role="status"></div> Memuat...'
+    },
+    // PERUBAHAN DOM DISINI: Menggunakan col-6 (setengah) bukan col-sm-12
+    dom: "<'row px-3 pt-3 align-items-center'<'col-6 col-md-6'l><'col-6 col-md-6'f>>" +
+         "<'row px-3'<'col-sm-12'tr>>" +
+         "<'row px-3 pb-3'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>"
   });
 });
 </script>

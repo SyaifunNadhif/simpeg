@@ -1,282 +1,307 @@
 <?php
 /*********************************************************
  * FILE    : pages/diklat/master-data-diklat.php
- * MODULE  : Data Diklat (Dropdown Diklat Dynamic by Tahun)
- * VERSION : v3.3
+ * UPDATE  : Tampilan Mobile "1 Baris" & Fix Bug UI
  *********************************************************/
 
 // Session & Koneksi
 if (session_id() == '') session_start();
 include "dist/koneksi.php";
-include "dist/library.php";
 
-// --- 1. LOGIKA HAK AKSES ---
-$hak_akses      = isset($_SESSION['hak_akses']) ? strtolower($_SESSION['hak_akses']) : 'user';
-$kode_kantor    = isset($_SESSION['kode_kantor']) ? $_SESSION['kode_kantor'] : '';
-$is_kepala      = ($hak_akses == 'kepala');
+// Hak Akses
+$hak_akses   = isset($_SESSION['hak_akses']) ? strtolower($_SESSION['hak_akses']) : 'user';
+$kode_kantor = isset($_SESSION['kode_kantor']) ? $_SESSION['kode_kantor'] : '';
+$is_kepala   = ($hak_akses == 'kepala');
 
-// --- LOGIKA LINK KEMBALI ---
-$hak_akses_user = isset($_SESSION['hak_akses']) ? strtolower($_SESSION['hak_akses']) : '';
-$link_back = ($hak_akses_user == 'kepala') ? "home-admin.php?page=dashboard-cabang" : "home-admin.php?page=form-view-data-pegawai";
+// Filter Default
+$tahun_default = date('Y');
 
-// --- 2. LOGIKA FILTER ---
-
-// A. Filter Tahun (Default 2025 / Tahun Ini)
-if (isset($_GET['tahun'])) {
-    $filter_tahun = $_GET['tahun'];
-} else {
-    $filter_tahun = date('Y'); 
-}
-
-$filter_diklat  = isset($_GET['diklat']) ? $_GET['diklat'] : '';
-$filter_kantor  = isset($_GET['kantor']) ? $_GET['kantor'] : '';
-
-// Jika KEPALA, paksa filter kantor
-if ($is_kepala) {
-    $filter_kantor = $kode_kantor;
-}
-
-// --- 3. QUERY UTAMA (TABEL DATA) ---
-$sql = "SELECT d.*, p.nama, j.jabatan, j.unit_kerja, k.nama_kantor
-        FROM tb_diklat d
-        JOIN tb_pegawai p ON d.id_peg = p.id_peg
-        LEFT JOIN tb_jabatan j ON p.id_peg = j.id_peg AND j.status_jab = 'Aktif'
-        LEFT JOIN tb_kantor k ON j.unit_kerja = k.kode_kantor_detail
-        WHERE 1=1";
-
-// Append Filter Tahun
-if (!empty($filter_tahun)) {
-    $sql .= " AND d.tahun = '$filter_tahun'";
-}
-// Append Filter Jenis Diklat
-if (!empty($filter_diklat)) {
-    $sql .= " AND d.diklat = '" . mysqli_real_escape_string($conn, $filter_diklat) . "'";
-}
-// Append Filter Kantor
-if (!empty($filter_kantor)) {
-    $sql .= " AND j.unit_kerja = '$filter_kantor'";
-}
-
-$sql .= " ORDER BY d.date_reg DESC";
-$result = mysqli_query($conn, $sql);
-
-
-// --- 4. QUERY DROPDOWN (LOGIKA DINAMIS) ---
-
-// A. List Tahun
+// Query Dropdown Awal
 $qTahun  = mysqli_query($conn, "SELECT DISTINCT tahun FROM tb_diklat WHERE tahun != '' ORDER BY tahun DESC");
-
-// B. List Jenis Diklat (DIPERBAIKI: Filter by TAHUN JUGA)
-$sqlDiklat = "SELECT DISTINCT d.diklat FROM tb_diklat d LEFT JOIN tb_jabatan j ON d.id_peg = j.id_peg WHERE 1=1";
-
-// Jika User Memilih Tahun Tertentu, Filter Diklat Sesuai Tahun Tersebut
-if (!empty($filter_tahun)) {
-    $sqlDiklat .= " AND d.tahun = '$filter_tahun'";
-}
-
-// Jika Kepala, Filter Sesuai Unit Kerja
-if ($is_kepala) { 
-    $sqlDiklat .= " AND j.unit_kerja = '$kode_kantor'"; 
-}
-
-$sqlDiklat .= " ORDER BY d.diklat ASC";
-$qDiklat = mysqli_query($conn, $sqlDiklat);
-
-// C. List Kantor (Admin Only)
+$qDiklat = mysqli_query($conn, "SELECT DISTINCT diklat FROM tb_diklat WHERE tahun = '$tahun_default' ORDER BY diklat ASC");
 $qKantor = mysqli_query($conn, "SELECT * FROM tb_kantor WHERE level IN ('KC','KP') ORDER BY nama_kantor ASC");
 ?>
 
 <style>
-    .content-wrapper { background-color: #f4f6f9; }
-    .card-modern { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); background: #fff; overflow: hidden; }
-    .card-header-modern { background: #fff; border-bottom: 1px solid #f1f1f1; padding: 20px; }
+    /* --- 1. BASE STYLE (DESKTOP) --- */
+    .content-wrapper { background-color: #f8f9fa; }
     
-    .input-modern { border-radius: 10px; border: 1px solid #e2e8f0; height: 40px; font-size: 0.9rem; width: 100%; padding: 5px 15px; }
-    .input-modern:focus { border-color: #007bff; box-shadow: none; }
-    .btn-modern { border-radius: 50px; padding: 8px 20px; font-weight: 600; transition: 0.3s; font-size: 0.9rem; }
-    .btn-modern:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    .card-clean {
+        border: 1px solid #e3e6f0;
+        border-radius: 12px;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.05);
+        background: #fff;
+    }
+
+    .card-header-clean {
+        background-color: #fff;
+        border-bottom: 1px solid #f1f3f9;
+        padding: 20px 25px;
+        border-radius: 12px 12px 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap; 
+        gap: 15px;
+    }
+
+    /* TYPOGRAPHY */
+    .title-text { font-size: 1.25rem; font-weight: 700; color: #2e343a; margin: 0; }
+    .subtitle-text { font-size: 0.85rem; color: #858796; margin-top: 4px; display: block; }
+
+    /* TOMBOL (Sesuai Referensi Gambar) */
+    .btn-custom-home { background: #fff; border: 1px solid #d1d3e2; color: #5a5c69; padding: 7px 12px; border-radius: 8px; }
+    .btn-custom-import { background-color: #1cc88a; /* Hijau seperti gambar */ border: none; color: white; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 0.9rem; }
+    .btn-custom-add { background-color: #4e73df; /* Biru/Ungu seperti gambar */ border: none; color: white; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 0.9rem; }
+    .btn-custom-import:hover { background-color: #17a673; color: white; }
+    .btn-custom-add:hover { background-color: #2e59d9; color: white; }
+
+    /* FORM INPUT */
+    .label-filter { font-size: 0.7rem; font-weight: 700; color: #b7b9cc; text-transform: uppercase; margin-bottom: 5px; display: block; letter-spacing: 0.5px; }
+    .form-control-clean { border-radius: 6px; height: 38px; border: 1px solid #d1d3e2; font-size: 0.85rem; color: #6e707e; }
+
+    /* TABLE STYLE */
+    table.dataTable thead th {
+        background-color: #fff; color: #5a5c69;
+        font-weight: 700; font-size: 0.8rem; text-transform: uppercase;
+        border-bottom: 2px solid #e3e6f0 !important; padding: 15px !important;
+    }
+    table.dataTable tbody td { padding: 12px 15px !important; vertical-align: middle; font-size: 0.9rem; color: #5a5c69; border-top: 1px solid #f1f3f9; }
+
+
+    /* --- 2. FIX UI DATATABLES (SHOW ENTRIES & SEARCH) --- */
     
-    .table-responsive { border-radius: 0 0 15px 15px; }
-    table.dataTable thead th { background-color: #f8f9fa; color: #495057; border-bottom: 2px solid #e9ecef !important; font-size: 0.85rem; text-transform: uppercase; padding: 15px !important; white-space: nowrap; }
-    table.dataTable tbody td { padding: 12px 15px !important; vertical-align: middle; font-size: 0.9rem; color: #333; }
-    .label-filter { font-size: 0.75rem; font-weight: 700; color: #888; text-transform: uppercase; margin-bottom: 5px; display: block; }
-    
-    .badge-tahun { background-color: #007bff; color: white; font-size: 0.85rem; padding: 5px 10px; border-radius: 6px; }
+    /* Wrapper agar kontrol tabel rapi */
+    .dataTables_wrapper .row:first-child {
+        align-items: center;
+        margin-bottom: 10px;
+        padding: 0 5px;
+    }
+
+    /* Show entries: Paksa sebaris */
+    div.dataTables_wrapper div.dataTables_length label {
+        font-weight: normal;
+        text-align: left;
+        white-space: nowrap;
+        margin-bottom: 0;
+        display: flex;
+        align-items: center;
+    }
+    div.dataTables_wrapper div.dataTables_length select {
+        width: 60px;
+        margin: 0 8px;
+        border-radius: 4px;
+        border: 1px solid #d1d3e2;
+        padding: 4px;
+    }
+
+    /* Search Box styling */
+    div.dataTables_wrapper div.dataTables_filter input {
+        border-radius: 6px;
+        border: 1px solid #d1d3e2;
+        padding: 6px 12px;
+        outline: none;
+        margin-left: 0.5em;
+        width: 200px; /* Default desktop */
+    }
+
+
+    /* --- 3. MOBILE RESPONSIVE (INI SOLUSINYA) --- */
+    @media (max-width: 768px) {
+        
+        /* HEADER: Tombol Full Width & Stack */
+        .card-header-clean {
+            padding: 15px;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .header-actions {
+            width: 100%;
+            margin-top: 15px;
+            display: flex;
+            gap: 8px;
+        }
+        .btn-custom-import, .btn-custom-add {
+            flex: 1; /* Tombol berbagi rata lebar */
+            text-align: center;
+            font-size: 0.8rem;
+        }
+
+        /* GRID FILTER: 1 BARIS (50:50) */
+        /* Mengatur padding agar tidak terlalu mepet saat bersebelahan */
+        .filter-grid-mobile {
+            padding-right: 5px !important;
+        }
+        .filter-grid-mobile:last-child {
+            padding-left: 5px !important;
+            padding-right: 15px !important;
+        }
+
+        /* SEARCH & SHOW ENTRIES Mobile */
+        div.dataTables_wrapper div.dataTables_filter {
+            text-align: left !important;
+            margin-top: 10px;
+        }
+        div.dataTables_wrapper div.dataTables_filter input {
+            width: 100% !important; /* Search box full width */
+            margin-left: 0 !important;
+            display: block;
+        }
+        div.dataTables_wrapper div.dataTables_length {
+            text-align: left !important;
+        }
+    }
 </style>
 
-<section class="content-header pt-4 pb-2">
-    <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center">
+<div class="content pt-4 px-3">
+    
+    <div class="card card-clean mb-4">
+        
+        <div class="card-header-clean">
             <div>
-                <h1 class="m-0 font-weight-bold text-dark" style="font-size: 1.8rem;">Riwayat Diklat</h1>
-                <p class="text-muted mb-0">Data pendidikan dan pelatihan pegawai</p>
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-graduation-cap text-primary fa-lg mr-2"></i>
+                    <h5 class="title-text">Daftar Pelatihan & Diklat</h5>
+                </div>
+                <span class="subtitle-text pl-1">Menampilkan seluruh data riwayat pelatihan pegawai.</span>
             </div>
-            <div>
-                <a href="<?= $link_back ?>" class="btn btn-light rounded-pill shadow-sm px-4 border">
-                    <i class="fa fa-arrow-left mr-2"></i> Kembali
+            
+            <div class="header-actions">
+                <a href="home-admin.php" class="btn btn-custom-home shadow-sm" title="Dashboard">
+                    <i class="fa fa-home"></i>
+                </a>
+                <a href="home-admin.php?page=form-import-data-diklat" class="btn btn-custom-import shadow-sm">
+                    <i class="fas fa-file-excel mr-1"></i> Import
+                </a>
+                <a href="home-admin.php?page=form-diklat" class="btn btn-custom-add shadow-sm">
+                    <i class="fas fa-plus mr-1"></i> Tambah Data
                 </a>
             </div>
         </div>
-    </div>
-</section>
 
-<section class="content mt-3">
-    <div class="container-fluid">
-        
-        <div class="card card-modern">
-            <div class="card-header-modern">
-                <form method="GET" action="home-admin.php">
-                    <input type="hidden" name="page" value="master-data-diklat">
-                    
-                    <div class="row align-items-end">
-                        
-                        <div class="col-lg-2 col-md-4 mb-3 mb-lg-0">
-                            <span class="label-filter">Tahun</span>
-                            <select name="tahun" class="form-control input-modern" onchange="this.form.submit()">
-                                <option value="">-- Semua Tahun --</option>
-                                <?php while ($row = mysqli_fetch_assoc($qTahun)) { ?>
-                                    <option value="<?= $row['tahun'] ?>" <?= ($filter_tahun == $row['tahun']) ? 'selected' : '' ?>>
-                                        <?= $row['tahun'] ?>
-                                    </option>
-                                <?php } ?>
-                            </select>
-                        </div>
-
-                        <div class="col-lg-3 col-md-4 mb-3 mb-lg-0">
-                            <span class="label-filter">Jenis Diklat</span>
-                            <select name="diklat" class="form-control input-modern select2bs4">
-                                <option value="">-- Semua Jenis (<?= empty($filter_tahun) ? 'Semua Thn' : $filter_tahun ?>) --</option>
-                                <?php 
-                                mysqli_data_seek($qDiklat, 0); 
-                                while ($row = mysqli_fetch_assoc($qDiklat)) { 
-                                ?>
-                                    <option value="<?= $row['diklat'] ?>" <?= ($filter_diklat == $row['diklat']) ? 'selected' : '' ?>>
-                                        <?= $row['diklat'] ?>
-                                    </option>
-                                <?php } ?>
-                            </select>
-                        </div>
-
-                        <div class="col-lg-3 col-md-4 mb-3 mb-lg-0">
-                            <span class="label-filter">Unit Kerja</span>
-                            <select name="kantor" class="form-control input-modern" <?= $is_kepala ? 'disabled' : '' ?>>
-                                <option value="">-- Semua Kantor --</option>
-                                <?php while ($row = mysqli_fetch_assoc($qKantor)) { ?>
-                                    <option value="<?= $row['kode_kantor_detail'] ?>" <?= ($filter_kantor == $row['kode_kantor_detail']) ? 'selected' : '' ?>>
-                                        <?= $row['nama_kantor'] ?>
-                                    </option>
-                                <?php } ?>
-                            </select>
-                            <?php if($is_kepala): ?><input type="hidden" name="kantor" value="<?= $kode_kantor ?>"><?php endif; ?>
-                        </div>
-
-                        <div class="col-lg-4 col-md-12 mt-3 mt-lg-0 text-right">
-                            <button type="submit" class="btn btn-primary btn-modern shadow-sm mr-1">
-                                <i class="fa fa-filter mr-1"></i> Terapkan
-                            </button>
-                            <a href="home-admin.php?page=master-data-diklat" class="btn btn-light btn-modern border">
-                                <i class="fa fa-sync-alt text-muted"></i>
-                            </a>
-                        </div>
-
-                    </div>
-                </form>
-            </div>
-
-            <div class="card-body p-0">
+        <div class="card-body">
+            
+            <div class="row mb-3">
                 
-                <div class="d-flex justify-content-between align-items-center p-3 border-bottom bg-light">
-                    <h6 class="m-0 font-weight-bold text-primary"><i class="fa fa-list mr-2"></i> Daftar Peserta Diklat</h6>
-                    <div class="btn-group">
-                        <a href="home-admin.php?page=form-diklat" class="btn btn-success btn-sm shadow-sm"><i class="fa fa-plus mr-1"></i> Tambah Data</a>
-                        <a href="home-admin.php?page=form-import-data-diklat" class="btn btn-info btn-sm shadow-sm"><i class="fa fa-file-upload mr-1"></i> Import</a>
-                    </div>
+                <div class="col-6 col-md-2 mb-2 filter-grid-mobile">
+                    <span class="label-filter">Tahun</span>
+                    <select id="filter_tahun" class="form-control form-control-clean select2bs4">
+                        <?php while ($t = mysqli_fetch_assoc($qTahun)) { ?>
+                            <option value="<?= $t['tahun'] ?>" <?= ($tahun_default == $t['tahun']) ? 'selected' : '' ?>><?= $t['tahun'] ?></option>
+                        <?php } ?>
+                    </select>
                 </div>
 
-                <div class="table-responsive">
-                    <table class="table table-hover w-100 mb-0" id="tabelDiklat">
-                        <thead>
-                            <tr>
-                                <th width="5%" class="text-center">No</th>
-                                <th>Nama Pegawai</th>
-                                <th>Jenis Diklat</th>
-                                <th width="10%" class="text-center">Tahun</th>
-                                <th>Penyelenggara & Lokasi</th>
-                                <th>Unit Kerja</th>
-                                <th class="text-center" width="8%">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php 
-                            $no = 1;
-                            if(mysqli_num_rows($result) > 0){
-                                while ($row = mysqli_fetch_assoc($result)) { 
-                            ?>
-                                <tr>
-                                    <td class="text-center font-weight-bold"><?= $no++ ?></td>
-                                    <td>
-                                        <div class="font-weight-bold text-dark"><?= $row['nama'] ?></div>
-                                        <div class="small text-muted">ID: <?= $row['id_peg'] ?></div>
-                                    </td>
-                                    <td><?= $row['diklat'] ?></td>
-                                    <td class="text-center"><span class="badge-tahun"><?= $row['tahun'] ?></span></td>
-                                    <td>
-                                        <div class="font-weight-bold text-dark"><?= $row['penyelenggara'] ?></div>
-                                        <div class="small text-muted"><i class="fa fa-map-marker-alt mr-1 text-danger"></i> <?= $row['tempat'] ?></div>
-                                    </td>
-                                    <td><?= $row['nama_kantor'] ?></td>
-                                    <td class="text-center">
-                                        <a href="home-admin.php?page=form-diklat&id=<?= $row['id_diklat'] ?>" class="btn btn-sm btn-warning shadow-sm" title="Edit Data">
-                                            <i class="fa fa-pen text-white"></i>
-                                        </a>
-                                    </td>
-                                </tr>
-                            <?php 
-                                } 
-                            } 
-                            ?>
-                        </tbody>
-                    </table>
+                <div class="col-6 col-md-3 mb-2 filter-grid-mobile">
+                    <span class="label-filter">Jenis Diklat</span>
+                    <select id="filter_diklat" class="form-control form-control-clean select2bs4">
+                        <option value="">- Semua Jenis -</option>
+                        <?php while ($d = mysqli_fetch_assoc($qDiklat)) { ?>
+                            <option value="<?= $d['diklat'] ?>"><?= $d['diklat'] ?></option>
+                        <?php } ?>
+                    </select>
                 </div>
 
+                <div class="col-12 col-md-4 mb-2">
+                    <span class="label-filter">Unit Kerja</span>
+                    <select id="filter_kantor" class="form-control form-control-clean select2bs4" <?= $is_kepala ? 'disabled' : '' ?>>
+                        <option value="">- Semua Kantor -</option>
+                        <?php while ($k = mysqli_fetch_assoc($qKantor)) { ?>
+                            <option value="<?= $k['kode_kantor_detail'] ?>" <?= ($kode_kantor == $k['kode_kantor_detail']) ? 'selected' : '' ?>>
+                                <?= $k['nama_kantor'] ?>
+                            </option>
+                        <?php } ?>
+                    </select>
+                    <?php if($is_kepala): ?><input type="hidden" id="hidden_kantor" value="<?= $kode_kantor ?>"><?php endif; ?>
+                </div>
             </div>
-        </div>
 
+            <div class="table-responsive">
+                <table class="table w-100" id="tabelDiklatAjax">
+                    <thead>
+                        <tr>
+                            <th width="5%" class="text-center">No</th>
+                            <th>Nama Pegawai</th>
+                            <th>Jenis Diklat</th>
+                            <th>Penyelenggara</th>
+                            <th>Unit Kerja</th>
+                            <th class="text-center" width="8%">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+        </div>
     </div>
-</section>
+</div>
 
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap4.min.css">
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@x.x.x/dist/select2-bootstrap4.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme/dist/select2-bootstrap4.min.css">
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap4.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-$(document).ready(function () {
-    // Init DataTable
-    $('#tabelDiklat').DataTable({
-        "responsive": false,
-        "scrollX": true,
-        "lengthChange": false,
-        "autoWidth": false,
-        "pageLength": 10,
+$(document).ready(function() {
+    $('.select2bs4').select2({ theme: 'bootstrap4', width: '100%' });
+
+    var table = $('#tabelDiklatAjax').DataTable({
+        "processing": true,
+        "serverSide": true,
+        "ordering": false,
+        "ajax": {
+            "url": "pages/ref-diklat/ajax-data-diklat.php",
+            "type": "GET",
+            "data": function (d) {
+                d.tahun  = $('#filter_tahun').val();
+                d.diklat = $('#filter_diklat').val();
+                var kantorVal = $('#filter_kantor').val();
+                if(!kantorVal && $('#hidden_kantor').length) kantorVal = $('#hidden_kantor').val();
+                d.kantor = kantorVal;
+            }
+        },
+        "columns": [
+            { "data": "no", "className": "text-center font-weight-bold" },
+            { "data": "nama_peg" },
+            { "data": "diklat" },
+            { "data": "penyelenggara" },
+            { "data": "unit_kerja" },
+            { "data": "aksi", "className": "text-center" }
+        ],
         "language": {
-            "search": "",
+            "search": "", 
             "searchPlaceholder": "Cari data...",
-            "zeroRecords": "Data tidak ditemukan.",
-            "info": "Hal _PAGE_ dari _PAGES_",
-            "paginate": { "next": ">", "previous": "<" }
-        }
+            "zeroRecords": "Data tidak ditemukan",
+            "lengthMenu": "Tampil _MENU_", // Teks pendek agar muat di HP
+            "info": "_START_ - _END_ dari _TOTAL_",
+            "processing": "<div class='spinner-border text-primary' role='status'><span class='sr-only'>...</span></div>"
+        },
+        // Layout Custom untuk Mobile Responsive
+        "dom": "<'row'<'col-6 col-md-6'l><'col-12 col-md-6'f>>" +
+               "<'row'<'col-sm-12'tr>>" +
+               "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>"
     });
 
-    // Styling Search Box
-    $('.dataTables_filter input').addClass('form-control input-modern').css('width', '200px');
+    // Auto Filter
+    $('#filter_diklat, #filter_kantor').change(function(){ table.ajax.reload(); });
 
-    // Init Select2
-    $('.select2bs4').select2({ theme: 'bootstrap4', width: '100%' });
+    // Dinamis Tahun -> Diklat
+    $('#filter_tahun').change(function(){
+        var tahunDipilih = $(this).val();
+        $('#filter_diklat').prop('disabled', true).html('<option>Loading...</option>');
+        $.ajax({
+            url: 'pages/ref-diklat/ajax-get-jenis.php',
+            type: 'POST',
+            data: { tahun: tahunDipilih },
+            success: function(response){
+                $('#filter_diklat').html(response).prop('disabled', false);
+                table.ajax.reload();
+            }
+        });
+    });
 });
 </script>

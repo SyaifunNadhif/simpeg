@@ -103,8 +103,6 @@ include "dist/library.php";
                                             <option value="Meninggal Dunia">Meninggal Dunia</option>
                                             <option value="Pengunduran Diri">Pengunduran Diri</option>
                                             <option value="PTDH">PTDH</option>
-                                            <option value="Mutasi Jabatan">Mutasi Jabatan</option>
-                                            <option value="Mutasi Unit Kerja">Mutasi Unit Kerja</option>
                                         </select>
                                     </div>
                                 </div>

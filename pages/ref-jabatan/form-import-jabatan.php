@@ -156,7 +156,7 @@ document.body.addEventListener('click', function(e) {
                     if (res.status === 'success') {
                         Swal.fire('Selesai!', res.message, 'success').then(() => { 
                             // Refresh atau redirect
-                            location.reload(); 
+                            window.location.href = 'home-admin.php?page=form-view-data-jabatan';
                         });
                     } else {
                         Swal.fire('Gagal', res.message, 'error');

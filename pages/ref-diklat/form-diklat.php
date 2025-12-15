@@ -1,209 +1,253 @@
 <?php
 /*********************************************************
  * FILE    : pages/diklat/form-diklat.php
- * MODULE  : Form Diklat (Added Biaya Column)
- * VERSION : v2.2
+ * MODULE  : Form Diklat (Locked Edit, Compact UI, Auto Rupiah)
  *********************************************************/
 
 if (session_id() == '') session_start();
 include 'dist/koneksi.php';
 include 'dist/library.php';
 
-// --- 1. LOGIKA HAK AKSES & FILTER ---
-$hak_akses      = isset($_SESSION['hak_akses']) ? strtolower($_SESSION['hak_akses']) : 'user';
-$kode_kantor    = isset($_SESSION['kode_kantor']) ? $_SESSION['kode_kantor'] : '';
+// --- 1. INISIALISASI DATA ---
+$hak_akses   = isset($_SESSION['hak_akses']) ? strtolower($_SESSION['hak_akses']) : 'user';
+$kode_kantor = isset($_SESSION['kode_kantor']) ? $_SESSION['kode_kantor'] : '';
 
-// Query Filter Pegawai
-$where_pegawai = "WHERE 1=1";
-if ($hak_akses !== 'admin') {
-    // Hanya tampilkan pegawai di unit kerja user login (Aktif)
-    $where_pegawai .= " AND id_peg IN (
-        SELECT id_peg FROM tb_jabatan 
-        WHERE unit_kerja = '$kode_kantor' AND status_jab = 'Aktif'
-    )";
-}
-
-// --- 2. INISIALISASI DATA ---
 $id = isset($_GET['id']) ? mysqli_real_escape_string($conn, $_GET['id']) : '';
 $isEdit = ($id != '');
 
-// Default data (Perhatikan penambahan key 'biaya')
+// Data Default
 $data = [
-  "id_peg" => "", 
-  "diklat" => "", 
-  "penyelenggara" => "", 
-  "tempat" => "",
-  "biaya" => "", // NEW: Kolom biaya
-  "angkatan" => "", 
-  "tahun" => date('Y'), 
-  "date_reg" => date('Y-m-d')
+    "id_peg" => "", "diklat" => "", "penyelenggara" => "", 
+    "tempat" => "", "biaya" => "", "angkatan" => "", 
+    "tahun" => date('Y'), "date_reg" => date('Y-m-d')
 ];
 
+// Jika Edit, Ambil Data
 if ($isEdit) {
-  $q = mysqli_query($conn, "SELECT * FROM tb_diklat WHERE id_diklat = '$id'");
-  if ($q && mysqli_num_rows($q) > 0) {
-    $data = mysqli_fetch_assoc($q);
-  } else {
-    echo "<script>window.location='home-admin.php?page=master-data-diklat';</script>";
-    exit;
-  }
+    $q = mysqli_query($conn, "SELECT * FROM tb_diklat WHERE id_diklat = '$id'");
+    if ($q && mysqli_num_rows($q) > 0) {
+        $data = mysqli_fetch_assoc($q);
+    } else {
+        echo "<script>window.location='home-admin.php?page=master-data-diklat';</script>";
+        exit;
+    }
 }
 
-// Ambil Daftar Pegawai (Filtered)
+// Filter Pegawai
+$where_pegawai = "WHERE 1=1";
+if ($hak_akses !== 'admin') {
+    $where_pegawai .= " AND id_peg IN (SELECT id_peg FROM tb_jabatan WHERE unit_kerja = '$kode_kantor' AND status_jab = 'Aktif')";
+}
 $qPegawai = mysqli_query($conn, "SELECT id_peg, nama FROM tb_pegawai $where_pegawai ORDER BY nama ASC");
 ?>
 
 <style>
-    .card-modern { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); background: #fff; }
-    .form-header-modern { background: #17a2b8; color: #fff; border-bottom: 1px solid #f1f1f1; padding: 20px; border-radius: 15px 15px 0 0; }
-    .input-modern { border-radius: 10px; border: 1px solid #e2e8f0; padding: 10px 15px; height: 45px; width: 100%; }
-    .input-modern:focus { border-color: #17a2b8; box-shadow: 0 0 0 3px rgba(23, 162, 184, 0.2); outline: none; }
-    .btn-modern { border-radius: 50px; padding: 10px 30px; font-weight: 600; transition: 0.3s; }
-    .btn-modern:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-    .form-label-modern { font-size: 0.8rem; font-weight: 700; color: #6c757d; text-transform: uppercase; margin-bottom: 8px; }
-    
-    /* Fix Style Select2 agar sesuai tema Modern */
-    .select2-container--bootstrap4 .select2-selection--single {
-        height: 45px !important;
-        border-radius: 10px !important;
-        border: 1px solid #e2e8f0 !important;
-        padding-top: 8px !important;
+    /* STYLE COMPACT & MODERN */
+    .card-ref {
+        border: none;
+        border-radius: 6px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        background: #fff;
+        overflow: hidden;
     }
+    
+    /* Header Biru */
+    .card-header-ref {
+        background-color: #0088ff;
+        color: #fff;
+        padding: 12px 20px; /* Padding diperkecil */
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    /* Box Info Pegawai (Lebih Ramping) */
+    .info-box-pegawai {
+        background-color: #e0f7fa;
+        border: 1px solid #b2ebf2;
+        border-radius: 4px;
+        padding: 10px 15px; /* Lebih rapat */
+        color: #006064;
+        margin-bottom: 15px;
+    }
+
+    /* Label & Input Compact */
+    .label-ref {
+        font-weight: 700;
+        font-size: 0.8rem; /* Font agak kecil */
+        color: #333;
+        margin-bottom: 4px; /* Jarak label ke input didempetin */
+    }
+    .form-control-ref {
+        border-radius: 4px;
+        border: 1px solid #ced4da;
+        height: 38px; /* Tinggi input dikurangi sedikit */
+        font-size: 0.9rem;
+        padding: 5px 10px;
+    }
+    .form-control-ref:focus {
+        border-color: #0088ff;
+        box-shadow: 0 0 0 0.2rem rgba(0,136,255,.25);
+    }
+    
+    /* Jarak Antar Form Group Dikurangi */
+    .form-group-compact {
+        margin-bottom: 12px; /* Jarak antar baris diperkecil dari mb-3 (16px) jadi 12px */
+    }
+
+    /* Select2 Disabled Style */
+    .select2-container--bootstrap4.select2-container--disabled .select2-selection--single {
+        background-color: #e9ecef !important;
+        border-color: #ced4da !important;
+        color: #6c757d !important;
+        cursor: not-allowed;
+    }
+    
+    /* Tombol */
+    .btn-update { background-color: #007bff; border-color: #007bff; color: white; font-weight: 600; padding: 8px 25px; border-radius: 4px; }
+    .btn-update:hover { background-color: #0069d9; color: white; }
+    .btn-kembali { background-color: #fff; border: 1px solid #ddd; color: #555; font-weight: 600; padding: 8px 20px; border-radius: 4px; }
+    .btn-kembali:hover { background-color: #f8f9fa; }
 </style>
 
-<section class="content-header pt-4 pb-2">
-    <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h1 class="m-0 font-weight-bold text-dark" style="font-size: 1.8rem;">Form Diklat</h1>
-                <p class="text-muted mb-0"><?= $isEdit ? 'Edit data' : 'Tambah data baru' ?></p>
-            </div>
-            <div>
-                <a href="home-admin.php?page=master-data-diklat" class="btn btn-light rounded-pill border shadow-sm">
-                    <i class="fa fa-arrow-left mr-2"></i> Kembali
-                </a>
-            </div>
-        </div>
-    </div>
-</section>
-
-<section class="content mt-3">
+<section class="content pt-3">
     <div class="container-fluid">
         <div class="row justify-content-center">
-            <div class="col-md-10">
+            <div class="col-md-11">
                 
-                <div class="card card-modern">
-                    <div class="form-header-modern">
-                        <h5 class="m-0 font-weight-bold"><i class="fas fa-edit mr-2"></i> <?= $isEdit ? 'Edit' : 'Input' ?> Data Diklat</h5>
+                <div class="card card-ref">
+                    <div class="card-header-ref">
+                        <h5 class="font-weight-bold m-0" style="font-size: 1.1rem;">
+                            <?= $isEdit ? 'Edit Data Pendidikan' : 'Input Data Pendidikan' ?>
+                        </h5>
+                        <p class="m-0 small" style="opacity: 0.9; font-size: 0.8rem;">Lengkapi data pendidikan/diklat pegawai</p>
                     </div>
-                    
-                    <div class="card-body p-4">
-                        <form method="POST" action="home-admin.php?page=proses-diklat">
+
+                    <div class="card-body p-3"> <form method="POST" action="home-admin.php?page=proses-diklat" onsubmit="return cleanRupiah()">
                             <input type="hidden" name="id_diklat" value="<?= $id ?>">
 
-                            <div class="form-group mb-4">
-                                <label class="form-label-modern">Pilih Pegawai <span class="text-danger">*</span></label>
-                                <select name="id_peg" class="form-control select2bs4" required style="width: 100%;">
-                                    <option value="">-- Ketik Nama Pegawai --</option>
-                                    <?php while ($p = mysqli_fetch_assoc($qPegawai)) { ?>
-                                        <option value="<?= $p['id_peg'] ?>" <?= $data['id_peg'] == $p['id_peg'] ? 'selected' : '' ?>>
-                                            <?= $p['nama'] ?> (<?= $p['id_peg'] ?>)
-                                        </option>
-                                    <?php } ?>
-                                </select>
-                            </div>
+                            <div class="info-box-pegawai">
+                                <div class="form-group mb-0">
+                                    <label class="mb-1 small font-weight-bold">Pegawai:</label>
+                                    
+                                    <?php if($isEdit): ?>
+                                        <input type="hidden" name="id_peg" value="<?= $data['id_peg'] ?>">
+                                    <?php endif; ?>
 
-                            <div class="row">
-                                <div class="col-md-12 mb-3">
-                                    <div class="form-group">
-                                        <label class="form-label-modern">Nama Diklat / Pelatihan <span class="text-danger">*</span></label>
-                                        <input type="text" name="diklat" class="form-control input-modern" value="<?= htmlspecialchars($data['diklat']) ?>" placeholder="Contoh: Pelatihan Kepemimpinan" required>
-                                    </div>
+                                    <select name="id_peg" class="form-control select2bs4" <?= $isEdit ? 'disabled' : 'required' ?>>
+                                        <option value="">-- Pilih Pegawai --</option>
+                                        <?php while ($p = mysqli_fetch_assoc($qPegawai)) { ?>
+                                            <option value="<?= $p['id_peg'] ?>" <?= $data['id_peg'] == $p['id_peg'] ? 'selected' : '' ?>>
+                                                <?= $p['nama'] ?> — ID: <?= $p['id_peg'] ?>
+                                            </option>
+                                        <?php } ?>
+                                    </select>
+                                    <?php if($isEdit): ?>
+                                        <small class="text-muted font-italic mt-1 d-block"><i class="fa fa-lock mr-1"></i>Pegawai tidak dapat diubah saat edit.</small>
+                                    <?php endif; ?>
                                 </div>
                             </div>
 
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <div class="form-group">
-                                        <label class="form-label-modern">Penyelenggara</label>
-                                        <input type="text" name="penyelenggara" class="form-control input-modern" value="<?= htmlspecialchars($data['penyelenggara']) ?>" placeholder="Nama Lembaga / Instansi">
-                                    </div>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <div class="form-group">
-                                        <label class="form-label-modern">Tempat Pelaksanaan</label>
-                                        <input type="text" name="tempat" class="form-control input-modern" value="<?= htmlspecialchars($data['tempat']) ?>" placeholder="Kota / Lokasi">
-                                    </div>
-                                </div>
+                            <div class="form-group-compact">
+                                <label class="label-ref">Nama Diklat / Pelatihan <span class="text-danger">*</span></label>
+                                <input type="text" name="diklat" class="form-control form-control-ref" value="<?= htmlspecialchars($data['diklat']) ?>" required>
                             </div>
 
                             <div class="row">
-                                <div class="col-md-12 mb-3">
-                                    <div class="form-group">
-                                        <label class="form-label-modern">Biaya Diklat (Rp)</label>
-                                        <div class="input-group">
-                                            <div class="input-group-prepend">
-                                                <span class="input-group-text bg-white border-right-0" style="border-radius: 10px 0 0 10px; border-color: #e2e8f0;">Rp</span>
-                                            </div>
-                                            <input type="number" name="biaya" class="form-control input-modern border-left-0" style="border-radius: 0 10px 10px 0;" 
-                                                   value="<?= htmlspecialchars($data['biaya']) ?>" 
-                                                   placeholder="0" min="0">
-                                        </div>
-                                        <small class="text-muted">Masukkan angka saja (tanpa titik/koma). Contoh: 1500000</small>
-                                    </div>
+                                <div class="col-md-6 form-group-compact">
+                                    <label class="label-ref">Penyelenggara</label>
+                                    <input type="text" name="penyelenggara" class="form-control form-control-ref" value="<?= htmlspecialchars($data['penyelenggara']) ?>">
+                                </div>
+                                <div class="col-md-6 form-group-compact">
+                                    <label class="label-ref">Lokasi / Tempat</label>
+                                    <input type="text" name="tempat" class="form-control form-control-ref" value="<?= htmlspecialchars($data['tempat']) ?>">
                                 </div>
                             </div>
 
                             <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <div class="form-group">
-                                        <label class="form-label-modern">Tahun <span class="text-danger">*</span></label>
-                                        <input type="number" name="tahun" class="form-control input-modern" value="<?= $data['tahun'] ?>" min="1900" max="2099" required>
-                                    </div>
+                                <div class="col-md-3 form-group-compact">
+                                    <label class="label-ref">Tahun <span class="text-danger">*</span></label>
+                                    <input type="number" name="tahun" class="form-control form-control-ref" value="<?= $data['tahun'] ?>" required>
                                 </div>
-                                <div class="col-md-4 mb-3">
-                                    <div class="form-group">
-                                        <label class="form-label-modern">Angkatan</label>
-                                        <input type="text" name="angkatan" class="form-control input-modern" value="<?= htmlspecialchars($data['angkatan']) ?>" placeholder="Contoh: V, X, 2024">
-                                    </div>
+                                <div class="col-md-3 form-group-compact">
+                                    <label class="label-ref">Angkatan</label>
+                                    <input type="text" name="angkatan" class="form-control form-control-ref" value="<?= htmlspecialchars($data['angkatan']) ?>" placeholder="Cth: X">
                                 </div>
-                                <div class="col-md-4 mb-3">
-                                    <div class="form-group">
-                                        <label class="form-label-modern">Tanggal Input</label>
-                                        <input type="date" name="date_reg" class="form-control input-modern" value="<?= $data['date_reg'] ?>" required>
-                                    </div>
+                                <div class="col-md-6 form-group-compact">
+                                    <label class="label-ref">Biaya (Rp)</label>
+                                    <input type="text" name="biaya" id="inputBiaya" class="form-control form-control-ref" 
+                                           value="<?= $data['biaya'] ?>" placeholder="Input nominal" autocomplete="off">
+                                    <small class="text-muted" style="font-size: 0.75rem;">Otomatis format rupiah (contoh: 5.000.000)</small>
                                 </div>
                             </div>
 
-                            <div class="form-group text-right mt-4 border-top pt-4">
-                                <a href="home-admin.php?page=master-data-diklat" class="btn btn-light btn-modern mr-2 border">Batal</a>
-                                <button type="submit" name="<?= $isEdit ? 'update' : 'simpan' ?>" class="btn btn-info btn-modern shadow-sm">
-                                    <i class="fa fa-save mr-2"></i> Simpan Data
+                            <div class="row">
+                                <div class="col-md-4 form-group-compact">
+                                    <label class="label-ref">Tanggal Pelatihan</label>
+                                    <input type="date" name="date_reg" class="form-control form-control-ref" value="<?= $data['date_reg'] ?>">
+                                </div>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                                <a href="home-admin.php?page=master-data-diklat" class="btn btn-kembali">
+                                    Kembali
+                                </a>
+                                <button type="submit" name="<?= $isEdit ? 'update' : 'simpan' ?>" class="btn btn-update">
+                                    <?= $isEdit ? 'Update' : 'Simpan' ?>
                                 </button>
                             </div>
 
                         </form>
                     </div>
                 </div>
-
+                
             </div>
         </div>
     </div>
 </section>
 
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@x.x.x/dist/select2-bootstrap4.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme/dist/select2-bootstrap4.min.css">
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <script>
-  $(document).ready(function() {
-    // Inisialisasi Select2 dengan tema Bootstrap 4
-    $('.select2bs4').select2({
-      theme: 'bootstrap4',
-      placeholder: "Ketik Nama Pegawai...",
-      allowClear: true,
-      width: '100%' 
+$(document).ready(function() {
+    // 1. Init Select2
+    $('.select2bs4').select2({ theme: 'bootstrap4', width: '100%' });
+
+    // 2. Format Rupiah Logic
+    var inputBiaya = document.getElementById('inputBiaya');
+    
+    // Format saat load (edit mode)
+    if(inputBiaya.value !== ""){
+        inputBiaya.value = formatRupiah(inputBiaya.value, '');
+    }
+
+    // Format saat ketik
+    inputBiaya.addEventListener('keyup', function(e){
+        inputBiaya.value = formatRupiah(this.value, '');
     });
-  });
+
+    function formatRupiah(angka, prefix){
+        var number_string = angka.replace(/[^,\d]/g, '').toString(),
+            split   = number_string.split(','),
+            sisa    = split[0].length % 3,
+            rupiah  = split[0].substr(0, sisa),
+            ribuan  = split[0].substr(sisa).match(/\d{3}/gi);
+
+        if(ribuan){
+            separator = sisa ? '.' : '';
+            rupiah += separator + ribuan.join('.');
+        }
+        rupiah = split[1] != undefined ? rupiah + ',' + split[1] : rupiah;
+        return prefix == undefined ? rupiah : (rupiah ? rupiah : '');
+    }
+});
+
+// 3. Bersihkan titik saat submit
+function cleanRupiah() {
+    var inputBiaya = document.getElementById('inputBiaya');
+    var bersih = inputBiaya.value.replace(/\./g, ''); 
+    inputBiaya.value = bersih;
+    return true;
+}
 </script>

@@ -43,7 +43,7 @@
             <div class="upload-container">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h3 class="m-0 font-weight-bold text-dark"><i class="fas fa-file-import text-primary mr-2"></i> Import Suami/Istri</h3>
-                    <a href="home-admin.php?page=view-data-pasangan" class="btn btn-light btn-sm rounded-pill px-3"><i class="fas fa-times"></i> Tutup</a>
+                    <a href="home-admin.php?page=form-view-data-suami-istri" class="btn btn-light btn-sm rounded-pill px-3"><i class="fas fa-times"></i> Tutup</a>
                 </div>
 
                 <div class="alert alert-secondary bg-white border shadow-sm rounded-lg mb-4">
@@ -194,7 +194,7 @@ function simpanKeDatabase(jsonData) {
                 icon: 'success'
             }).then(() => {
                 // Redirect ke halaman view data pasangan
-                window.location.href = "home-admin.php?page=view-data-pasangan"; 
+                window.location.href = "home-admin.php?page=form-view-data-suami-istri"; 
             });
         } else {
             Swal.fire('Gagal', res.message, 'error');

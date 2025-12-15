@@ -80,12 +80,6 @@
                                 <p>Import Data Pegawai</p>
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a href="home-admin.php?page=form-upload-data-pegawai" class="nav-link <?php echo ($page == 'form-upload-data-pegawai') ? 'active' : ''; ?>">
-                                <i class="far fa-dot-circle nav-icon"></i> 
-                                <p>Import Data Pegawai</p>
-                            </a>
-                        </li>
                     </ul>
                 </li>
                 

@@ -33,7 +33,7 @@ include "komponen/header.php";
                     <h3 class="m-0 font-weight-bold text-dark">
                         <i class="fas fa-file-import text-success mr-2"></i> Import Data Diklat
                     </h3>
-                    <a href="home-admin.php?page=form-view-data-diklat" class="btn btn-light btn-sm rounded-pill px-3">
+                    <a href="home-admin.php?page=master-data-diklat" class="btn btn-light btn-sm rounded-pill px-3">
                         <i class="fas fa-times"></i> Tutup
                     </a>
                 </div>
@@ -171,7 +171,7 @@ function simpanKeDatabase(jsonData) {
     .then(res => {
         if (res.status === 'success') {
             Swal.fire('Sukses!', res.message, 'success').then(() => {
-                window.location.href = "home-admin.php?page=form-view-data-diklat"; 
+                window.location.href = "home-admin.php?page=master-data-diklat"; 
             });
         } else {
             Swal.fire('Gagal', res.message, 'error');
