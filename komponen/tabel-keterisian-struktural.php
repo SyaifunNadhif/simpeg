@@ -1,54 +1,198 @@
 <?php
 include "dist/koneksi.php";
 
-// Ambil data jabatan struktural (selain PE)
-$query = mysqli_query($conn, "
+// QUERY KHUSUS JABATAN STRUKTURAL (PS)
+$queryPS = mysqli_query($conn, "
   SELECT 
-    r.kode_jabatan,
-    r.jabatan,
-    r.kuota,
+    m.kode_jabatan,
+    m.nama_jabatan,
+    m.kuota,
     COUNT(j.id_jab) AS jml
-  FROM tb_ref_jabatan r
+  FROM tb_master_jabatan m
   LEFT JOIN tb_jabatan j 
-    ON j.jabatan = r.jabatan AND j.status_jab = 'Aktif'
+    ON m.nama_jabatan = j.jabatan AND j.status_jab = 'Aktif'
   LEFT JOIN tb_pegawai p 
     ON j.id_peg = p.id_peg AND p.status_aktif = 1
-  WHERE r.`group` = 'PS'
-  GROUP BY r.kode_jabatan, r.jabatan, r.kuota
-  ORDER BY r.kode_jabatan ASC
+  WHERE m.group_jabatan = 'PS' 
+  GROUP BY m.kode_jabatan, m.nama_jabatan, m.kuota
+  ORDER BY m.kode_jabatan ASC
 ");
 ?>
 
-<div class="card card-warning">
+<style>
+/* ================= STYLE MODERN (KONSISTENSI DESAIN) ================= */
+.font-primary { font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+
+/* 1. CARD STYLE */
+.card-modern {
+  border: none;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.04);
+  margin-bottom: 2rem;
+  overflow: hidden;
+}
+
+/* 2. HEADER STYLE */
+.card-modern .card-header {
+  background: #ffffff;
+  border-bottom: 1px solid #f2f4f8;
+  padding: 30px 40px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap; 
+  gap: 20px;
+}
+
+.title-group { margin-right: auto; }
+.title-group h3 {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin-bottom: 6px;
+  letter-spacing: -0.5px;
+}
+.title-group p {
+  font-size: 0.9rem;
+  color: #94a3b8;
+  margin-bottom: 0;
+  font-weight: 500;
+}
+
+/* SEARCH BAR */
+.header-search { position: relative; width: 320px; margin-left: auto; }
+.header-search input {
+  width: 100%;
+  border-radius: 50px;
+  border: 2px solid #f1f5f9;
+  background: #f8fafc;
+  padding: 12px 20px 12px 55px;
+  font-size: 0.95rem;
+  color: #334155;
+  transition: all 0.3s ease;
+  height: 50px;
+}
+.header-search input:focus {
+  background: #ffffff;
+  border-color: #38bdf8;
+  box-shadow: 0 4px 12px rgba(56, 189, 248, 0.15);
+  outline: none;
+}
+.header-search i {
+  position: absolute;
+  left: 22px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #cbd5e1;
+  font-size: 1.2rem;
+}
+
+/* 3. TABLE STYLE */
+.table-modern thead th {
+  background-color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64748b;
+  border-bottom: 2px solid #f1f5f9;
+  padding: 20px 40px;
+  letter-spacing: 0.8px;
+}
+.table-modern tbody td {
+  padding: 25px 40px;
+  vertical-align: middle;
+  border-bottom: 1px solid #f8fafc;
+  font-size: 1rem;
+  color: #334155;
+}
+.table-modern tbody tr:hover { background-color: #f8fafc; }
+.table-modern tbody tr:last-child td { border-bottom: none; }
+
+/* 4. BADGES SOFT */
+.badge-soft { padding: 8px 16px; border-radius: 30px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px; }
+.badge-soft-danger { background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; } 
+.badge-soft-success { background: #f0fdf4; color: #22c55e; border: 1px solid #bbf7d0; }
+
+/* 5. PAGINATION */
+.dataTables_wrapper .row:last-child {
+  padding: 25px 40px 35px 40px !important;
+  margin: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  border-top: 1px solid #f1f5f9;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button { padding: 0 !important; margin: 0 !important; border: none !important; background: transparent !important; }
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover { border: none !important; background: transparent !important; }
+
+.page-item .page-link { 
+  border: none; width: 42px; height: 42px; 
+  margin-left: 8px; border-radius: 12px !important; 
+  display: flex; align-items: center; justify-content: center; 
+  font-weight: 600; font-size: 0.9rem; 
+  color: #64748b !important; background: #f1f5f9 !important; 
+  transition: all 0.2s;
+}
+.page-item:not(.active) .page-link:hover { background-color: #e0f2fe !important; color: #0ea5e9 !important; transform: translateY(-2px); }
+.page-item.active .page-link { background: #0ea5e9 !important; color: #fff !important; box-shadow: 0 10px 15px -3px rgba(14, 165, 233, 0.3) !important; }
+</style>
+
+<div class="card card-modern">
   <div class="card-header">
-    <h3 class="card-title">Keterisian Jabatan Struktural</h3>
+    <div class="title-group">
+      <h3>Jabatan Struktural</h3>
+      <p>Monitoring ketersediaan posisi dan kuota jabatan (PS)</p>
+    </div>
+
+    <div class="header-search">
+      <input type="text" id="searchStruktural" placeholder="Cari Jabatan...">
+      <i class="fas fa-search"></i>
+    </div>
   </div>
-  <div class="card-body">
+
+  <div class="card-body p-0">
     <div class="table-responsive">
-      <table id="tabelStruktural" class="table table-bordered table-sm table-striped">
+      <table id="tabelStruktural" class="table table-modern w-100">
         <thead>
           <tr>
-            <th>Kode Jabatan</th>
+            <th width="10%">Kode</th>
             <th>Deskripsi Jabatan</th>
-            <th>Jumlah</th>
-            <th>Kuota</th>
-            <th>Status</th>
+            <th class="text-center">Terisi</th>
+            <th class="text-center">Kuota</th>
+            <th class="text-right">Status</th>
           </tr>
         </thead>
         <tbody>
-          <?php while ($row = mysqli_fetch_assoc($query)) {
-            $kuota = $row['kuota'];
-            $terisi = $row['jml'];
-            $badge = ($terisi < $kuota)
-              ? "<span class='badge badge-danger'>Vacant</span>"
-              : "<span class='badge badge-success'>Terpenuhi</span>";
+          <?php while ($row = mysqli_fetch_assoc($queryPS)) {
+            $db_kuota = (int)$row['kuota'];
+            $terisi   = (int)$row['jml'];
+            
+            // Logic Fix: Anggap kuota 0 sebagai 1
+            $kuota_tampil = ($db_kuota == 0) ? 1 : $db_kuota;
+
+            // Logic Status
+            if ($terisi < $kuota_tampil) {
+                // Vacant / Kosong
+                $badge = "<span class='badge badge-soft-danger'><i class='fas fa-times-circle mr-1'></i> Kosong</span>";
+            } else {
+                // Terpenuhi
+                $badge = "<span class='badge badge-soft-success'><i class='fas fa-check-circle mr-1'></i> Terpenuhi</span>";
+            }
           ?>
             <tr>
-              <td><?= $row['kode_jabatan'] ?></td>
-              <td><?= $row['jabatan'] ?></td>
-              <td><?= $terisi ?></td>
-              <td><?= $kuota ?></td>
-              <td><?= $badge ?></td>
+              <td>
+                <span style="font-weight:700; color:#cbd5e1;">#<?= $row['kode_jabatan'] ?></span>
+              </td>
+              <td>
+                <span style="font-weight:600; color:#334155; font-size:1rem;"><?= $row['nama_jabatan'] ?></span>
+              </td>
+              <td class="text-center">
+                <span style="font-weight:700; color:#334155;"><?= $terisi ?></span>
+              </td>
+              <td class="text-center">
+                <span style="font-weight:700; color:#94a3b8;"><?= $kuota_tampil ?></span>
+              </td>
+              <td class="text-right"><?= $badge ?></td>
             </tr>
           <?php } ?>
         </tbody>
@@ -57,19 +201,40 @@ $query = mysqli_query($conn, "
   </div>
 </div>
 
-<!-- Inisialisasi DataTables -->
+<script src="plugins/jquery/jquery.min.js"></script>
+<script src="plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="plugins/datatables/jquery.dataTables.min.js"></script>
+<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+
 <script>
   $(document).ready(function () {
-    $('#tabelStruktural').DataTable({
+    // Destroy instance lama jika ada
+    if ($.fn.DataTable.isDataTable('#tabelStruktural')) {
+      $('#tabelStruktural').DataTable().destroy();
+    }
+
+    var table = $('#tabelStruktural').DataTable({
+      dom: 'tp', // HANYA Table & Pagination
       paging: true,
       pageLength: 10,
       responsive: true,
       autoWidth: false,
       ordering: true,
       lengthChange: false,
+      info: false,
       language: {
-        url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
+        zeroRecords: 'Tidak ada data jabatan ditemukan',
+        paginate: { next: '<i class="fas fa-chevron-right"></i>', previous: '<i class="fas fa-chevron-left"></i>' }
+      },
+      drawCallback: function() {
+        // Pagination Kanan
+        $('.dataTables_paginate > .pagination').addClass('justify-content-end');
       }
+    });
+
+    // CUSTOM SEARCH LOGIC (ID Unik)
+    $('#searchStruktural').on('keyup', function() {
+      table.search(this.value).draw();
     });
   });
 </script>

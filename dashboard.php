@@ -42,6 +42,8 @@
       </div>
       
       <?php include 'komponen/chart-bar-jabatan.php'; ?>
+
+      <!-- ini yang bisa membuat error -->
       <?php include 'komponen/tabel-pensiun.php'; ?>
       
       <div class="row match-height">
@@ -58,9 +60,6 @@
   </div>
 </section>
 
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-
 <style>
 /* CSS Agar Tampilan Dashboard Lebih Rapih */
 .content-header h1 {
@@ -68,8 +67,11 @@
   color: #333;
 }
 
-/* FIX: Memastikan kolom dalam satu row punya tinggi yang sama */
+/* FIX: Match Height Flexbox Logic */
 .row.match-height {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
   display: flex;
   flex-wrap: wrap;
 }
@@ -79,26 +81,51 @@
   flex-direction: column;
 }
 
-/* Pastikan card di dalam kolom mengisi tinggi penuh */
+/* Agar card mengisi penuh tinggi kolom */
 .row.match-height > [class*='col-'] > .card {
   flex: 1;
+  width: 100%; /* Pastikan lebar full */
 }
 </style>
 
-<script>
-$(document).ready(function () {
-  // Script Select2 (Jika nanti filter diaktifkan lagi)
-  $('.select2').select2({
-    placeholder: "Pilih Kantor Cabang",
-    allowClear: true,
-    minimumResultsForSearch: 5
-  });
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
-  $('#filter_unit_dashboard').change(function () {
-    const unit = $(this).val();
-    $.get('komponen/dashboard-filter.php', { unit_kerja: unit }, function (data) {
-      $('#dashboard-content').html(data);
-    });
-  });
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+// Menggunakan window.onload untuk memastikan jQuery & AdminLTE sudah ter-load sempurna dari Footer
+window.addEventListener('load', function() {
+    
+    // Cek apakah jQuery terbaca
+    if (typeof $ !== 'undefined') {
+        
+        // Inisialisasi Select2
+        $('.select2').select2({
+          placeholder: "Pilih Kantor Cabang",
+          allowClear: true,
+          minimumResultsForSearch: 5
+        });
+
+        // Event Filter
+        $('#filter_unit_dashboard').change(function () {
+          const unit = $(this).val();
+          
+          // Efek loading sederhana biar user tau proses berjalan
+          $('#dashboard-content').css('opacity', '0.5');
+          
+          $.get('komponen/dashboard-filter.php', { unit_kerja: unit }, function (data) {
+            $('#dashboard-content').html(data).css('opacity', '1');
+            
+            // Re-init plugin jika konten di-refresh via AJAX
+            // (Opsional, tergantung isi dashboard-filter.php)
+          }).fail(function() {
+             alert('Gagal memuat data filter.');
+             $('#dashboard-content').css('opacity', '1');
+          });
+        });
+
+    } else {
+        console.error("jQuery belum diload! Pastikan script jQuery ada di footer.");
+    }
 });
 </script>
