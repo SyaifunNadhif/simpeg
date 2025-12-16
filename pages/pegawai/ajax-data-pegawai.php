@@ -1,175 +1,184 @@
 <?php
 /*********************************************************
- * FILE    : pages/pegawai/ajax-data-pegawai.php
- * MODULE  : SIMPEG — DataTables Server-side (Pegawai Aktif)
- * VERSION : v1.4 (PHP 5.6 compatible)
- * DATE    : 2025-09-06
- * AUTHOR  : EWS/SIMPEG BKK Jateng — by ChatGPT
- *
- * PURPOSE :
- *   - Menyediakan data pegawai aktif untuk DataTables (serverSide:true).
- *   - Mendukung filter unit kerja, pencarian global, sorting, dan paging.
- *   - Menampilkan foto pegawai dengan prioritas folder baru (uploads/foto)
- *     lalu fallback ke folder lama (pages/assets/foto).
- *
- * CHANGELOG :
- * - v1.4 (2025-09-06): Support dua lokasi foto: uploads/foto (baru) dan pages/assets/foto (lama).
- *                      Tambah cache-buster agar foto baru tidak ke-cache.
- * - v1.3 (2025-09-06): Rapikan kode, perbaiki render foto & fallback.
- * - v1.2 (2025-08-xx): Tambah filter unit kerja sesuai hak akses Kepala/Admin.
- * - v1.1 (2025-08-xx): Struktur awal DataTables server-side.
+ * FILE     : pages/pegawai/ajax-data-pegawai.php
+ * MODULE   : SIMPEG — DataTables Server-side
+ * UPDATE   : Filter 3 Level (Kantor -> Divisi -> Jabatan)
  *********************************************************/
 
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
+ini_set('display_errors', 0);
+error_reporting(0);
 
 if (session_id() === '') session_start();
 include "../../dist/koneksi.php";
 
-// ---------------- Helper ----------------
+// Helper
 function h($s){ return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
 
-/**
- * Resolve foto ke URL publik dengan prioritas:
- * 1) uploads/foto/<filename>     (baru)
- * 2) pages/assets/foto/<filename> (lama)
- * Jika tak ada → fallback default berdasar jk.
- *
- * @param string $filename  Nama file di DB (tanpa path)
- * @param string $jk        'Laki-laki' atau lainnya (untuk default)
- * @return string           URL relatif untuk <img src="...">
- */
+// --- 1. RESOLVE FOTO ---
 function resolve_foto_url($filename, $jk){
-  // Path filesystem absolut (berdasarkan posisi file ini: pages/pegawai/…)
-  $baseDir      = __DIR__ . "/../.."; // -> /simpeg
-  $newFs        = $baseDir . "/uploads/foto/";        // fs path baru
-  $oldFs        = $baseDir . "/pages/assets/foto/";   // fs path lama
+    $baseDir      = __DIR__ . "/../.."; 
+    $newFs        = $baseDir . "/uploads/foto/";       
+    $oldFs        = $baseDir . "/pages/assets/foto/";  
+    $newUrlBase   = "uploads/foto/";
+    $oldUrlBase   = "pages/assets/foto/";
 
-  // URL relatif dari root web (home-admin.php di root /simpeg/)
-  $newUrlBase   = "uploads/foto/";
-  $oldUrlBase   = "pages/assets/foto/";
-
-  if ($filename) {
-    if (file_exists($newFs . $filename)) {
-      return $newUrlBase . $filename;
+    if ($filename && trim($filename) !== '') {
+        if (file_exists($newFs . $filename)) return $newUrlBase . $filename;
+        if (file_exists($oldFs . $filename)) return $oldUrlBase . $filename;
     }
-    if (file_exists($oldFs . $filename)) {
-      return $oldUrlBase . $filename;
-    }
-  }
-
-  // fallback default
-  $fallback = ($jk === 'Laki-laki') ? 'no-foto-male.png' : 'no-foto-female.png';
-  // Cari fallback di mana pun yang ada
-  if (file_exists($oldFs . $fallback)) return $oldUrlBase . $fallback;
-  if (file_exists($newFs . $fallback)) return $newUrlBase . $fallback;
-
-  // fallback terakhir: gunakan satu default generik jika Anda punya
-  return $oldUrlBase . 'no-foto.png';
+    $fallback = ($jk === 'Laki-laki') ? 'no-foto-male.png' : 'no-foto-female.png';
+    if (file_exists($oldFs . $fallback)) return $oldUrlBase . $fallback;
+    return "https://ui-avatars.com/api/?name=User&background=random&color=fff";
 }
-// ----------------------------------------
 
-$columns = ['foto', 'id_peg', 'nama', 'ttl', 'unit_kerja', 'jabatan', 'tgl_masuk', 'no_telp', 'action'];
+// --- 2. AMBIL PARAMETER ---
+$columns = ['nama', 'ttl', 'unit_kerja', 'jabatan', 'tgl_masuk', 'no_telp', 'action'];
 
-$filterUnit       = isset($_GET['unit_kerja']) ? mysqli_real_escape_string($conn, $_GET['unit_kerja']) : '';
-$limit            = isset($_GET['length']) ? intval($_GET['length']) : 10;
-$offset           = isset($_GET['start']) ? intval($_GET['start']) : 0;
-$search           = isset($_GET['search']['value']) ? mysqli_real_escape_string($conn, $_GET['search']['value']) : '';
+// Filter Custom
+$filterType    = isset($_GET['filter_type']) ? $_GET['filter_type'] : ''; 
+$filterKantor  = isset($_GET['kantor']) ? mysqli_real_escape_string($conn, $_GET['kantor']) : '';  // Filter Kantor
+$filterDivisi  = isset($_GET['divisi']) ? mysqli_real_escape_string($conn, $_GET['divisi']) : '';  // Filter Divisi (nama_unit_kerja)
+$filterJabatan = isset($_GET['jabatan']) ? mysqli_real_escape_string($conn, $_GET['jabatan']) : ''; // Filter Jabatan
+
+// Param DataTables
+$limit  = isset($_GET['length']) ? intval($_GET['length']) : 10;
+$offset = isset($_GET['start']) ? intval($_GET['start']) : 0;
+$search = isset($_GET['search']['value']) ? mysqli_real_escape_string($conn, $_GET['search']['value']) : '';
+
+// Sorting
 $orderColumnIndex = isset($_GET['order'][0]['column']) ? intval($_GET['order'][0]['column']) : 0;
-$orderColumn      = isset($columns[$orderColumnIndex]) ? $columns[$orderColumnIndex] : 'id_peg';
 $orderDir         = (isset($_GET['order'][0]['dir']) && strtolower($_GET['order'][0]['dir']) === 'desc') ? 'DESC' : 'ASC';
-$draw             = isset($_GET['draw']) ? intval($_GET['draw']) : 1;
+$columnsDB = [ 0 => 'p.nama', 1 => 'p.tgl_lhr', 2 => 'k.nama_kantor', 3 => 'j.jabatan', 4 => 'p.tmt_kerja', 5 => 'p.telp' ];
+$orderColumn = isset($columnsDB[$orderColumnIndex]) ? $columnsDB[$orderColumnIndex] : 'p.nama';
 
-// Cek hak akses dan kode kantor jika kepala
-$isKepala   = isset($_SESSION['hak_akses']) && strtolower($_SESSION['hak_akses']) === 'kepala';
+// Akses Kepala
+$isKepala    = isset($_SESSION['hak_akses']) && strtolower($_SESSION['hak_akses']) === 'kepala';
 $kode_kantor = isset($_SESSION['kode_kantor']) ? $_SESSION['kode_kantor'] : '';
 
-// Base SQL
-$sql = "SELECT
-  p.id_peg,
-  p.nama,
-  p.tempat_lhr,
-  p.tgl_lhr,
-  p.tmt_kerja,
-  p.telp,
-  p.foto,
-  p.jk,
-  j.jabatan,
-  j.tmt_jabatan,
-  p.status_kepeg,
-  k.nama_kantor AS unit_kerja
-FROM
-  tb_pegawai p
-  LEFT JOIN tb_jabatan j ON p.id_peg = j.id_peg AND j.status_jab = 'Aktif'
-  LEFT JOIN tb_kantor k ON j.unit_kerja = k.kode_kantor_detail
-WHERE
-  p.status_aktif = 1";
+// --- 3. QUERY BUILDER ---
+// Kita JOIN ke tb_master_jabatan (m) berdasarkan nama jabatan untuk dapat info Divisi/Lingkup
+$sqlBase = "
+    FROM tb_pegawai p
+    LEFT JOIN tb_jabatan j ON p.id_peg = j.id_peg AND j.status_jab = 'Aktif'
+    LEFT JOIN tb_kantor k ON j.unit_kerja = k.kode_kantor_detail
+    LEFT JOIN tb_master_jabatan m ON j.jabatan = m.nama_jabatan 
+    WHERE p.status_aktif = 1
+";
 
-// Filter berdasarkan akses
-if ($isKepala) {
-  $sql .= " AND j.unit_kerja = '{$kode_kantor}'";
-} elseif ($filterUnit !== '') {
-  $sql .= " AND j.unit_kerja = '{$filterUnit}'";
-}
+// --- FILTER LOGIC ---
+if ($filterType === 'nonjob') {
+    // Tab Non-Job
+    $sqlBase .= " AND j.id_jab IS NULL";
+} else {
+    // Tab Aktif
+    $sqlBase .= " AND j.id_jab IS NOT NULL"; 
 
-// Filter pencarian
-if ($search !== '') {
-  $sql .= " AND (
-    p.id_peg LIKE '%{$search}%' OR 
-    p.nama LIKE '%{$search}%' OR 
-    j.jabatan LIKE '%{$search}%' OR
-    k.nama_kantor LIKE '%{$search}%' OR
-    p.telp LIKE '%{$search}%'
-  )";
-}
-
-// Hitung total filtered
-$sqlFiltered     = $sql;
-$resultFiltered  = mysqli_query($conn, $sqlFiltered);
-$totalFiltered   = $resultFiltered ? mysqli_num_rows($resultFiltered) : 0;
-
-// Final query + limit
-$sql .= " ORDER BY {$orderColumn} {$orderDir} LIMIT {$offset}, {$limit}";
-$result = mysqli_query($conn, $sql);
-
-$data = [];
-if ($result) {
-  while ($row = mysqli_fetch_assoc($result)) {
-    $ttl      = $row['tempat_lhr'] . ', ' . date('d-m-Y', strtotime($row['tgl_lhr']));
-    $fotoUrl  = resolve_foto_url($row['foto'], $row['jk']);
-    // cache-buster agar foto baru tidak ke-cache browser
-    $foto     = '<img src="'.h($fotoUrl).'?cb='.time().'" class="rounded-circle" width="40" loading="lazy">';
-
-    $action = '<a href="home-admin.php?page=view-detail-data-pegawai&id_peg=' . h($row['id_peg']) . '" 
-      class="btn btn-sm btn-outline-info" title="Detail"><i class="fa fa-folder-open"></i></a>';
-    if (!$isKepala) {
-      $action .= ' <a href="home-admin.php?page=form-master-data-pegawai&mode=edit&id=' . h($row['id_peg']) . '" 
-      class="btn btn-sm btn-outline-warning" title="Edit"><i class="fa fa-edit"></i></a>';
+    // 1. Filter Kantor (Unit Kerja Fisik)
+    if ($isKepala) {
+        $sqlBase .= " AND j.unit_kerja = '{$kode_kantor}'";
+    } elseif ($filterKantor !== '') {
+        $sqlBase .= " AND j.unit_kerja = '{$filterKantor}'";
     }
 
-    $data[] = [
-      'foto'       => $foto,
-      'id_peg'     => h($row['id_peg']),
-      'nama'       => h($row['nama']),
-      'ttl'        => $ttl,
-      'unit_kerja' => h($row['unit_kerja']),
-      'jabatan'    => h($row['jabatan']),
-      'tgl_masuk'  => date('d-m-Y', strtotime($row['tmt_kerja'])),
-      'no_telp'    => h($row['telp']),
-      'action'     => $action
-    ];
-  }
+    // 2. Filter Divisi (nama_unit_kerja dari master)
+    if ($filterDivisi !== '') {
+        $sqlBase .= " AND m.nama_unit_kerja = '{$filterDivisi}'";
+    }
+
+    // 3. Filter Jabatan Spesifik
+    if ($filterJabatan !== '') {
+        $sqlBase .= " AND j.jabatan = '{$filterJabatan}'";
+    }
 }
 
-// Total seluruh data
-$resultTotal = mysqli_query($conn, "SELECT COUNT(*) AS total FROM tb_pegawai WHERE status_aktif = 1");
-$rowTotal    = $resultTotal ? mysqli_fetch_assoc($resultTotal) : ['total' => 0];
-$totalAll    = (int)$rowTotal['total'];
+// Search Global
+if ($search !== '') {
+    $sqlBase .= " AND (
+        p.id_peg LIKE '%{$search}%' OR 
+        p.nama LIKE '%{$search}%' OR 
+        j.jabatan LIKE '%{$search}%' OR
+        k.nama_kantor LIKE '%{$search}%' OR
+        m.nama_unit_kerja LIKE '%{$search}%'
+    )";
+}
+
+// Hitung Filtered
+$queryCount = mysqli_query($conn, "SELECT COUNT(*) as jum " . $sqlBase);
+$rowCount   = mysqli_fetch_assoc($queryCount);
+$totalFiltered = $rowCount['jum'];
+
+// Hitung Total Data (Tanpa Search/Filter Detail)
+$sqlTotalRaw = "SELECT COUNT(*) as jum FROM tb_pegawai p LEFT JOIN tb_jabatan j ON p.id_peg = j.id_peg AND j.status_jab = 'Aktif' WHERE p.status_aktif = 1";
+if ($filterType === 'nonjob') $sqlTotalRaw .= " AND j.id_jab IS NULL";
+else $sqlTotalRaw .= " AND j.id_jab IS NOT NULL";
+
+$queryTotal = mysqli_query($conn, $sqlTotalRaw);
+$rowTotal   = mysqli_fetch_assoc($queryTotal);
+$totalAll   = $rowTotal['jum'];
+
+// Ambil Data Final
+// Kita ambil juga m.nama_unit_kerja untuk ditampilkan kalau perlu
+$sqlData = "SELECT 
+    p.id_peg, p.nama, p.tempat_lhr, p.tgl_lhr, p.tmt_kerja, p.telp, p.foto, p.jk, p.status_kepeg, 
+    j.jabatan, 
+    k.nama_kantor,
+    m.nama_unit_kerja AS divisi
+" . $sqlBase;
+
+$sqlData .= " ORDER BY {$orderColumn} {$orderDir} LIMIT {$offset}, {$limit}";
+
+$result = mysqli_query($conn, $sqlData);
+$data   = [];
+
+if ($result) {
+    while ($row = mysqli_fetch_assoc($result)) {
+        // Foto
+        $fotoUrl  = resolve_foto_url($row['foto'], $row['jk']);
+        $fotoHtml = '<div class="avatar-wrapper"><img src="'.h($fotoUrl).'?cb='.time().'" class="avatar-img" loading="lazy"></div>';
+        
+        $ttl = $row['tempat_lhr'] . ', ' . date('d-m-Y', strtotime($row['tgl_lhr']));
+
+        // Render Kolom Unit Kerja (Gabung Kantor & Divisi)
+        $unitDisplay = '<div style="line-height:1.3;">';
+        $unitDisplay .= '<div class="text-primary font-weight-bold" style="font-size:0.9rem;">'.h($row['nama_kantor']).'</div>';
+        if(!empty($row['divisi'])) {
+            $unitDisplay .= '<div class="text-muted small"><i class="fa fa-sitemap mr-1"></i> '.h($row['divisi']).'</div>';
+        }
+        $unitDisplay .= '</div>';
+
+        // Action Buttons
+        $action = '<div class="btn-group">';
+        if ($filterType === 'nonjob') {
+            $cleanID = preg_replace('/[^a-zA-Z0-9-]/', '', $row['id_peg']);
+            $action .= '<a href="home-admin.php?page=form-master-data-jabatan&uid=' . $cleanID . '" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm font-weight-bold"><i class="fa fa-plus-circle mr-1"></i> Set Jabatan</a>';
+        } else {
+            $action .= '<a href="home-admin.php?page=view-detail-data-pegawai&id_peg=' . h($row['id_peg']) . '" class="btn btn-sm btn-light text-info shadow-sm"><i class="fa fa-folder-open"></i></a>';
+            if (!$isKepala) {
+                $action .= '<a href="home-admin.php?page=form-master-data-pegawai&mode=edit&id=' . h($row['id_peg']) . '" class="btn btn-sm btn-light text-warning shadow-sm ml-1"><i class="fa fa-edit"></i></a>';
+            }
+        }
+        $action .= '</div>';
+
+        $data[] = [
+            'nama'         => $fotoHtml, 
+            'raw_nama'     => h($row['nama']), 
+            'raw_id'       => h($row['id_peg']),
+            'ttl'          => '<span class="small text-muted">'.$ttl.'</span>',
+            'unit_kerja'   => $unitDisplay, // Tampilkan Kantor + Divisi
+            'jabatan'      => h($row['jabatan']),
+            'status_kepeg' => h($row['status_kepeg']),
+            'tgl_masuk'    => date('d-m-Y', strtotime($row['tmt_kerja'])),
+            'no_telp'      => h($row['telp']),
+            'action'       => $action
+        ];
+    }
+}
 
 header('Content-Type: application/json');
 echo json_encode([
-  "draw"            => $draw,
-  "recordsTotal"    => $totalAll,
-  "recordsFiltered" => $totalFiltered,
-  "data"            => $data
+    "draw" => intval($_GET['draw']),
+    "recordsTotal" => intval($totalAll),
+    "recordsFiltered" => intval($totalFiltered),
+    "data" => $data
 ]);
+?>

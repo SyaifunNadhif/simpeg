@@ -1,22 +1,12 @@
 <?php
-/*********************************************************
- * FILE     : pages/pegawai/form-view-data-pegawai.php
- * MODULE   : SIMPEG — Data Pegawai (Modern UI & Responsive)
- * VERSION  : v2.3 (Fixed Mobile 1-Line Layout)
- * DATE     : 2025-11-20
- * AUTHOR   : EWS/SIMPEG BKK Jateng
- *********************************************************/
-
-// Header & breadcrumbs
+// ... (Bagian Header PHP tetap sama) ...
 $page_title    = "Data";
 $page_subtitle = "Pegawai";
 $breadcrumbs   = [ ["label" => "Dashboard", "url" => "home-admin.php"], ["label" => "Data Pegawai"] ];
 include "komponen/header.php";
 
-// Helper Escape
 function esc($c,$s){ return mysqli_real_escape_string($c, $s); }
 
-// --- LOGIKA LINK KEMBALI ---
 $hak_akses_user = isset($_SESSION['hak_akses']) ? strtolower($_SESSION['hak_akses']) : '';
 if ($hak_akses_user === 'kepala') {
     $link_back = "home-admin.php?page=dashboard-cabang";
@@ -26,245 +16,117 @@ if ($hak_akses_user === 'kepala') {
 ?>
 
 <style>
-    /* --- General Layout --- */
-    .content-wrapper { background-color: #f4f6f9; }
-    
-    /* --- Card Style --- */
-    .card-modern {
-        border: none;
-        border-radius: 20px;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.05);
-        background: #fff;
-        overflow: hidden;
-        margin-bottom: 20px;
-    }
-    .card-header-modern {
-        padding: 20px 25px;
-        background: #fff;
-        border-bottom: 1px solid #f4f4f4;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 15px;
-    }
-
-    /* --- Tabs Style --- */
-    .nav-pills-modern .nav-link {
-        border-radius: 50px;
-        padding: 8px 20px;
-        font-weight: 600;
-        color: #adb5bd;
-        background: #f8f9fa;
-        transition: all 0.3s;
-        margin-right: 5px;
-        font-size: 0.9rem;
-    }
-    .nav-pills-modern .nav-link:hover {
-        background-color: #e9ecef;
-        color: #007bff;
-    }
-    .nav-pills-modern .nav-link.active {
-        background-color: #007bff;
-        color: #fff;
-        box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
-    }
-
-    /* --- Input & Filter Modern --- */
-    .input-modern {
-        border-radius: 50px;
-        border: 1px solid #e0e0e0;
-        padding: 8px 20px;
-        background-color: #fff;
-        transition: all 0.3s;
-        width: 100%;
-    }
-    .input-modern:focus {
-        border-color: #007bff;
-        box-shadow: 0 0 0 4px rgba(0,123,255,0.1);
-        outline: none;
-    }
-
-    /* --- Table Style --- */
-    .table-responsive {
-        border-radius: 0 0 20px 20px;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    table.dataTable {
-        border-collapse: separate !important;
-        border-spacing: 0 10px !important;
-        width: 100% !important;
-        margin-top: 0 !important;
-    }
-    table.dataTable thead th {
-        border-bottom: none !important;
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        color: #888;
-        padding: 15px;
-        background: #fff;
-        white-space: nowrap;
-    }
-    table.dataTable tbody tr {
-        background-color: #fff;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.03);
-        transition: transform 0.2s;
-    }
-    table.dataTable tbody td {
-        border: none !important;
-        padding: 15px;
-        vertical-align: middle;
-    }
-    table.dataTable tbody tr td:first-child { border-top-left-radius: 10px; border-bottom-left-radius: 10px; }
-    table.dataTable tbody tr td:last-child { border-top-right-radius: 10px; border-bottom-right-radius: 10px; }
-
-    /* --- Avatar --- */
-    .avatar-wrapper { width: 45px; height: 45px; min-width: 45px; position: relative; }
-    .avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 2px solid #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-
-    /* --- MOBILE & RESPONSIVE TWEAKS --- */
+    .content-header { display: none !important; }
+    .content-wrapper { background-color: #f4f6f9; font-family: 'Inter', sans-serif; }
+    .card-modern { border: none; border-radius: 16px; box-shadow: 0 5px 25px rgba(0,0,0,0.05); background: #fff; overflow: hidden; margin-bottom: 20px; }
+    .card-header-modern { padding: 20px 30px; background: #fff; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+    .nav-pills-modern { background: #f8fafc; padding: 5px; border-radius: 50px; display: inline-flex; border: 1px solid #e2e8f0; }
+    .nav-pills-modern .nav-link { border-radius: 50px; padding: 8px 25px; font-weight: 600; color: #64748b; background: transparent; transition: all 0.2s; font-size: 0.9rem; }
+    .nav-pills-modern .nav-link:hover { color: #0ea5e9; }
+    .nav-pills-modern .nav-link.active { background-color: #fff; color: #0ea5e9; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .input-modern { border-radius: 10px; border: 1px solid #e2e8f0; padding: 10px 15px; font-size: 0.85rem; width: 100%; color: #334155; }
+    .input-modern:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1); outline: none; }
+    .label-filter { font-size: 0.75rem; font-weight: 700; color: #64748b; margin-bottom: 5px; display: block; text-transform: uppercase; letter-spacing: 0.5px; }
+    /* ... (Style Table & Avatar tetap sama seperti sebelumnya) ... */
+    table.dataTable { border-collapse: collapse !important; width: 100% !important; margin-top: 0 !important; }
+    table.dataTable thead th { background-color: #fff; color: #64748b; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #f1f5f9 !important; padding: 15px 20px; }
+    table.dataTable tbody td { padding: 15px 20px; vertical-align: middle; border-bottom: 1px solid #f8fafc; color: #334155; font-size: 0.95rem; }
+    table.dataTable tbody tr:hover { background-color: #fcfdfe; }
+    .avatar-wrapper { width: 45px; height: 45px; min-width: 45px; border-radius: 50%; overflow: hidden; border: 2px solid #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .avatar-img { width: 100%; height: 100%; object-fit: cover; }
+    .text-pegawai-name { font-weight: 700; color: #1e293b; font-size: 0.95rem; display: block; }
+    .text-pegawai-id { font-family: monospace; color: #94a3b8; font-size: 0.8rem; }
+    .badge-soft { padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; }
+    .badge-soft-blue { background: #e0f2fe; color: #0284c7; }
+    .badge-soft-red { background: #fee2e2; color: #dc2626; }
+    .badge-soft-dark { background: #f1f5f9; color: #475569; }
     @media (max-width: 768px) {
-        /* 1. Hilangkan Header Bawaan Template agar tidak Double Title */
-        .content-header { display: none !important; }
-        
-        /* 2. Header Page Custom */
-        .header-area-mobile {
-            flex-direction: column;
-            align-items: flex-start !important;
-            margin-top: 20px;
-            gap: 10px;
-        }
-        .header-area-mobile .btn { width: 100%; text-align: center; }
-
-        /* 3. Navigasi Tabs Scrollable */
-        .nav-pills-modern {
-            flex-wrap: nowrap;
-            overflow-x: auto;
-            padding-bottom: 5px;
-            margin-bottom: 10px;
-        }
-
-        /* 4. DATA TABLES CONTROLS: 1 BARIS (Show Entries + Search) */
-        .dt-controls-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        
-        /* Show entries (Dropdown) - Kecil di kiri */
-        .dataTables_length {
-            float: none !important;
-            text-align: left !important;
-            width: auto !important;
-        }
-        .dataTables_length select {
-            width: auto !important;
-            padding: 8px 10px !important;
-            border-radius: 50px !important;
-        }
-        .dataTables_length label { font-size: 0; } /* Hilangkan teks 'Show entries' */
-        .dataTables_length label select { font-size: 14px; } /* Tampilkan dropdownnya saja */
-
-        /* Search (Input) - Besar di kanan */
-        .dataTables_filter {
-            float: none !important;
-            text-align: right !important;
-            flex-grow: 1; /* Ambil sisa ruang */
-        }
-        .dataTables_filter label { font-size: 0; width: 100%; } /* Hilangkan teks 'Search:' */
-        .dataTables_filter input {
-            width: 100% !important;
-            margin-left: 0 !important;
-            font-size: 14px !important;
-            border-radius: 50px !important;
-            padding: 8px 15px !important;
-        }
-        
-        /* Pagination Center */
-        .dataTables_paginate {
-            display: flex;
-            justify-content: center;
-            margin-top: 15px !important;
-        }
+        .card-header-modern { flex-direction: column; align-items: flex-start; }
+        .dt-controls-wrapper { flex-direction: column; align-items: stretch; }
     }
+    .dt-controls-wrapper { display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; gap: 10px; }
+    .dataTables_filter input { border-radius: 50px !important; border: 1px solid #e2e8f0; padding: 6px 15px !important; outline: none; }
+    .dataTables_length select { border-radius: 50px !important; border: 1px solid #e2e8f0; padding: 5px 10px; outline: none; }
 </style>
 
-<section class="content" style="padding-bottom: 50px;">
+<section class="content" style="padding-top: 30px; padding-bottom: 50px;">
   <div class="container-fluid">
     
-    <div class="d-flex justify-content-between align-items-center mb-4 px-1 header-area-mobile">
+    <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h3 style="font-weight: 800; color: #343a40; margin-bottom: 0;">Data Pegawai</h3>
-            <p class="text-muted mb-0" style="font-size: 0.9rem;">Kelola data pegawai aktif & purna tugas</p>
+            <h3 style="font-weight: 800; color: #1e293b; margin-bottom: 4px; font-size: 1.7rem;">Data Pegawai</h3>
+            <p class="text-muted mb-0" style="font-size: 0.9rem;">Manajemen data aktif, jabatan, dan purna tugas.</p>
         </div>
-        <a href="<?= $link_back; ?>" class="btn btn-light shadow-sm rounded-pill px-4" style="font-weight: 600; color: #666; border: 1px solid #e9ecef;">
+        <a href="<?= $link_back; ?>" class="btn btn-white border shadow-sm rounded-pill px-4 py-2" style="color: #64748b; font-weight: 600; background: #fff;">
             <i class="fa fa-arrow-left mr-2"></i> Kembali
         </a>
     </div>
 
     <div class="card card-modern">
+      
+      <div class="card-header-modern">
+          <ul class="nav nav-pills nav-pills-modern" id="pegawaiTab" role="tablist">
+              <li class="nav-item"><a class="nav-link active" id="aktif-tab" data-toggle="pill" href="#aktif" role="tab"><i class="fa fa-users mr-1"></i> Aktif</a></li>
+              <li class="nav-item"><a class="nav-link" id="nonjob-tab" data-toggle="pill" href="#nonjob" role="tab"><i class="fa fa-exclamation-circle mr-1"></i> Belum Ada Jabatan</a></li>
+              <li class="nav-item"><a class="nav-link" id="purna-tab" data-toggle="pill" href="#purna" role="tab"><i class="fa fa-history mr-1"></i> Purna</a></li>
+          </ul>
+
+          <?php if (isset($_SESSION['hak_akses']) && strtolower($_SESSION['hak_akses']) === 'admin'): ?>
+          <div class="d-flex gap-2">
+              <a href="home-admin.php?page=form-master-data-pegawai" class="btn btn-primary rounded-pill shadow-sm px-3 font-weight-bold" style="background: #0ea5e9; border:none;"><i class="fa fa-plus mr-1"></i> Tambah</a>
+              <a href="home-admin.php?page=form-upload-data-pegawai" class="btn btn-outline-success rounded-pill px-3 font-weight-bold" style="border: 1px solid #22c55e; color: #22c55e;"><i class="fa fa-file-excel mr-1"></i> Import</a>
+          </div>
+          <?php endif; ?>
+      </div>
+
       <div class="card-body p-0">
-        
-        <div class="card-header-modern">
-            <ul class="nav nav-pills nav-pills-modern" id="pegawaiTab" role="tablist">
-                <li class="nav-item">
-                    <a class="nav-link active" id="aktif-tab" data-bs-toggle="tab" href="#aktif" role="tab">
-                        <i class="fa fa-users mr-1"></i> Aktif
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" id="purna-tab" data-bs-toggle="tab" href="#purna" role="tab">
-                        <i class="fa fa-user-clock mr-1"></i> Purna
-                    </a>
-                </li>
-            </ul>
-
-            <?php if (isset($_SESSION['hak_akses']) && strtolower($_SESSION['hak_akses']) === 'admin'): ?>
-            <div class="mt-2 mt-md-0 d-flex gap-2" style="gap:5px; width:100%; md:width:auto;">
-                <a href="home-admin.php?page=form-master-data-pegawai" class="btn btn-primary rounded-pill shadow-sm btn-sm px-3 flex-fill text-center">
-                    <i class="fa fa-plus-circle"></i> Tambah
-                </a>
-                <a href="home-admin.php?page=form-upload-data-pegawai" class="btn btn-outline-success rounded-pill btn-sm px-3 flex-fill text-center">
-                    <i class="fa fa-file-excel"></i> Import
-                </a>
-            </div>
-            <?php endif; ?>
-        </div>
-
-        <div class="tab-content p-3 p-md-4" id="pegawaiTabContent">
+        <div class="tab-content" id="pegawaiTabContent">
 
           <div class="tab-pane fade show active" id="aktif" role="tabpanel">
             
-            <div class="row mb-2">
-                <div class="col-md-4 col-12">
-                    <select id="filter_unit_kerja" class="form-control input-modern mb-3">
-                        <option value="">-- Semua Unit Kerja --</option>
-                        <?php
-                            if (isset($_SESSION['hak_akses']) && strtolower($_SESSION['hak_akses']) === 'kepala') {
-                                $kode_kantor = esc($conn, isset($_SESSION['kode_kantor']) ? $_SESSION['kode_kantor'] : '');
-                                $qUnit = mysqli_query($conn, "SELECT DISTINCT k.nama_kantor, j.unit_kerja FROM tb_jabatan j JOIN tb_kantor k ON j.unit_kerja = k.kode_kantor_detail WHERE j.status_jab = 'Aktif' AND j.unit_kerja = '{$kode_kantor}'");
-                            } else {
-                                $qUnit = mysqli_query($conn, "SELECT DISTINCT k.nama_kantor, j.unit_kerja FROM tb_jabatan j JOIN tb_kantor k ON j.unit_kerja = k.kode_kantor_detail WHERE j.status_jab = 'Aktif' ORDER BY k.nama_kantor ASC");
-                            }
-                            if ($qUnit) {
-                                while ($u = mysqli_fetch_assoc($qUnit)) {
-                                    echo "<option value='".htmlspecialchars($u['unit_kerja'])."'>".htmlspecialchars($u['nama_kantor'])."</option>";
+            <div class="p-4 border-bottom" style="background: #fff;">
+                 <div class="row g-3">
+                    
+                    <div class="col-md-4 col-12 mb-2 mb-md-0">
+                        <label class="label-filter"><i class="fa fa-building mr-1"></i> Kantor / Cabang</label>
+                        <select id="filter_kantor" class="form-control input-modern">
+                            <option value="">-- Pilih Kantor --</option>
+                            <?php
+                                // Ambil data kantor
+                                if (isset($_SESSION['hak_akses']) && strtolower($_SESSION['hak_akses']) === 'kepala') {
+                                    $kode_kantor = mysqli_real_escape_string($conn, isset($_SESSION['kode_kantor']) ? $_SESSION['kode_kantor'] : '');
+                                    $qUnit = mysqli_query($conn, "SELECT * FROM tb_kantor WHERE kode_kantor_detail = '{$kode_kantor}'");
+                                } else {
+                                    $qUnit = mysqli_query($conn, "SELECT * FROM tb_kantor ORDER BY nama_kantor ASC");
                                 }
-                            }
-                        ?>
-                    </select>
+                                while ($u = mysqli_fetch_assoc($qUnit)) {
+                                    echo "<option value='".$u['kode_kantor_detail']."'>".$u['nama_kantor']."</option>";
+                                }
+                            ?>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4 col-12 mb-2 mb-md-0">
+                        <label class="label-filter"><i class="fa fa-sitemap mr-1"></i> Divisi / Bagian</label>
+                        <select id="filter_divisi" class="form-control input-modern" disabled>
+                            <option value="">-- Pilih Kantor Dulu --</option>
+                            </select>
+                    </div>
+
+                    <div class="col-md-4 col-12">
+                        <label class="label-filter"><i class="fa fa-id-badge mr-1"></i> Jabatan</label>
+                        <select id="filter_jabatan" class="form-control input-modern" disabled>
+                            <option value="">-- Pilih Divisi Dulu --</option>
+                            </select>
+                    </div>
                 </div>
             </div>
 
             <div class="table-responsive">
-                <table id="pegawai" class="table align-middle" style="width:100%">
+                <table id="tablePegawai" class="table align-middle" style="width:100%">
                     <thead>
                         <tr>
-                            <th>Pegawai</th> 
+                            <th width="35%">Pegawai</th> 
                             <th>TTL</th>
                             <th>Jabatan & Unit</th> 
                             <th>Mulai</th>
@@ -276,150 +138,202 @@ if ($hak_akses_user === 'kepala') {
                 </table>
             </div>
           </div>
+          
+          <div class="tab-pane fade" id="nonjob" role="tabpanel">
+             <div class="p-4">
+                 <div class="alert alert-light border shadow-sm rounded-lg d-flex align-items-center mb-0" role="alert">
+                    <i class="fas fa-info-circle text-info fa-2x mr-3"></i>
+                    <div>
+                        <h6 class="font-weight-bold mb-1">Perhatian</h6>
+                        <span class="text-muted">Daftar pegawai ini <b>belum memiliki jabatan aktif</b>.</span>
+                    </div>
+                 </div>
+             </div>
+             <div class="table-responsive">
+                <table id="tableNonJob" class="table align-middle" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th width="40%">Pegawai</th>
+                            <th>Status Kepegawaian</th>
+                            <th>Kontak</th>
+                            <th class="text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+             </div>
+          </div>
 
           <div class="tab-pane fade" id="purna" role="tabpanel">
             <div class="table-responsive">
-                <table id="pegawaiPurna" class="table align-middle" style="width:100%">
+                <table id="tablePurna" class="table align-middle" style="width:100%">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Nama</th>
+                            <th width="35%">Pegawai</th>
                             <th>TTL</th>
-                            <th>Jabatan</th>
+                            <th>Jabatan Terakhir</th>
                             <th>Status</th>
-                            <th>Pensiun</th>
+                            <th>Tgl Pensiun</th>
                         </tr>
                     </thead>
+                    <tbody></tbody>
                 </table>
             </div>
           </div>
 
-        </div> </div> </div> </div>
+        </div> 
+      </div> 
+    </div> 
+  </div>
 </section>
 
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
-<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
+<script src="plugins/jquery/jquery.min.js"></script>
+<script src="plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="plugins/datatables/jquery.dataTables.min.js"></script>
+<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
 
 <script>
 $(document).ready(function() {
 
-  // === HELPER FUNCTIONS ===
-  function _getCandidateBases() {
-    var origin = window.location.origin;
-    return [
-      origin + '/dummy/pages/assets/foto/',
-      origin + '/dummy/assets/foto/',
-      origin + '/pages/assets/foto/',
-      origin + '/assets/foto/',
-      origin + '/'
-    ];
-  }
-
-  function getDefaultAvatar(name) {
-    return 'https://ui-avatars.com/api/?name=' + encodeURIComponent(name||'') + '&background=random&color=fff&size=128';
-  }
-
-  function tryImg(el) {
-    var fileName = el.getAttribute('data-filename') || '';
-    var name = el.getAttribute('data-nama') || '';
-    var bases = _getCandidateBases();
-    var attempt = parseInt(el.getAttribute('data-attempt') || '0', 10);
-
-    if (!fileName) { el.onerror = null; el.src = getDefaultAvatar(name); return; }
-    attempt++; el.setAttribute('data-attempt', attempt);
-
-    if (attempt <= bases.length) {
-      var candidate = bases[attempt - 1] + encodeURIComponent(fileName);
-      el.onerror = function(){ tryImg(el); };
-      el.src = candidate;
-      return;
-    }
-    el.onerror = null; el.src = getDefaultAvatar(name);
-  }
-  window.tryImg = tryImg;
-  window.getDefaultAvatar = getDefaultAvatar;
-
-  // === DATATABLE INIT ===
-  var tableAktif = $('#pegawai').DataTable({
-    processing: true, serverSide: true, deferRender: true, autoWidth: false,
-    ajax: {
-      url: 'pages/pegawai/ajax-data-pegawai.php',
-      type: 'GET',
-      data: function(d){ d.unit_kerja = $('#filter_unit_kerja').val(); }
-    },
-    // STRUKTUR DOM AGAR 1 BARIS DI MOBILE
-    // Kita bungkus Length (l) dan Filter (f) dalam div 'dt-controls-row'
-    dom: '<"dt-controls-row"lf>rtip',
-    columns: [
-      {
-        data: 'foto', orderable: false,
-        render: function(data, type, row){
-            var fileName = '';
-            if (data) {
-                var tmp = (/<img/i.test(data)) ? (data.match(/src=["'](.*?)["']/i) || [])[1] : data.trim();
-                if(tmp) fileName = tmp.split('/').pop().split('?')[0];
-            }
-            
-            var defaultImg = getDefaultAvatar(row.nama);
-            var initialSrc = fileName ? (_getCandidateBases()[0] + encodeURIComponent(fileName)) : defaultImg;
-
-            return `
-              <div class="d-flex align-items-center">
-                  <div class="avatar-wrapper mr-3">
-                      <img src="${initialSrc}" class="avatar-img" 
-                           data-filename="${fileName}" data-nama="${row.nama}" 
-                           onerror="tryImg(this);">
-                  </div>
-                  <div>
-                      <span class="d-block font-weight-bold text-dark">${row.nama || '-'}</span>
-                      <span class="small text-muted">${row.id_peg || '-'}</span>
-                  </div>
+  // --- RENDERER PEGAWAI ---
+  function renderPegawai(fotoHtml, namaHtml) {
+      return `<div class="d-flex align-items-center">
+                <div class="mr-3">${fotoHtml}</div>
+                <div>${namaHtml}</div>
               </div>`;
-        }
+  }
+
+  // --- DATA TABLE OPTIONS ---
+  var dtOptions = {
+      processing: true, serverSide: true, autoWidth: false,
+      lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "All"]],
+      dom: '<"dt-controls-wrapper"lf>rtip',
+      language: {
+          search: "", searchPlaceholder: "Cari nama/NIP...", lengthMenu: "Tampil _MENU_",
+          zeroRecords: "Data tidak ditemukan",
+          info: "Menampilkan _START_ - _END_ dari _TOTAL_",
+          paginate: { next: '<i class="fas fa-chevron-right"></i>', previous: '<i class="fas fa-chevron-left"></i>' }
+      }
+  };
+
+  // 1. TABEL PEGAWAI AKTIF (Dengan 3 Filter Terkait)
+  var tableAktif = $('#tablePegawai').DataTable($.extend({}, dtOptions, {
+      ajax: {
+          url: 'pages/pegawai/ajax-data-pegawai.php', 
+          type: 'GET',
+          data: function(d){ 
+              d.kantor  = $('#filter_kantor').val();
+              d.divisi  = $('#filter_divisi').val();
+              d.jabatan = $('#filter_jabatan').val();
+          }
       },
-      { data: 'ttl', render: function(d){ return `<span style="font-size:0.9rem;">${d||'-'}</span>`; } },
-      {
-        data: 'unit_kerja',
-        render: function(d, t, r) {
-            return `<div style="line-height:1.2;"><div class="text-primary font-weight-bold">${d||'-'}</div><div class="text-muted small">${r.jabatan||'-'}</div></div>`;
-        }
-      },
-      { data: 'tgl_masuk', className: 'text-nowrap', render: function(d) { return `<span class="badge badge-modern badge-soft-blue">${d||'-'}</span>`; } },
-      { data: 'no_telp', render: function(d){ return `<span style="color:#555;">${d||'-'}</span>`; } },
-      { data: 'action', orderable: false, className: "text-center" }
-    ],
-    pageLength: 10,
-    lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "All"]],
-    language: {
-        search: "", 
-        searchPlaceholder: "Cari data...", // Placeholder muncul di dalam input
-        lengthMenu: "_MENU_" // Hapus tulisan 'Show entries', sisakan dropdown saja
-    }
+      columns: [
+          { 
+              data: 'nama',
+              render: function(data, type, row) {
+                  return renderPegawai(row.nama, row.raw_nama, row.raw_id); // row.nama = foto html
+              }
+          },
+          { data: 'ttl' },
+          { data: 'unit_kerja', render: function(d){ return d; } },
+          { data: 'tgl_masuk', className: 'text-nowrap', render: function(d){ return `<span class="badge badge-soft-blue">${d||'-'}</span>`; } },
+          { data: 'no_telp', render: function(d){ return `<span style="color:#64748b;">${d||'-'}</span>`; } },
+          { data: 'action', orderable: false, className: "text-center" }
+      ]
+  }));
+
+  // =================================================================
+  // === LOGIKA CASCADING DROPDOWN (KANTOR -> DIVISI -> JABATAN) ===
+  // =================================================================
+
+  // 1. Ketika KANTOR Berubah
+  $('#filter_kantor').on('change', function(){
+      var kodeKantor = $(this).val();
+      
+      // Reset Divisi & Jabatan
+      $('#filter_divisi').html('<option value="">-- Loading... --</option>').prop('disabled', true);
+      $('#filter_jabatan').html('<option value="">-- Pilih Divisi Dulu --</option>').prop('disabled', true);
+      
+      // Reload Tabel (Hanya Filter Kantor)
+      tableAktif.ajax.reload();
+
+      if(kodeKantor) {
+          $.ajax({
+              url: 'pages/pegawai/ajax-get-options.php',
+              type: 'POST',
+              data: { type: 'get_divisi', kode_kantor: kodeKantor },
+              success: function(response){
+                  $('#filter_divisi').html(response).prop('disabled', false);
+              }
+          });
+      } else {
+          $('#filter_divisi').html('<option value="">-- Pilih Kantor Dulu --</option>');
+      }
   });
 
-  // Styling Input & Select agar modern
-  $('.dataTables_filter input').addClass('form-control input-modern');
-  $('.dataTables_length select').addClass('form-control input-modern');
+  // 2. Ketika DIVISI Berubah
+  $('#filter_divisi').on('change', function(){
+      var divisi = $(this).val();
+      var kodeKantor = $('#filter_kantor').val();
 
-  $('#filter_unit_kerja').on('change', function(){ tableAktif.ajax.reload(); });
+      // Reset Jabatan
+      $('#filter_jabatan').html('<option value="">-- Loading... --</option>').prop('disabled', true);
+      
+      // Reload Tabel (Filter Kantor + Divisi)
+      tableAktif.ajax.reload();
 
-  // === TABEL PURNA ===
+      if(divisi) {
+          $.ajax({
+              url: 'pages/pegawai/ajax-get-options.php',
+              type: 'POST',
+              data: { type: 'get_jabatan', kode_kantor: kodeKantor, divisi: divisi },
+              success: function(response){
+                  $('#filter_jabatan').html(response).prop('disabled', false);
+              }
+          });
+      } else {
+          $('#filter_jabatan').html('<option value="">-- Pilih Divisi Dulu --</option>');
+      }
+  });
+
+  // 3. Ketika JABATAN Berubah
+  $('#filter_jabatan').on('change', function(){
+      // Reload Tabel (Filter Kantor + Divisi + Jabatan)
+      tableAktif.ajax.reload();
+  });
+
+  // =================================================================
+
+  // 2. TABEL NONJOB
+  $('#nonjob-tab').on('click', function(){
+      if ($.fn.DataTable.isDataTable('#tableNonJob')) return;
+      $('#tableNonJob').DataTable($.extend({}, dtOptions, {
+          ajax: { url: 'pages/pegawai/ajax-data-pegawai.php', type: 'GET', data: function(d){ d.filter_type = 'nonjob'; } },
+          columns: [
+              { data: 'nama', render: function(data, type, row) { return renderPegawai(row.nama, row.raw_nama, row.raw_id); } },
+              { data: 'status_kepeg', render: function(d){ return `<span class="badge badge-soft-red">${d||'Unknown'}</span>`; } },
+              { data: 'no_telp' },
+              { data: 'action', orderable: false, className: "text-center" }
+          ]
+      }));
+  });
+
+  // 3. TABEL PURNA
   $('#purna-tab').on('click', function(){
-    if ($.fn.DataTable.isDataTable('#pegawaiPurna')) return;
-    $('#pegawaiPurna').DataTable({
-      processing: true, serverSide: true, autoWidth: false,
-      ajax: { url: 'pages/pegawai/ajax-pegawai-purna.php', type: 'GET' },
-      dom: '<"dt-controls-row"lf>rtip',
-      columns: [
-        { data: 'id_peg' }, { data: 'nama' }, { data: 'ttl' }, { data: 'jabatan' }, { data: 'status_kepeg' }, { data: 'tgl_pensiun' }
-      ],
-      language: { search: "", searchPlaceholder: "Cari...", lengthMenu: "_MENU_" }
-    });
-    setTimeout(function(){
-         $('#pegawaiPurna_wrapper .dataTables_filter input').addClass('form-control input-modern');
-         $('#pegawaiPurna_wrapper .dataTables_length select').addClass('form-control input-modern');
-    }, 100);
+      if ($.fn.DataTable.isDataTable('#tablePurna')) return;
+      $('#tablePurna').DataTable($.extend({}, dtOptions, {
+          ajax: { url: 'pages/pegawai/ajax-pegawai-purna.php', type: 'GET' },
+          columns: [
+              { data: 'nama', render: function(data, type, row) { 
+                  var foto = '<div class="avatar-wrapper"><img src="https://ui-avatars.com/api/?name='+row.nama+'&background=random&color=fff" class="avatar-img"></div>';
+                  return renderPegawai(foto, row.nama, row.id_peg); 
+              }},
+              { data: 'ttl' }, { data: 'jabatan' }, 
+              { data: 'status_kepeg', render: function(d){ return `<span class="badge badge-soft-dark">${d}</span>`; } }, 
+              { data: 'tgl_pensiun' }
+          ]
+      }));
   });
 
 });
