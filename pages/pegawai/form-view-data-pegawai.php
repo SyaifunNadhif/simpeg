@@ -1,7 +1,8 @@
 <?php
 /*********************************************************
  * FILE     : pages/pegawai/form-view-data-pegawai.php
- * UPDATE   : Select2 Search, Cascading Filter, Modern UI
+ * MODULE   : SIMPEG — Data Pegawai (Smart Filter UI)
+ * FEATURES : Cascading Filter (Kantor > Unit/Divisi > Jabatan)
  *********************************************************/
 
 $hak_akses_user = isset($_SESSION['hak_akses']) ? strtolower($_SESSION['hak_akses']) : '';
@@ -14,17 +15,18 @@ if ($hak_akses_user === 'kepala') {
 
 <link rel="stylesheet" href="plugins/select2/css/select2.min.css">
 <link rel="stylesheet" href="plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
 
 <style>
-    /* HIDE HEADER BAWAAN */
+    /* --- LAYOUT UTAMA --- */
     .content-header { display: none !important; }
-    .content-wrapper { background-color: #f8f9fa; font-family: 'Inter', sans-serif; }
+    .content-wrapper { background-color: #f8f9fa; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
     
-    /* CARD STYLE */
+    /* --- CARD MODERN --- */
     .card-modern {
         border: none; border-radius: 16px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-        background: #fff; overflow: visible; /* Penting agar dropdown tidak terpotong */
+        background: #fff; overflow: visible; /* Biar dropdown tidak kepotong */
         margin-bottom: 25px;
     }
     .card-header-modern {
@@ -33,32 +35,38 @@ if ($hak_akses_user === 'kepala') {
         display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;
     }
 
-    /* TABS */
+    /* --- TABS --- */
     .nav-pills-modern { background: #f1f5f9; padding: 4px; border-radius: 50px; display: inline-flex; }
     .nav-pills-modern .nav-link {
         border-radius: 50px; padding: 8px 24px; font-weight: 600; color: #64748b; font-size: 0.9rem; transition: all 0.2s;
     }
+    .nav-pills-modern .nav-link:hover { color: #0f172a; }
     .nav-pills-modern .nav-link.active { background-color: #fff; color: #0ea5e9; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
 
-    /* --- SELECT2 CUSTOM STYLE (MODERN ROUNDED) --- */
+    /* --- SELECT2 CUSTOM (Agar tidak gepeng/terpotong) --- */
     .select2-container .select2-selection--single {
-        height: 45px !important; /* Tinggi fix */
+        height: 45px !important; /* Tinggi fix agar seragam */
         border-radius: 10px !important;
         border: 1px solid #e2e8f0 !important;
         padding: 8px 10px !important;
         background-color: #fff !important;
+        display: flex; align-items: center;
     }
     .select2-container--default .select2-selection--single .select2-selection__arrow {
         height: 45px !important; right: 10px !important;
     }
     .select2-container--default .select2-selection--single .select2-selection__rendered {
-        line-height: 28px !important; color: #334155 !important; font-size: 0.9rem;
+        line-height: normal !important; color: #334155 !important; font-size: 0.9rem; padding-left: 5px;
     }
+    .select2-dropdown {
+        border-radius: 10px !important; border: 1px solid #e2e8f0 !important; box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+    
     .filter-label {
-        font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 8px; display: block; letter-spacing: 0.5px;
+        font-size: 0.75rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 8px; display: block; letter-spacing: 0.5px;
     }
 
-    /* TABLE */
+    /* --- TABLE STYLE --- */
     table.dataTable { border-collapse: separate; border-spacing: 0; width: 100% !important; margin-top: 0 !important; }
     table.dataTable thead th {
         background-color: #fff; color: #64748b; font-size: 0.75rem; font-weight: 800; text-transform: uppercase;
@@ -69,22 +77,23 @@ if ($hak_akses_user === 'kepala') {
     }
     table.dataTable tbody tr:hover { background-color: #fcfdfe; }
 
-    /* UTILITY */
+    /* --- HELPER CLASSES --- */
     .avatar-wrapper { width: 45px; height: 45px; border-radius: 50%; overflow: hidden; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
     .avatar-img { width: 100%; height: 100%; object-fit: cover; }
     
     .text-pegawai-name { font-weight: 700; color: #1e293b; font-size: 0.95rem; display: block; }
-    .text-pegawai-id { font-family: monospace; color: #64748b; font-size: 0.85rem; }
+    .text-pegawai-id { font-family: monospace; color: #64748b; font-size: 0.85rem; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
     
     .text-jabatan { font-weight: 700; color: #0f172a; font-size: 0.9rem; display: block; margin-bottom: 2px; }
     .text-kantor { color: #0ea5e9; font-weight: 600; font-size: 0.8rem; display: block; }
-    .text-divisi { color: #94a3b8; font-size: 0.8rem; }
+    .text-divisi { color: #94a3b8; font-size: 0.8rem; display: block; }
 
-    /* CONTROLS */
+    /* --- CONTROLS DATATABLE --- */
     .dt-controls-wrapper { display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; gap: 10px; }
     .dataTables_filter input { border-radius: 50px !important; border: 1px solid #e2e8f0; padding: 8px 20px !important; outline: none; }
     .dataTables_length select { border-radius: 50px !important; border: 1px solid #e2e8f0; padding: 5px 15px; outline: none; }
 
+    /* Responsive */
     @media (max-width: 768px) {
         .card-header-modern { flex-direction: column; align-items: flex-start; }
         .dt-controls-wrapper { flex-direction: column; align-items: stretch; }
@@ -111,7 +120,7 @@ if ($hak_akses_user === 'kepala') {
       <div class="card-header-modern">
           <ul class="nav nav-pills nav-pills-modern" id="pegawaiTab" role="tablist">
               <li class="nav-item"><a class="nav-link active" id="aktif-tab" data-toggle="pill" href="#aktif" role="tab"><i class="fa fa-users mr-1"></i> Aktif</a></li>
-              <li class="nav-item"><a class="nav-link" id="nonjob-tab" data-toggle="pill" href="#nonjob" role="tab"><i class="fa fa-exclamation-circle mr-1"></i> Belum Ada Jabatan</a></li>
+              <li class="nav-item"><a class="nav-link" id="nonjob-tab" data-toggle="pill" href="#nonjob" role="tab"><i class="fa fa-user-tag mr-1"></i> Belum Ada Jabatan</a></li>
               <li class="nav-item"><a class="nav-link" id="purna-tab" data-toggle="pill" href="#purna" role="tab"><i class="fa fa-history mr-1"></i> Purna</a></li>
           </ul>
 
@@ -132,7 +141,7 @@ if ($hak_akses_user === 'kepala') {
                  <div class="row g-3">
                     
                     <div class="col-md-4 col-12 mb-3 mb-md-0">
-                        <label class="filter-label"><i class="fa fa-building mr-1"></i> Kantor / Cabang</label>
+                        <label class="filter-label"><i class="fa fa-building mr-1"></i> Kantor / Area</label>
                         <select id="filter_kantor" class="form-control select2">
                             <option value="">-- Semua Kantor --</option>
                             <?php
@@ -140,7 +149,8 @@ if ($hak_akses_user === 'kepala') {
                                     $kode_kantor = mysqli_real_escape_string($conn, isset($_SESSION['kode_kantor']) ? $_SESSION['kode_kantor'] : '');
                                     $qUnit = mysqli_query($conn, "SELECT * FROM tb_kantor WHERE kode_kantor_detail = '{$kode_kantor}'");
                                 } else {
-                                    $qUnit = mysqli_query($conn, "SELECT * FROM tb_kantor ORDER BY kode_kantor_detail ASC");
+                                    // Query Khusus: Kecualikan level 'KK' (Karena KK akan muncul di filter ke-2)
+                                    $qUnit = mysqli_query($conn, "SELECT * FROM tb_kantor WHERE level IN ('KP','KANWIL','KC') ORDER BY kode_kantor_detail ASC");
                                 }
                                 while ($u = mysqli_fetch_assoc($qUnit)) {
                                     echo "<option value='".$u['kode_kantor_detail']."'>".$u['nama_kantor']."</option>";
@@ -150,7 +160,7 @@ if ($hak_akses_user === 'kepala') {
                     </div>
 
                     <div class="col-md-4 col-12 mb-3 mb-md-0">
-                        <label class="filter-label"><i class="fa fa-sitemap mr-1"></i> Divisi / Bagian</label>
+                        <label class="filter-label"><i class="fa fa-sitemap mr-1"></i> Divisi / Unit Kerja</label>
                         <select id="filter_divisi" class="form-control select2" disabled>
                             <option value="">-- Pilih Kantor Dulu --</option>
                         </select>
@@ -159,7 +169,7 @@ if ($hak_akses_user === 'kepala') {
                     <div class="col-md-4 col-12">
                         <label class="filter-label"><i class="fa fa-id-badge mr-1"></i> Jabatan</label>
                         <select id="filter_jabatan" class="form-control select2" disabled>
-                            <option value="">-- Pilih Divisi Dulu --</option>
+                            <option value="">-- Pilih Unit Dulu --</option>
                         </select>
                     </div>
                 </div>
@@ -188,7 +198,7 @@ if ($hak_akses_user === 'kepala') {
                     <i class="fas fa-exclamation-triangle fa-2x mr-3"></i>
                     <div>
                         <h6 class="font-weight-bold mb-1">Data Pegawai Non-Jabatan</h6>
-                        <span class="small">Pegawai ini berstatus <b>Aktif</b> tapi belum memiliki jabatan. Klik tombol aksi untuk mengatur.</span>
+                        <span class="small">Pegawai berikut berstatus <b>Aktif</b> namun belum memiliki jabatan. Klik tombol aksi untuk mengatur.</span>
                     </div>
                  </div>
              </div>
@@ -230,7 +240,6 @@ if ($hak_akses_user === 'kepala') {
   </div>
 </section>
 
-<link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
 <script src="plugins/jquery/jquery.min.js"></script>
 <script src="plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
 <script src="plugins/datatables/jquery.dataTables.min.js"></script>
@@ -240,10 +249,10 @@ if ($hak_akses_user === 'kepala') {
 <script>
 $(document).ready(function() {
 
-  // --- INIT SELECT2 (SEARCHABLE DROPDOWN) ---
+  // --- INIT SELECT2 (SEARCHABLE) ---
   $('.select2').select2({
       theme: 'bootstrap4',
-      width: '100%' // Penting agar tidak gepeng/terpotong
+      width: '100%' // Penting!
   });
 
   // --- RENDERER HELPERS ---
@@ -259,11 +268,19 @@ $(document).ready(function() {
 
   function renderJabatan(jabatan, kantor, divisi) {
       var j = jabatan ? jabatan : '<span class="text-danger font-italic small">Belum ada jabatan</span>';
-      return `<div>
-                <span class="text-jabatan">${j}</span>
-                <span class="text-kantor"><i class="fas fa-building mr-1"></i> ${kantor}</span>
-                <span class="text-divisi"><i class="fas fa-sitemap mr-1"></i> ${divisi}</span>
-              </div>`;
+      var k = kantor ? kantor : '-';
+      var d = divisi ? divisi : ''; // Divisi optional
+      
+      var html = `<div>
+                    <span class="text-jabatan">${j}</span>
+                    <span class="text-kantor"><i class="fas fa-building mr-1"></i> ${k}</span>`;
+      
+      // Jika Divisi/Unit ada isinya, tampilkan
+      if(d) {
+          html += `<span class="text-divisi"><i class="fas fa-sitemap mr-1"></i> ${d}</span>`;
+      }
+      html += `</div>`;
+      return html;
   }
 
   var dtOptions = {
@@ -309,24 +326,27 @@ $(document).ready(function() {
       ]
   }));
 
-  // === CASCADING DROPDOWN LOGIC (KANTOR -> DIVISI -> JABATAN) ===
+  // =================================================================
+  // === LOGIKA CASCADING DROPDOWN (KANTOR -> DIVISI/UNIT -> JABATAN) ===
+  // =================================================================
   
-  // 1. Ganti Kantor
+  // 1. Ganti Kantor (Level 1)
   $('#filter_kantor').on('change', function(){
       var kodeKantor = $(this).val();
       
       // Reset Select2 Divisi & Jabatan
       $('#filter_divisi').html('<option value="">-- Loading... --</option>').prop('disabled', true).trigger('change');
-      $('#filter_jabatan').html('<option value="">-- Pilih Divisi Dulu --</option>').prop('disabled', true).trigger('change');
+      $('#filter_jabatan').html('<option value="">-- Pilih Unit Dulu --</option>').prop('disabled', true).trigger('change');
       
-      tableAktif.ajax.reload(); // Reload tabel
+      tableAktif.ajax.reload(); // Reload tabel filter level 1
 
       if(kodeKantor) {
           $.ajax({
               url: 'pages/pegawai/ajax-get-options.php', type: 'POST',
               data: { type: 'get_divisi', kode_kantor: kodeKantor },
               success: function(response){ 
-                  $('#filter_divisi').html(response).prop('disabled', false).trigger('change'); // Refresh Select2
+                  // Isi dropdown divisi/unit dengan response dari server
+                  $('#filter_divisi').html(response).prop('disabled', false).trigger('change');
               }
           });
       } else {
@@ -334,13 +354,13 @@ $(document).ready(function() {
       }
   });
 
-  // 2. Ganti Divisi
+  // 2. Ganti Divisi/Unit (Level 2)
   $('#filter_divisi').on('change', function(){
-      var divisi = $(this).val();
+      var divisi = $(this).val(); // Bisa Kode KK atau Nama Divisi
       var kodeKantor = $('#filter_kantor').val();
 
       $('#filter_jabatan').html('<option value="">-- Loading... --</option>').prop('disabled', true).trigger('change');
-      tableAktif.ajax.reload();
+      tableAktif.ajax.reload(); // Reload tabel filter level 2
 
       if(divisi) {
           $.ajax({
@@ -351,12 +371,14 @@ $(document).ready(function() {
               }
           });
       } else {
-          $('#filter_jabatan').html('<option value="">-- Pilih Divisi Dulu --</option>').trigger('change');
+          $('#filter_jabatan').html('<option value="">-- Pilih Unit Dulu --</option>').trigger('change');
       }
   });
 
-  // 3. Ganti Jabatan
-  $('#filter_jabatan').on('change', function(){ tableAktif.ajax.reload(); });
+  // 3. Ganti Jabatan (Level 3)
+  $('#filter_jabatan').on('change', function(){ 
+      tableAktif.ajax.reload(); // Reload tabel filter level 3
+  });
 
   // 2. TABEL NONJOB
   $('#nonjob-tab').on('click', function(){
