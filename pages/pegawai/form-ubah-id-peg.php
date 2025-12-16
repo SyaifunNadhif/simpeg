@@ -59,7 +59,7 @@ $qPegawai = mysqli_query($conn, $sqlPegawai);
                     </div>
                     
                     <div class="card-body p-4">
-                        <form action="pages/kepegawaian/proses-ubah-id.php" method="POST" enctype="multipart/form-data">
+                        <form action="pages/pegawai/proses-ubah-id.php" method="POST" enctype="multipart/form-data">
                             
                             <div class="alert alert-info border-0 shadow-sm mb-4">
                                 <i class="fas fa-info-circle mr-2"></i> 

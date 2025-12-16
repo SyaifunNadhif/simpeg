@@ -367,7 +367,7 @@ $src_foto   = (!empty($foto_db) && file_exists($path_foto)) ? $path_foto : $avat
                         <?php 
                         $qJab = mysqli_query($conn,"SELECT j.tmt_jabatan, j.status_jab, m.nama_jabatan 
                                                     FROM tb_jabatan j 
-                                                    LEFT JOIN tb_master_jabatan m ON j.kode_jabatan = m.kode_jabatan 
+                                                    LEFT JOIN tb_master_jabatan m ON j.jabatan = m.nama_jabatan 
                                                     WHERE j.id_peg='$id_peg' 
                                                     ORDER BY j.tmt_jabatan DESC"); 
                         while($j=mysqli_fetch_array($qJab)){ ?>

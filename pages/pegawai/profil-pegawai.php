@@ -91,15 +91,7 @@ $src_foto   = (!empty($foto_db) && file_exists($path_foto)) ? $path_foto : $avat
 </style>
 
 <section class="content-header pt-4 pb-2">
-    <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center">
-            <h1 class="m-0 font-weight-bold text-dark">Profil Pegawai</h1>
-            <ol class="breadcrumb float-sm-right small bg-transparent p-0">
-                <li class="breadcrumb-item"><a href="home-admin.php">Home</a></li>
-                <li class="breadcrumb-item active">Profil</li>
-            </ol>
-        </div>
-    </div>
+
 </section>
 
 <section class="content pb-5">
@@ -356,10 +348,42 @@ $src_foto   = (!empty($foto_db) && file_exists($path_foto)) ? $path_foto : $avat
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white"><h5 class="modal-title">Riwayat Jabatan</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div>
-            <div class="modal-body"><table class="table table-bordered table-striped"><thead><tr><th>Jabatan</th><th>TMT</th><th>Status</th><?php if($can_edit) echo '<th>Aksi</th>'; ?></tr></thead><tbody>
-                <?php $qJab = mysqli_query($conn,"SELECT id_jab, tmt_jabatan, status_jab, (SELECT jabatan FROM tb_ref_jabatan WHERE kode_jabatan=tb_jabatan.kode_jabatan) nm_jab FROM tb_jabatan WHERE id_peg='$id_peg' ORDER BY tmt_jabatan DESC"); while($j=mysqli_fetch_array($qJab)){ ?>
-                <tr><td><?=$j['nm_jab']?></td><td><?=$j['tmt_jabatan']?></td><td><?=$j['status_jab']?></td><?php if($can_edit): ?><td><a href="home-admin.php?page=form-edit-data-jabatan&id_jab=<?=$j['id_jab']?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a></td><?php endif; ?></tr>
-                <?php } ?>
+            <div class="modal-body"><table class="table table-bordered table-striped"><thead><tr><th>Jabatan</th><th>TMT</th><th>Status</th><?php if($can_edit) echo '<th>Aksi</th>'; ?></tr></thead>
+            <tbody>
+<?php 
+// Query diganti menggunakan LEFT JOIN berdasarkan NAMA (bukan kode)
+// COALESCE berfungsi: Jika di Master tidak ketemu, tampilkan nama asli dari tb_jabatan
+$qJab = mysqli_query($conn, "SELECT 
+    j.id_jab, 
+    j.tmt_jabatan, 
+    j.status_jab, 
+    COALESCE(m.nama_jabatan, j.jabatan) AS nm_jab 
+FROM tb_jabatan j
+LEFT JOIN tb_master_jabatan m ON j.jabatan = m.nama_jabatan
+WHERE j.id_peg='$id_peg' 
+ORDER BY j.tmt_jabatan DESC");
+
+while($j = mysqli_fetch_array($qJab)){ ?>
+    <tr>
+        <td><?= $j['nm_jab'] ?></td>
+        <td><?= $j['tmt_jabatan'] ?></td>
+        <td>
+            <?php if($j['status_jab'] == 'Aktif'): ?>
+                <span class="badge badge-success">Aktif</span>
+            <?php else: ?>
+                <span class="badge badge-secondary"><?= $j['status_jab'] ?></span>
+            <?php endif; ?>
+        </td>
+        
+        <?php if($can_edit): ?>
+            <td>
+                <a href="home-admin.php?page=form-edit-data-jabatan&id_jab=<?= $j['id_jab'] ?>" class="btn btn-xs btn-success" title="Edit">
+                    <i class="fa fa-edit"></i>
+                </a>
+            </td>
+        <?php endif; ?>
+    </tr>
+<?php } ?>
             </tbody></table></div>
         </div>
     </div>

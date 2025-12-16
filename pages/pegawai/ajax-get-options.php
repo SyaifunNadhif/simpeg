@@ -3,20 +3,17 @@ include "../../dist/koneksi.php";
 
 $type = isset($_POST['type']) ? $_POST['type'] : '';
 
-// --- 1. AMBIL DAFTAR DIVISI BERDASARKAN KANTOR ---
+// --- 1. AMBIL DIVISI (UNIT KERJA) BERDASARKAN KANTOR ---
 if ($type == 'get_divisi') {
     $kode_kantor = mysqli_real_escape_string($conn, $_POST['kode_kantor']);
     
-    // A. Cari LEVEL kantor
+    // A. Cek Level Kantor
     $cekLevel = mysqli_query($conn, "SELECT level FROM tb_kantor WHERE kode_kantor_detail = '$kode_kantor'");
     $dLevel   = mysqli_fetch_assoc($cekLevel);
-    $level    = $dLevel['level']; // Contoh: 'KC', 'KP', 'KANWIL', 'KK'
+    $level    = $dLevel['level']; // KP, KANWIL, KC, KK
 
-    // --- LOGIKA BARU: Jika KK, anggap sebagai KC ---
-    if ($level == 'KK') {
-        $level = 'KC';
-    }
-    // -----------------------------------------------
+    // Logic: KK menginduk ke KC
+    if ($level == 'KK') { $level = 'KC'; }
 
     echo "<option value=''>-- Pilih Divisi / Bagian --</option>";
     
@@ -38,18 +35,14 @@ if ($type == 'get_divisi') {
 // --- 2. AMBIL JABATAN BERDASARKAN KANTOR & DIVISI ---
 if ($type == 'get_jabatan') {
     $kode_kantor = mysqli_real_escape_string($conn, $_POST['kode_kantor']);
-    $divisi      = mysqli_real_escape_string($conn, $_POST['divisi']);
+    $divisi      = mysqli_real_escape_string($conn, $_POST['divisi']); // Nama Unit Kerja
 
-    // A. Cari LEVEL kantor lagi
+    // A. Cek Level Kantor
     $cekLevel = mysqli_query($conn, "SELECT level FROM tb_kantor WHERE kode_kantor_detail = '$kode_kantor'");
     $dLevel   = mysqli_fetch_assoc($cekLevel);
     $level    = $dLevel['level'];
 
-    // --- LOGIKA BARU: Jika KK, anggap sebagai KC ---
-    if ($level == 'KK') {
-        $level = 'KC';
-    }
-    // -----------------------------------------------
+    if ($level == 'KK') { $level = 'KC'; }
 
     echo "<option value=''>-- Pilih Jabatan --</option>";
 
