@@ -204,10 +204,12 @@ function getPage($page) {
     'form-view-data-kantor'        => 'pages/kantor/form-view-data-kantor.php',
 
     // User
-    'daftar-user'                   => 'pages/user/daftar-user.php',
-    'form-user'                     => 'pages/user/form-user.php',
-    'simpan-user'                   => 'pages/user/simpan-user.php',
+    // 'view-data-user'                  => 'pages/user/daftar-user.php',
+    'form-user'                    => 'pages/user/form-user.php',
+    'simpan-user'                  => 'pages/user/simpan-user.php',
     'proses-user'                  => 'pages/user/proses-user.php',
+    'view-data-user'               => 'pages/user/view-data-user.php',
+    'form-master-data-user'        => 'pages/user/form-master-data-user.php',
 
     // Sertifikasi (contoh tambahan)
     'form-view-data-sertifikasi'   => 'pages/ref-sertifikasi/form-view-data-sertifikasi.php',

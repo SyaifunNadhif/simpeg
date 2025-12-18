@@ -1,118 +1,98 @@
 <?php
+// Ensure this file is not directly accessible if it's an include
+if (!defined('BASEPATH') && strpos($_SERVER['SCRIPT_NAME'], basename(__FILE__)) !== false) {
+    header("HTTP/1.0 403 Forbidden");
+    exit('Direct access not allowed.');
+}
+
 include "dist/koneksi.php";
 include "dist/library.php";
 
 $tahun = date('Y');
 
-// Query Logic (Tetap)
-$query = mysqli_query($conn, "
+// Improved Query: Logic remains, but formatted for readability.
+// Note: Since this query uses no external user input variables, prepared statements 
+// aren't strictly required here, but maintain this habit for other queries.
+$query_sql = "
   SELECT 
-    id_peg, nama, jk, foto,
+    a.id_peg, a.nama, a.jk, a.foto, a.tempat_lhr, a.tgl_pensiun,
     (SELECT jabatan FROM tb_jabatan WHERE id_peg=a.id_peg AND status_jab='Aktif' LIMIT 1) AS jabatan,
-    tempat_lhr, tgl_pensiun,
-    DATEDIFF(tgl_pensiun, CURDATE()) AS selisih_hari
+    DATEDIFF(a.tgl_pensiun, CURDATE()) AS selisih_hari
   FROM tb_pegawai a
   WHERE 
-    id_peg NOT IN ('101-001','101-002','101-003','101-004','101-005','101-007','101-008')
-    AND YEAR(tgl_pensiun) = YEAR(NOW())
+    a.id_peg NOT IN ('101-001','101-002','101-003','101-004','101-005','101-007','101-008')
+    AND YEAR(a.tgl_pensiun) = YEAR(NOW())
   ORDER BY
     CASE
-      WHEN DATEDIFF(tgl_pensiun, CURDATE()) BETWEEN 0 AND 30 THEN 1
+      WHEN DATEDIFF(a.tgl_pensiun, CURDATE()) BETWEEN 0 AND 30 THEN 1
       ELSE 2
     END,
-    tgl_pensiun ASC
-");
+    a.tgl_pensiun ASC
+";
+
+$query = mysqli_query($conn, $query_sql);
+
+// Helper function for XSS protection
+function e($string) {
+    return htmlspecialchars($string, ENT_QUOTES, 'UTF-8');
+}
 ?>
 
 <style>
-/* ================= CSS MODERN FINAL ================= */
 .font-primary { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
 
 /* 1. CARD STYLE */
 .card-modern {
   border: none;
-  border-radius: 20px; /* Radius lebih bulat biar modern */
+  border-radius: 20px;
   background: #fff;
   box-shadow: 0 10px 40px rgba(0,0,0,0.04);
   margin-bottom: 2rem;
   overflow: hidden;
 }
 
-/* 2. HEADER STYLE (Search Kanan Mentok) */
+/* 2. HEADER STYLE */
 .card-modern .card-header {
   background: #fff;
   border-bottom: 1px solid #f0f2f5;
-  padding: 30px 40px; /* Padding Header Lega */
+  padding: 30px 40px;
   display: flex;
   align-items: center;
   flex-wrap: wrap; 
   gap: 20px;
 }
 
-.title-group {
-  margin-right: auto;
-}
+.title-group { margin-right: auto; }
 .title-group h3 {
-  font-size: 1.35rem;
-  font-weight: 700;
-  color: #2c3e50;
-  margin-bottom: 5px;
-  letter-spacing: -0.5px;
+  font-size: 1.35rem; font-weight: 700; color: #2c3e50;
+  margin-bottom: 5px; letter-spacing: -0.5px;
 }
-.title-group p {
-  font-size: 0.9rem;
-  color: #95a5a6;
-  margin-bottom: 0;
-}
+.title-group p { font-size: 0.9rem; color: #95a5a6; margin-bottom: 0; }
 
 /* SEARCH BOX */
-.header-search {
-  position: relative;
-  width: 300px; /* Sedikit dilebarkan */
-  margin-left: auto;
-}
+.header-search { position: relative; width: 300px; margin-left: auto; }
 .header-search input {
-  width: 100%;
-  border-radius: 50px;
-  border: 1px solid #edf2f7;
-  background: #f8f9fa;
-  padding: 12px 25px 12px 50px;
-  font-size: 0.95rem;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  height: 48px;
+  width: 100%; border-radius: 50px; border: 1px solid #edf2f7;
+  background: #f8f9fa; padding: 12px 25px 12px 50px;
+  font-size: 0.95rem; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); height: 48px;
 }
 .header-search input:focus {
-  background: #fff;
-  border-color: #17a2b8;
-  box-shadow: 0 5px 20px rgba(23, 162, 184, 0.1);
-  outline: none;
+  background: #fff; border-color: #17a2b8; box-shadow: 0 5px 20px rgba(23, 162, 184, 0.1); outline: none;
 }
 .header-search i {
-  position: absolute;
-  left: 20px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #a0aec0;
-  font-size: 1.1rem;
+  position: absolute; left: 20px; top: 50%; transform: translateY(-50%);
+  color: #a0aec0; font-size: 1.1rem;
 }
 
 /* 3. TABLE STYLE */
 .table-modern thead th {
-  background-color: #fff;
-  font-size: 0.8rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: #8392a5;
-  border-bottom: 2px solid #f0f2f5;
-  padding: 25px 40px; /* Padding Table Head Lega */
-  letter-spacing: 0.5px;
+  background-color: #fff; font-size: 0.8rem; font-weight: 700;
+  text-transform: uppercase; color: #8392a5; border-bottom: 2px solid #f0f2f5;
+  padding: 25px 40px; letter-spacing: 0.5px;
 }
 .table-modern tbody td {
-  padding: 25px 40px; /* Padding Isi Table Lega */
-  vertical-align: middle;
-  border-bottom: 1px solid #f8f9fa;
-  font-size: 1rem;
-  color: #343a40;
+  padding: 25px 40px; vertical-align: middle; border-bottom: 1px solid #f8f9fa;
+  font-size: 1rem; color: #343a40;
 }
 .table-modern tbody tr:last-child td { border-bottom: none; }
 .table-modern tbody tr:hover { background-color: #fafbfc; }
@@ -124,54 +104,37 @@ $query = mysqli_query($conn, "
 .badge-soft-danger { background: #fff0f0; color: #ff4757; }
 .badge-soft-success { background: #e8f8eb; color: #2ecc71; }
 
-/* 4. PAGINATION FIX (EXTRA PADDING & JARAK) */
+/* 4. PAGINATION FIX */
 .dataTables_wrapper .row:last-child {
-  /* UPDATE PENTING DISINI: Padding diperbesar */
-  padding: 30px 40px 45px 40px !important; /* Atas 30, Kanan 40, Bawah 45, Kiri 40 */
-  margin: 0;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  border-top: 1px solid #f8f9fa; /* Garis tipis pemisah dengan tabel */
+  padding: 30px 40px 45px 40px !important; margin: 0;
+  display: flex; justify-content: flex-end; align-items: center;
+  border-top: 1px solid #f8f9fa;
 }
-
-/* Reset CSS */
 .dataTables_wrapper .dataTables_paginate .paginate_button { padding: 0 !important; margin: 0 !important; border: none !important; background: transparent !important; }
 .dataTables_wrapper .dataTables_paginate .paginate_button:hover { border: none !important; background: transparent !important; }
 
-/* Tombol Style */
+/* Button Style */
 .page-item .page-link { 
-  border: none; 
-  width: 45px; height: 45px; /* Tombol lebih besar */
-  margin-left: 10px; /* Jarak antar tombol lebih renggang */
-  border-radius: 12px !important; 
-  display: flex; 
-  align-items: center; 
-  justify-content: center; 
-  font-weight: 600; 
-  font-size: 0.95rem; 
-  color: #636e72 !important; 
-  background: #f1f2f6 !important; 
+  border: none; width: 45px; height: 45px; margin-left: 10px;
+  border-radius: 12px !important; display: flex; align-items: center; justify-content: center;
+  font-weight: 600; font-size: 0.95rem; color: #636e72 !important; background: #f1f2f6 !important;
   transition: all 0.25s ease;
 }
-
 .page-item:not(.active) .page-link:hover { 
-  background-color: #dbeeff !important; 
-  color: #17a2b8 !important; 
-  transform: translateY(-3px); /* Efek naik dikit pas hover */
+  background-color: #dbeeff !important; color: #17a2b8 !important; transform: translateY(-3px);
 }
-
 .page-item.active .page-link { 
-  background: #17a2b8 !important; 
-  color: #fff !important; 
-  box-shadow: 0 8px 20px rgba(23,162,184,0.25) !important; 
+  background: #17a2b8 !important; color: #fff !important; box-shadow: 0 8px 20px rgba(23,162,184,0.25) !important;
 }
 </style>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" integrity="sha512-1ycn6IcaQQ40/MKBW2W4Rhis/DbILU74C1vSrLJxCq57o941Ym01SwNsOMqvEBFlcgUa6xLiPY/NS5R+E6ztJQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap4.min.css">
 
 <div class="card card-modern">
   <div class="card-header">
     <div class="title-group">
-      <h3>Daftar Pensiun <?= $tahun ?></h3>
+      <h3>Daftar Pensiun <?= e($tahun) ?></h3>
       <p>Monitoring pegawai purna tugas tahun ini</p>
     </div>
 
@@ -194,34 +157,52 @@ $query = mysqli_query($conn, "
           </tr>
         </thead>
         <tbody>
-        <?php while($r=mysqli_fetch_assoc($query)){
-          $hari=(int)$r['selisih_hari'];
-          if($hari>0){
-            $badge='badge-soft-danger'; $status='Segera Pensiun'; $count=$hari.' Hari Lagi'; $countCls='text-danger font-weight-bold';
-          }else{
-            $badge='badge-soft-success'; $status='Sudah Lewat'; $count='Selesai'; $countCls='text-muted';
+        <?php while($r = mysqli_fetch_assoc($query)){
+          // Sanitization logic
+          $nama = e($r['nama']);
+          $id_peg = e($r['id_peg']);
+          $jabatan = e($r['jabatan']);
+          $tempat_lhr = e($r['tempat_lhr']);
+          $foto_path = 'pages/assets/foto/' . e($r['foto']);
+          
+          $hari = (int)$r['selisih_hari'];
+          if($hari > 0){
+            $badge = 'badge-soft-danger'; 
+            $status = 'Segera Pensiun'; 
+            $count = $hari.' Hari Lagi'; 
+            $countCls = 'text-danger font-weight-bold';
+          } else {
+            $badge = 'badge-soft-success'; 
+            $status = 'Sudah Lewat'; 
+            $count = 'Selesai'; 
+            $countCls = 'text-muted';
           }
-          $foto='pages/assets/foto/'.$r['foto'];
-          $fotoAda=!empty($r['foto']) && file_exists($foto);
+          
+          // Check file existence
+          $fotoAda = !empty($r['foto']) && file_exists($foto_path);
         ?>
           <tr>
             <td>
               <div class="d-flex align-items-center">
                 <div class="mr-3">
-                  <?php if($fotoAda){ ?><img src="<?= $foto ?>" class="avatar"><?php }else{ ?><div class="avatar-placeholder"><?= strtoupper(substr($r['nama'],0,1)) ?></div><?php } ?>
+                  <?php if($fotoAda){ ?>
+                    <img src="<?= $foto_path ?>" class="avatar" alt="Foto Pegawai">
+                  <?php } else { ?>
+                    <div class="avatar-placeholder"><?= strtoupper(substr($nama,0,1)) ?></div>
+                  <?php } ?>
                 </div>
                 <div>
-                  <div style="font-weight:700;color:#2d3436;font-size:1rem;margin-bottom:3px;"><?= $r['nama'] ?></div>
-                  <small style="color:#b2bec3;font-size:0.8rem;font-weight:500;">ID: <?= $r['id_peg'] ?></small>
+                  <div style="font-weight:700;color:#2d3436;font-size:1rem;margin-bottom:3px;"><?= $nama ?></div>
+                  <small style="color:#b2bec3;font-size:0.8rem;font-weight:500;">ID: <?= $id_peg ?></small>
                 </div>
               </div>
             </td>
-            <td><span style="font-weight:500;color:#636e72;"><?= $r['jabatan'] ?></span></td>
+            <td><span style="font-weight:500;color:#636e72;"><?= $jabatan ?></span></td>
             <td><span class="badge <?= $badge ?>"><?= $status ?></span></td>
             <td>
               <div style="line-height:1.4">
-                <strong style="color:#2d3436;font-size:0.95rem;"><?= Indonesia2Tgl($r['tgl_pensiun']) ?></strong><br>
-                <small class="text-muted"><?= $r['tempat_lhr'] ?></small>
+                <strong style="color:#2d3436;font-size:0.95rem;"><?= e(Indonesia2Tgl($r['tgl_pensiun'])) ?></strong><br>
+                <small class="text-muted"><?= $tempat_lhr ?></small>
               </div>
             </td>
             <td class="text-right <?= $countCls ?>"><?= $count ?></td>
@@ -233,34 +214,38 @@ $query = mysqli_query($conn, "
   </div>
 </div>
 
-<script src="plugins/jquery/jquery.min.js"></script>
-<script src="plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
-<script src="plugins/datatables/jquery.dataTables.min.js"></script>
-<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.0.min.js" integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g=" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-Fy6S3B9q64WdZWQUiU+q4/2Lc9npb8tCaSX9FK7E8HnRr0Jz8D6OP9dO5Vg3Q9ct" crossorigin="anonymous"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap4.min.js"></script>
 
 <script>
 $(function(){
-  if ($.fn.DataTable.isDataTable('#tabelPensiun')) { $('#tabelPensiun').DataTable().destroy(); }
+  // Check if DataTable exists and destroy it safely
+  if ($.fn.DataTable.isDataTable('#tabelPensiun')) { 
+      $('#tabelPensiun').DataTable().destroy(); 
+  }
 
   var table = $('#tabelPensiun').DataTable({
-    dom: 'tp',
+    dom: 'tp', // Only Show Table (t) and Pagination (p)
     paging: true,
     pageLength: 5,
     ordering: true,
     autoWidth: false,
     info: false,
-    order: [],
-    columnDefs: [{ orderable: false, targets: [0, 2, 4] }],
+    order: [], // Disable initial sort
+    columnDefs: [{ orderable: false, targets: [0, 2, 4] }], // Disable sorting on Photo, Status, Countdown
     language: {
       zeroRecords: 'Tidak ada data ditemukan',
       paginate: { next: '<i class="fas fa-chevron-right"></i>', previous: '<i class="fas fa-chevron-left"></i>' }
     },
     drawCallback: function() {
-      // Pastikan alignment ke kanan
+      // Ensure right alignment for pagination
       $('.dataTables_paginate > .pagination').addClass('justify-content-end');
     }
   });
 
+  // Custom Search Integration
   $('#customSearch').on('keyup', function(){
     table.search(this.value).draw();
   });

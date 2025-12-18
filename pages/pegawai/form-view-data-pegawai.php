@@ -2,10 +2,13 @@
 /*********************************************************
  * FILE     : pages/pegawai/form-view-data-pegawai.php
  * MODULE   : SIMPEG — Data Pegawai (Smart Filter UI)
- * FEATURES : Cascading Filter (Kantor > Unit/Divisi > Jabatan)
+ * UPDATE   : Hide "Belum Ada Jabatan" Tab for Non-Admin
  *********************************************************/
 
 $hak_akses_user = isset($_SESSION['hak_akses']) ? strtolower($_SESSION['hak_akses']) : '';
+$kode_kantor_session = isset($_SESSION['kode_kantor']) ? $_SESSION['kode_kantor'] : '';
+
+// Link Kembali
 if ($hak_akses_user === 'kepala') {
     $link_back = "home-admin.php?page=dashboard-cabang";
 } else {
@@ -26,7 +29,7 @@ if ($hak_akses_user === 'kepala') {
     .card-modern {
         border: none; border-radius: 16px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-        background: #fff; overflow: visible; /* Biar dropdown tidak kepotong */
+        background: #fff; overflow: visible;
         margin-bottom: 25px;
     }
     .card-header-modern {
@@ -43,9 +46,9 @@ if ($hak_akses_user === 'kepala') {
     .nav-pills-modern .nav-link:hover { color: #0f172a; }
     .nav-pills-modern .nav-link.active { background-color: #fff; color: #0ea5e9; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
 
-    /* --- SELECT2 CUSTOM (Agar tidak gepeng/terpotong) --- */
+    /* --- SELECT2 CUSTOM --- */
     .select2-container .select2-selection--single {
-        height: 45px !important; /* Tinggi fix agar seragam */
+        height: 45px !important;
         border-radius: 10px !important;
         border: 1px solid #e2e8f0 !important;
         padding: 8px 10px !important;
@@ -119,12 +122,28 @@ if ($hak_akses_user === 'kepala') {
       
       <div class="card-header-modern">
           <ul class="nav nav-pills nav-pills-modern" id="pegawaiTab" role="tablist">
-              <li class="nav-item"><a class="nav-link active" id="aktif-tab" data-toggle="pill" href="#aktif" role="tab"><i class="fa fa-users mr-1"></i> Aktif</a></li>
-              <li class="nav-item"><a class="nav-link" id="nonjob-tab" data-toggle="pill" href="#nonjob" role="tab"><i class="fa fa-user-tag mr-1"></i> Belum Ada Jabatan</a></li>
-              <li class="nav-item"><a class="nav-link" id="purna-tab" data-toggle="pill" href="#purna" role="tab"><i class="fa fa-history mr-1"></i> Purna</a></li>
+              <li class="nav-item">
+                  <a class="nav-link active" id="aktif-tab" data-toggle="pill" href="#aktif" role="tab">
+                      <i class="fa fa-users mr-1"></i> Aktif
+                  </a>
+              </li>
+
+              <?php if ($hak_akses_user === 'admin'): ?>
+              <li class="nav-item">
+                  <a class="nav-link" id="nonjob-tab" data-toggle="pill" href="#nonjob" role="tab">
+                      <i class="fa fa-user-tag mr-1"></i> Belum Ada Jabatan
+                  </a>
+              </li>
+              <?php endif; ?>
+
+              <li class="nav-item">
+                  <a class="nav-link" id="purna-tab" data-toggle="pill" href="#purna" role="tab">
+                      <i class="fa fa-history mr-1"></i> Purna
+                  </a>
+              </li>
           </ul>
 
-          <?php if (isset($_SESSION['hak_akses']) && strtolower($_SESSION['hak_akses']) === 'admin'): ?>
+          <?php if ($hak_akses_user === 'admin'): ?>
           <div class="d-flex gap-2">
               <a href="home-admin.php?page=form-master-data-pegawai" class="btn btn-primary rounded-pill shadow-sm px-4 font-weight-bold" style="background:#0ea5e9; border:none;"><i class="fa fa-plus mr-2"></i> Tambah</a>
               <a href="home-admin.php?page=form-upload-data-pegawai" class="btn btn-outline-success rounded-pill px-4 font-weight-bold" style="border:1px solid #22c55e; color:#22c55e;"><i class="fa fa-file-excel mr-2"></i> Import</a>
@@ -143,17 +162,20 @@ if ($hak_akses_user === 'kepala') {
                     <div class="col-md-4 col-12 mb-3 mb-md-0">
                         <label class="filter-label"><i class="fa fa-building mr-1"></i> Kantor / Area</label>
                         <select id="filter_kantor" class="form-control select2">
-                            <option value="">-- Semua Kantor --</option>
                             <?php
-                                if (isset($_SESSION['hak_akses']) && strtolower($_SESSION['hak_akses']) === 'kepala') {
-                                    $kode_kantor = mysqli_real_escape_string($conn, isset($_SESSION['kode_kantor']) ? $_SESSION['kode_kantor'] : '');
-                                    $qUnit = mysqli_query($conn, "SELECT * FROM tb_kantor WHERE kode_kantor_detail = '{$kode_kantor}'");
-                                } else {
-                                    // Query Khusus: Kecualikan level 'KK' (Karena KK akan muncul di filter ke-2)
+                                if ($hak_akses_user === 'admin') {
+                                    echo '<option value="">-- Semua Kantor --</option>';
                                     $qUnit = mysqli_query($conn, "SELECT * FROM tb_kantor WHERE level IN ('KP','KANWIL','KC') ORDER BY kode_kantor_detail ASC");
-                                }
-                                while ($u = mysqli_fetch_assoc($qUnit)) {
-                                    echo "<option value='".$u['kode_kantor_detail']."'>".$u['nama_kantor']."</option>";
+                                    while ($u = mysqli_fetch_assoc($qUnit)) {
+                                        echo "<option value='".$u['kode_kantor_detail']."'>".$u['nama_kantor']."</option>";
+                                    }
+                                } 
+                                elseif ($hak_akses_user === 'kepala') {
+                                    $safe_kantor = mysqli_real_escape_string($conn, $kode_kantor_session);
+                                    $qUnit = mysqli_query($conn, "SELECT * FROM tb_kantor WHERE kode_kantor_detail = '$safe_kantor'");
+                                    while ($u = mysqli_fetch_assoc($qUnit)) {
+                                        echo "<option value='".$u['kode_kantor_detail']."' selected>".$u['nama_kantor']."</option>";
+                                    }
                                 }
                             ?>
                         </select>
@@ -192,6 +214,7 @@ if ($hak_akses_user === 'kepala') {
             </div>
           </div>
           
+          <?php if ($hak_akses_user === 'admin'): ?>
           <div class="tab-pane fade" id="nonjob" role="tabpanel">
              <div class="p-4">
                  <div class="alert alert-warning border-0 shadow-sm rounded-lg d-flex align-items-center mb-0" style="background-color: #fffbeb; color: #92400e;">
@@ -216,6 +239,7 @@ if ($hak_akses_user === 'kepala') {
                 </table>
              </div>
           </div>
+          <?php endif; ?>
 
           <div class="tab-pane fade" id="purna" role="tabpanel">
             <div class="table-responsive">
@@ -249,13 +273,8 @@ if ($hak_akses_user === 'kepala') {
 <script>
 $(document).ready(function() {
 
-  // --- INIT SELECT2 (SEARCHABLE) ---
-  $('.select2').select2({
-      theme: 'bootstrap4',
-      width: '100%' // Penting!
-  });
+  $('.select2').select2({ theme: 'bootstrap4', width: '100%' });
 
-  // --- RENDERER HELPERS ---
   function renderPegawai(fotoHtml, namaHtml, idHtml) {
       return `<div class="d-flex align-items-center">
                 <div class="mr-3">${fotoHtml}</div>
@@ -269,16 +288,12 @@ $(document).ready(function() {
   function renderJabatan(jabatan, kantor, divisi) {
       var j = jabatan ? jabatan : '<span class="text-danger font-italic small">Belum ada jabatan</span>';
       var k = kantor ? kantor : '-';
-      var d = divisi ? divisi : ''; // Divisi optional
+      var d = divisi ? divisi : ''; 
       
       var html = `<div>
                     <span class="text-jabatan">${j}</span>
                     <span class="text-kantor"><i class="fas fa-building mr-1"></i> ${k}</span>`;
-      
-      // Jika Divisi/Unit ada isinya, tampilkan
-      if(d) {
-          html += `<span class="text-divisi"><i class="fas fa-sitemap mr-1"></i> ${d}</span>`;
-      }
+      if(d) { html += `<span class="text-divisi"><i class="fas fa-sitemap mr-1"></i> ${d}</span>`; }
       html += `</div>`;
       return html;
   }
@@ -307,45 +322,27 @@ $(document).ready(function() {
           }
       },
       columns: [
-          { 
-              data: 'nama_teks',
-              render: function(data, type, row) {
-                  return renderPegawai(row.nama_foto, row.nama_teks, row.id_peg);
-              }
-          },
+          { data: 'nama_teks', render: function(d,t,r) { return renderPegawai(r.nama_foto, r.nama_teks, r.id_peg); } },
           { data: 'ttl', render: function(d){ return `<span style="font-size:0.85rem; color:#64748b;">${d||'-'}</span>`; } },
-          { 
-              data: 'jabatan',
-              render: function(d, t, r) {
-                  return renderJabatan(r.jabatan, r.kantor, r.divisi);
-              }
-          },
+          { data: 'jabatan', render: function(d,t,r) { return renderJabatan(r.jabatan, r.kantor, r.divisi); } },
           { data: 'tgl_masuk', className: 'text-nowrap', render: function(d){ return `<span class="badge badge-light border text-muted">${d||'-'}</span>`; } },
           { data: 'no_telp', render: function(d){ return `<span style="color:#64748b; font-size:0.9rem;">${d||'-'}</span>`; } },
           { data: 'action', orderable: false, className: "text-center" }
       ]
   }));
 
-  // =================================================================
-  // === LOGIKA CASCADING DROPDOWN (KANTOR -> DIVISI/UNIT -> JABATAN) ===
-  // =================================================================
-  
-  // 1. Ganti Kantor (Level 1)
+  // === CASCADING DROPDOWN ===
   $('#filter_kantor').on('change', function(){
       var kodeKantor = $(this).val();
-      
-      // Reset Select2 Divisi & Jabatan
       $('#filter_divisi').html('<option value="">-- Loading... --</option>').prop('disabled', true).trigger('change');
       $('#filter_jabatan').html('<option value="">-- Pilih Unit Dulu --</option>').prop('disabled', true).trigger('change');
-      
-      tableAktif.ajax.reload(); // Reload tabel filter level 1
+      tableAktif.ajax.reload();
 
       if(kodeKantor) {
           $.ajax({
               url: 'pages/pegawai/ajax-get-options.php', type: 'POST',
               data: { type: 'get_divisi', kode_kantor: kodeKantor },
               success: function(response){ 
-                  // Isi dropdown divisi/unit dengan response dari server
                   $('#filter_divisi').html(response).prop('disabled', false).trigger('change');
               }
           });
@@ -354,13 +351,14 @@ $(document).ready(function() {
       }
   });
 
-  // 2. Ganti Divisi/Unit (Level 2)
-  $('#filter_divisi').on('change', function(){
-      var divisi = $(this).val(); // Bisa Kode KK atau Nama Divisi
-      var kodeKantor = $('#filter_kantor').val();
+  // AUTO TRIGGER FOR KEPALA
+  if ($('#filter_kantor').val()) { $('#filter_kantor').trigger('change'); }
 
+  $('#filter_divisi').on('change', function(){
+      var divisi = $(this).val();
+      var kodeKantor = $('#filter_kantor').val();
       $('#filter_jabatan').html('<option value="">-- Loading... --</option>').prop('disabled', true).trigger('change');
-      tableAktif.ajax.reload(); // Reload tabel filter level 2
+      tableAktif.ajax.reload();
 
       if(divisi) {
           $.ajax({
@@ -375,12 +373,10 @@ $(document).ready(function() {
       }
   });
 
-  // 3. Ganti Jabatan (Level 3)
-  $('#filter_jabatan').on('change', function(){ 
-      tableAktif.ajax.reload(); // Reload tabel filter level 3
-  });
+  $('#filter_jabatan').on('change', function(){ tableAktif.ajax.reload(); });
 
-  // 2. TABEL NONJOB
+  // 2. TABEL NONJOB (INIT HANYA JIKA ADA DI DOM / ADMIN)
+  <?php if ($hak_akses_user === 'admin'): ?>
   $('#nonjob-tab').on('click', function(){
       if ($.fn.DataTable.isDataTable('#tableNonJob')) return;
       $('#tableNonJob').DataTable($.extend({}, dtOptions, {
@@ -393,6 +389,7 @@ $(document).ready(function() {
           ]
       }));
   });
+  <?php endif; ?>
 
   // 3. TABEL PURNA
   $('#purna-tab').on('click', function(){

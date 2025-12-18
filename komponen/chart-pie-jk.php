@@ -1,7 +1,7 @@
 <?php
 include "dist/koneksi.php";
 
-// --- 1. FILTER UNIT KERJA ---
+// --- 1. FILTER UNIT KERJA & KEAMANAN ---
 $hak_akses = isset($_SESSION['hak_akses']) ? strtolower($_SESSION['hak_akses']) : '';
 $kode_cabang_session = isset($_SESSION['kode_kantor']) ? $_SESSION['kode_kantor'] : '';
 
@@ -11,8 +11,7 @@ if ($hak_akses === 'kepala') {
     $where_unit = "AND j.unit_kerja = '$unit'";
 }
 
-// --- 2. QUERY & AGREGASI DATA (PERBAIKAN LABEL GANDA) ---
-// Kita ambil datanya, tapi hitung manual di PHP biar tidak ada label kembar
+// --- 2. QUERY ---
 $sql = "SELECT p.jk, COUNT(DISTINCT p.id_peg) as total 
         FROM tb_pegawai p
         JOIN tb_jabatan j ON p.id_peg = j.id_peg
@@ -28,23 +27,26 @@ $total_l = 0;
 $total_p = 0;
 
 while ($data = mysqli_fetch_array($hasil)) {
-    // Bersihkan data (trim spasi & uppercase)
+    // Normalisasi data (hapus spasi, uppercase)
     $jk_db = strtoupper(trim($data['jk']));
-    
-    // Logika Pengelompokan Pasti
-    if ($jk_db == 'L' || $jk_db == 'LAKI-LAKI') {
-        $total_l += $data['total'];
-    } else {
-        // Semua yang bukan L masuk ke Perempuan (termasuk P, Wanita, atau typo)
-        $total_p += $data['total'];
+    $jml   = (int)$data['total'];
+
+    // LOGIKA LEBIH KETAT (Mencegah data kosong masuk ke Perempuan)
+    // Cek Laki-laki
+    if ($jk_db == 'L' || $jk_db == 'LAKI-LAKI' || $jk_db == 'PRIA') {
+        $total_l += $jml;
+    } 
+    // Cek Perempuan (Eksplisit)
+    elseif ($jk_db == 'P' || $jk_db == 'PEREMPUAN' || $jk_db == 'WANITA') {
+        $total_p += $jml;
     }
+    // Jika NULL/Kosong, tidak dihitung agar statistik akurat
 }
 
-// Hitung Total Seluruh
+// Hitung Total Valid
 $total_seluruh = $total_l + $total_p;
 
-// Format Data untuk Chart.js (Hardcode Array biar urutan warna PASTI SAMA)
-// Urutan: [Laki-laki, Perempuan]
+// Data Chart
 $data_chart = "$total_l, $total_p"; 
 ?>
 
@@ -60,7 +62,7 @@ $data_chart = "$total_l, $total_p";
             <canvas id="doughnutChartJK"></canvas>
             
             <div class="center-text">
-                <h2 class="fw-bold mb-0 text-dark counter-value" data-target="<?= $total_seluruh ?>"><?= $total_seluruh ?></h2>
+                <h2 class="fw-bold mb-0 text-dark counter-value" data-target="<?= $total_seluruh ?>">0</h2>
                 <small class="text-muted text-uppercase fw-bold" style="font-size: 10px;">Total</small>
             </div>
         </div>
@@ -70,13 +72,17 @@ $data_chart = "$total_l, $total_p";
                 <span class="d-flex align-items-center text-muted small fw-bold">
                     <span class="dot bg-pastel-blue me-2"></span> Laki-laki
                 </span>
-                <span class="fw-bold text-dark small"><?= $total_l ?> Pegawai</span> 
+                <span class="fw-bold text-dark small">
+                    <span class="counter-value" data-target="<?= $total_l ?>">0</span> Pegawai
+                </span> 
             </div>
             <div class="d-flex justify-content-between align-items-center">
                 <span class="d-flex align-items-center text-muted small fw-bold">
                     <span class="dot bg-pastel-pink me-2"></span> Perempuan
                 </span>
-                <span class="fw-bold text-dark small"><?= $total_p ?> Pegawai</span>
+                <span class="fw-bold text-dark small">
+                    <span class="counter-value" data-target="<?= $total_p ?>">0</span> Pegawai
+                </span>
             </div>
         </div>
     </div>
@@ -85,19 +91,18 @@ $data_chart = "$total_l, $total_p";
 <style>
     .rounded-lg { border-radius: 15px; }
     
-    /* Center Text */
+    /* Center Text Absolute Position */
     .center-text {
-        position: absolute; top: 55%; left: 50%;
+        position: absolute; top: 50%; left: 50%;
         transform: translate(-50%, -50%); text-align: center;
         pointer-events: none; z-index: 0;
+        margin-top: 10px; /* Sedikit adjustment agar pas di tengah donut */
     }
     
-    /* WARNA PASTEL SOFT (Modern) */
-    /* Biru Langit Lembut */
+    /* Warna Pastel */
     .bg-pastel-blue { background-color: #90CAF9 !important; } 
     .text-pastel-blue { color: #90CAF9 !important; }
     
-    /* Pink Lembut (Dusty Pink) */
     .bg-pastel-pink { background-color: #F48FB1 !important; } 
     
     .dot { height: 12px; width: 12px; border-radius: 4px; display: inline-block; }
@@ -105,25 +110,39 @@ $data_chart = "$total_l, $total_p";
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    // 1. ANIMASI COUNTER ANGKA (Ditambahkan agar angka bergerak naik)
+    const statCounters = document.querySelectorAll('.counter-value');
+    statCounters.forEach(counter => {
+        const target = +counter.getAttribute('data-target');
+        if(target === 0) { counter.innerText = "0"; return; }
+        
+        const duration = 1000; 
+        const increment = target / (duration / 16); 
+        let current = 0;
+        
+        const updateStat = () => {
+            current += increment;
+            if (current < target) {
+                counter.innerText = Math.ceil(current).toLocaleString('id-ID');
+                requestAnimationFrame(updateStat);
+            } else {
+                counter.innerText = target.toLocaleString('id-ID');
+            }
+        };
+        updateStat();
+    });
+
+    // 2. CHART JS CONFIG
     var ctx = document.getElementById('doughnutChartJK').getContext('2d');
-    
-    // Data Kita Paksa Fix 2 Kategori: [Laki, Perempuan]
-    // Biar warnanya nggak ketukar
     
     new Chart(ctx, {
         type: 'doughnut',
         data: {
             labels: ['Laki-laki', 'Perempuan'], 
             datasets: [{
-                data: [<?= $data_chart; ?>], // Output: misal 50, 40
-                backgroundColor: [
-                    '#90CAF9', // Biru Soft (Laki-laki)
-                    '#F48FB1'  // Pink Soft (Perempuan)
-                ],
-                hoverBackgroundColor: [
-                    '#64B5F6', // Biru agak gelap pas hover
-                    '#F06292'  // Pink agak gelap pas hover
-                ],
+                data: [<?= $data_chart; ?>], 
+                backgroundColor: ['#90CAF9', '#F48FB1'],
+                hoverBackgroundColor: ['#64B5F6', '#F06292'],
                 borderWidth: 0,
                 hoverOffset: 8
             }]
@@ -133,7 +152,7 @@ document.addEventListener('DOMContentLoaded', function () {
             maintainAspectRatio: false,
             cutout: '75%', 
             plugins: {
-                legend: { display: false }, // Kita pakai legend manual di HTML biar rapi
+                legend: { display: false }, 
                 tooltip: {
                     backgroundColor: '#fff',
                     titleColor: '#555',
@@ -144,7 +163,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     callbacks: {
                         label: function(context) {
                             var value = context.raw;
-                            var total = <?= $total_seluruh > 0 ? $total_seluruh : 1 ?>;
+                            // Cegah pembagian dengan nol
+                            var total = <?= ($total_seluruh > 0) ? $total_seluruh : 1 ?>; 
                             var persen = ((value / total) * 100).toFixed(1) + '%';
                             return ' ' + context.label + ': ' + value + ' (' + persen + ')';
                         }

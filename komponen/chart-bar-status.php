@@ -1,7 +1,7 @@
 <?php
 include_once "dist/koneksi.php";
 
-// --- 1. FILTER UNIT KERJA ---
+// --- 1. FILTER & SECURITY ---
 $hak_akses = isset($_SESSION['hak_akses']) ? strtolower($_SESSION['hak_akses']) : '';
 $kode_cabang_session = isset($_SESSION['kode_kantor']) ? $_SESSION['kode_kantor'] : '';
 
@@ -31,35 +31,39 @@ $kategori_final = [
     'Lainnya'       => 0
 ];
 
-while ($data = mysqli_fetch_array($hasil)) {
-    $status_db = strtoupper(trim($data['status_kepeg']));
-    $jumlah = $data['total'];
+if ($hasil) {
+    while ($data = mysqli_fetch_array($hasil)) {
+        // Sanitasi output dari DB biar aman XSS
+        $status_db = strtoupper(trim(htmlspecialchars($data['status_kepeg'])));
+        $jumlah = (int)$data['total'];
 
-    if ($status_db == 'TETAP' || $status_db == 'PEGAWAI TETAP') {
-        $kategori_final['Pegawai Tetap'] += $jumlah;
-    } 
-    elseif ($status_db == 'CAPEG' || $status_db == 'CALON PEGAWAI') {
-        $kategori_final['Calon Pegawai'] += $jumlah;
-    }
-    elseif (strpos($status_db, 'KONTRAK') !== false || $status_db == 'PKWT') {
-        $kategori_final['Kontrak'] += $jumlah;
-    }
-    elseif (strpos($status_db, 'SOURCE') !== false || $status_db == 'THL') {
-        $kategori_final['Outsourcing'] += $jumlah;
-    }
-    else {
-        $kategori_final['Lainnya'] += $jumlah;
+        if ($status_db == 'TETAP' || $status_db == 'PEGAWAI TETAP') {
+            $kategori_final['Pegawai Tetap'] += $jumlah;
+        } 
+        elseif ($status_db == 'CAPEG' || $status_db == 'CALON PEGAWAI') {
+            $kategori_final['Calon Pegawai'] += $jumlah;
+        }
+        elseif (strpos($status_db, 'KONTRAK') !== false || $status_db == 'PKWT') {
+            $kategori_final['Kontrak'] += $jumlah;
+        }
+        elseif (strpos($status_db, 'SOURCE') !== false || $status_db == 'THL') {
+            $kategori_final['Outsourcing'] += $jumlah;
+        }
+        else {
+            $kategori_final['Lainnya'] += $jumlah;
+        }
     }
 }
 
-// --- 4. SIAPKAN DATA CHART ---
-$labels_chart = "";
-$data_chart   = "";
+// --- 4. SIAPKAN DATA CHART (ARRAY) ---
+// Kita pakai Array PHP lalu di json_encode, JANGAN string manual biar aman.
+$labels = [];
+$values = [];
 
 foreach ($kategori_final as $label => $nilai) {
     if ($nilai > 0) { 
-        $labels_chart .= "'$label', ";
-        $data_chart   .= "$nilai, ";
+        $labels[] = $label;
+        $values[] = $nilai;
     }
 }
 ?>
@@ -87,16 +91,23 @@ foreach ($kategori_final as $label => $nilai) {
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-    const ctxStatus = document.getElementById('chartStatusPeg');
+    const ctxElement = document.getElementById('chartStatusPeg');
     
-    if(ctxStatus) {
-        new Chart(ctxStatus, {
+    // Cek element & Library Chart.js
+    if(ctxElement && typeof Chart !== 'undefined') {
+        const ctx = ctxElement.getContext('2d');
+
+        // Font System (Offline Friendly)
+        const systemFont = "'-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif";
+
+        new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: [<?= $labels_chart; ?>],
+                // Gunakan JSON Encode agar data aman dari error syntax JS
+                labels: <?= json_encode($labels); ?>,
                 datasets: [{
                     label: 'Jumlah Pegawai',
-                    data: [<?= $data_chart; ?>],
+                    data: <?= json_encode($values); ?>,
                     backgroundColor: [
                         '#81C784', // Tetap (Hijau)
                         '#64B5F6', // Capeg (Biru)
@@ -104,10 +115,6 @@ document.addEventListener("DOMContentLoaded", () => {
                         '#E57373', // Outsource (Merah)
                         '#BA68C8'  // Lainnya (Ungu)
                     ],
-                    borderRadius: 6,
-                    // --- BIKIN BAR LEBIH GEMUK DI SINI ---
-                    barPercentage: 0.7, 
-                    categoryPercentage: 0.8,
                     borderWidth: 0
                 }]
             },
@@ -115,37 +122,58 @@ document.addEventListener("DOMContentLoaded", () => {
                 responsive: true,
                 maintainAspectRatio: false,
                 
-                // --- INI SOLUSINYA BROTHER! (Smart Hover) ---
-                interaction: {
-                    mode: 'index',     // Tooltip muncul per kolom (bukan per pixel)
-                    intersect: false,  // Mouse TIDAK HARUS kena batang warna, cukup di area lurusnya
+                // --- KONFIGURASI CHART.JS V2 (Anti Undefined) ---
+                legend: { 
+                    display: false // Hide legend di sini (root options)
                 },
-                // -------------------------------------------
-
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        backgroundColor: '#fff',
-                        titleColor: '#555',
-                        bodyColor: '#666',
-                        borderColor: '#f0f0f0', borderWidth: 1, padding: 10,
-                        callbacks: {
-                            label: function(ctx) {
-                                return ' Total: ' + ctx.raw + ' Pegawai';
-                            }
+                tooltips: {
+                    mode: 'index',      // Tooltip pintar
+                    intersect: false,   // Gak perlu pas kena batang
+                    backgroundColor: '#fff',
+                    titleFontColor: '#555',
+                    titleFontFamily: systemFont,
+                    bodyFontColor: '#666',
+                    bodyFontFamily: systemFont,
+                    borderColor: '#f0f0f0',
+                    borderWidth: 1,
+                    xPadding: 10,
+                    yPadding: 10,
+                    cornerRadius: 6,
+                    displayColors: true,
+                    callbacks: {
+                        label: function(tooltipItem, data) {
+                             // Logic ambil data v2
+                             var value = data.datasets[tooltipItem.datasetIndex].data[tooltipItem.index];
+                             return ' Total: ' + value + ' Pegawai';
                         }
                     }
                 },
                 scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: { borderDash: [5, 5], drawBorder: false },
-                        ticks: { precision: 0, font: {size: 10} }
-                    },
-                    x: {
-                        grid: { display: false },
-                        ticks: { font: {size: 10} }
-                    }
+                    yAxes: [{ // Pakai yAxes (Array) bukan y
+                        ticks: {
+                            beginAtZero: true,
+                            precision: 0,
+                            fontFamily: systemFont,
+                            fontSize: 10
+                        },
+                        gridLines: {
+                            borderDash: [5, 5],
+                            drawBorder: false,
+                            color: '#f2f2f2'
+                        }
+                    }],
+                    xAxes: [{ // Pakai xAxes (Array) bukan x
+                        gridLines: {
+                            display: false
+                        },
+                        ticks: {
+                            fontFamily: systemFont,
+                            fontSize: 10
+                        },
+                        // Bikin batang lebih gemuk (v2 style)
+                        barPercentage: 0.7,
+                        categoryPercentage: 0.8
+                    }]
                 }
             }
         });

@@ -1,7 +1,7 @@
 <?php
 include "dist/koneksi.php";
 
-// QUERY: Join berdasarkan 'nama_jabatan' (Master) ke 'jabatan' (Transaksi)
+// QUERY: Tetap sama
 $query = mysqli_query($conn, "
   SELECT 
     m.kode_jabatan,
@@ -20,7 +20,7 @@ $query = mysqli_query($conn, "
 ?>
 
 <style>
-/* ================= STYLE MODERN (SAMA SEPERTI SEBELUMNYA) ================= */
+/* ================= STYLE MODERN ================= */
 .font-primary { font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
 
 /* CARD STYLE */
@@ -33,18 +33,19 @@ $query = mysqli_query($conn, "
   overflow: hidden;
 }
 
-/* HEADER STYLE */
+/* HEADER STYLE - UPDATE: PADDING KANAN DIKECILIN BIAR SEARCH MEPET */
 .card-modern .card-header {
   background: #ffffff;
   border-bottom: 1px solid #f2f4f8;
-  padding: 30px 40px;
-  display: flex;
+  /* Atas Bawah 25px, Kiri Kanan 20px (biar mepet pinggir) */
+  padding: 25px 20px; 
+  display: flex; 
+  justify-content: space-between; 
   align-items: center;
   flex-wrap: wrap; 
-  gap: 20px;
+  gap: 15px;
 }
 
-.title-group { margin-right: auto; }
 .title-group h3 {
   font-size: 1.4rem;
   font-weight: 800;
@@ -59,18 +60,22 @@ $query = mysqli_query($conn, "
   font-weight: 500;
 }
 
-/* SEARCH BAR */
-.header-search { position: relative; width: 320px; margin-left: auto; }
+/* SEARCH BAR - UPDATE */
+.header-search { 
+    position: relative; 
+    width: 280px; /* Lebar sedikit dipadatkan */
+    margin-left: auto; /* Paksa dorong ke kanan mentok */
+}
 .header-search input {
   width: 100%;
   border-radius: 50px;
   border: 2px solid #f1f5f9;
   background: #f8fafc;
-  padding: 12px 20px 12px 55px;
+  padding: 10px 20px 10px 45px;
   font-size: 0.95rem;
   color: #334155;
   transition: all 0.3s ease;
-  height: 50px;
+  height: 45px;
 }
 .header-search input:focus {
   background: #ffffff;
@@ -80,11 +85,11 @@ $query = mysqli_query($conn, "
 }
 .header-search i {
   position: absolute;
-  left: 22px;
+  left: 18px; 
   top: 50%;
   transform: translateY(-50%);
   color: #cbd5e1;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
 }
 
 /* TABLE STYLE */
@@ -95,11 +100,11 @@ $query = mysqli_query($conn, "
   text-transform: uppercase;
   color: #64748b;
   border-bottom: 2px solid #f1f5f9;
-  padding: 20px 40px;
+  padding: 20px 20px;
   letter-spacing: 0.8px;
 }
 .table-modern tbody td {
-  padding: 25px 40px;
+  padding: 20px 20px;
   vertical-align: middle;
   border-bottom: 1px solid #f8fafc;
   font-size: 1rem;
@@ -109,13 +114,20 @@ $query = mysqli_query($conn, "
 .table-modern tbody tr:last-child td { border-bottom: none; }
 
 /* BADGES SOFT */
-.badge-soft { padding: 8px 16px; border-radius: 30px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px; }
+.badge-soft { 
+    padding: 8px 16px; 
+    border-radius: 30px; 
+    font-size: 0.85rem;
+    font-weight: 700; 
+    letter-spacing: 0.5px; 
+    display: inline-block;
+}
 .badge-soft-danger { background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; } 
 .badge-soft-success { background: #f0fdf4; color: #22c55e; border: 1px solid #bbf7d0; }
 
 /* PAGINATION */
 .dataTables_wrapper .row:last-child {
-  padding: 25px 40px 35px 40px !important;
+  padding: 25px 20px 35px 20px !important; /* Padding disamakan dgn header */
   margin: 0;
   display: flex;
   justify-content: flex-end;
@@ -155,46 +167,34 @@ $query = mysqli_query($conn, "
       <table id="tabelEksekutif" class="table table-modern w-100">
         <thead>
           <tr>
-            <th width="10%">Kode</th>
-            <th>Deskripsi Jabatan</th>
-            <th class="text-center">Terisi</th>
-            <th class="text-center">Kuota</th>
-            <th class="text-right">Status</th>
+            <th style="width: 75%;">Deskripsi Jabatan</th> 
+            <th class="text-center" style="width: 15%; white-space: nowrap;">Terisi</th>
+            <th class="text-center" style="width: 10%; white-space: nowrap;">Kuota</th>
           </tr>
         </thead>
         <tbody>
           <?php while ($row = mysqli_fetch_assoc($query)) {
             $db_kuota = (int)$row['kuota'];
             $terisi   = (int)$row['jml'];
-            
-            // LOGIC FIX:
-            // 1. Jika kuota di DB 0, kita anggap minimal 1 agar tidak Overload
             $kuota_tampil = ($db_kuota == 0) ? 1 : $db_kuota;
 
-            // 2. Logic Status: Hanya ada 'Vacant' atau 'Terpenuhi'
-            // Walaupun terisi > kuota, tetap anggap Terpenuhi (Hijau)
-            if ($terisi < $kuota_tampil) {
-                // Masih kurang
-                $badge = "<span class='badge badge-soft-danger'><i class='fas fa-exclamation-circle mr-1'></i> Vacant</span>";
+            // Logic Vacant
+            if ($terisi == 0) {
+                $display_terisi = "<span class='badge badge-soft-danger'>Vacant</span>";
             } else {
-                // Sudah pas atau lebih (tidak ada Overload)
-                $badge = "<span class='badge badge-soft-success'><i class='fas fa-check-circle mr-1'></i> Terpenuhi</span>";
+                $display_terisi = "<span style='font-weight:800; color:#334155; font-size:1.1rem;'>$terisi</span>";
             }
           ?>
             <tr>
               <td>
-                <span style="font-weight:700; color:#cbd5e1;">#<?= $row['kode_jabatan'] ?></span>
-              </td>
-              <td>
                 <span style="font-weight:600; color:#334155; font-size:1rem;"><?= $row['nama_jabatan'] ?></span>
               </td>
               <td class="text-center">
-                <span style="font-weight:700; color:#334155;"><?= $terisi ?></span>
+                 <?= $display_terisi ?>
               </td>
               <td class="text-center">
                 <span style="font-weight:700; color:#94a3b8;"><?= $kuota_tampil ?></span>
               </td>
-              <td class="text-right"><?= $badge ?></td>
             </tr>
           <?php } ?>
         </tbody>
@@ -217,9 +217,9 @@ $query = mysqli_query($conn, "
     var table = $('#tabelEksekutif').DataTable({
       dom: 'tp', 
       paging: true,
-      pageLength: 10,
+      pageLength: 5,
       responsive: true,
-      autoWidth: false,
+      autoWidth: false, 
       ordering: true,
       lengthChange: false,
       info: false,

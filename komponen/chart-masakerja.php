@@ -2,25 +2,45 @@
 // --- LOGIKA PHP (SERVER SIDE) ---
 include "dist/koneksi.php";
 
+// 1. Ambil Session & Validasi Keamanan
 $hak_akses = isset($_SESSION['hak_akses']) ? strtolower($_SESSION['hak_akses']) : '';
 $kode_cabang_session = isset($_SESSION['kode_kantor']) ? $_SESSION['kode_kantor'] : '';
 
-// Menggunakan nama variabel $where_unit agar konsisten dengan file atas
+// 2. Filter Unit Kerja (Jika Kepala Cabang)
 $where_unit = '';
 if ($hak_akses === 'kepala') {
+    // Escape string untuk mencegah SQL Injection dari session (jaga-jaga)
     $unit = mysqli_real_escape_string($conn, $kode_cabang_session);
     $where_unit = "AND j.unit_kerja = '$unit'";
 }
 
+/**
+ * Fungsi Hitung Masa Kerja (REVISI: Menggunakan TIMESTAMPDIFF agar akurat)
+ * @param object $conn Koneksi database
+ * @param int $min_tahun Batas bawah tahun (misal: 11)
+ * @param int $max_tahun Batas atas tahun (misal: 20). Jika 0, berarti "ke atas" (unlimited).
+ * @param string $where_unit Query tambahan filter unit
+ */
 function get_masa_kerja_query($conn, $min_tahun, $max_tahun, $where_unit) {
+    // Sanitasi input angka
+    $min = (int)$min_tahun;
+    $max = (int)$max_tahun;
+
+    // Logika Tanggal MySQL yang Akurat
+    // TIMESTAMPDIFF menghitung selisih penuh (tanggal ke tanggal), bukan hanya selisih tahun kalender
+    $formula_masa_kerja = "TIMESTAMPDIFF(YEAR, p.tmt_kerja, CURDATE())";
+
     $where_kerja = "";
-    if ($min_tahun > 0) $where_kerja = "AND (YEAR(CURDATE()) - YEAR(p.tmt_kerja)) >= $min_tahun ";
-    if ($max_tahun > 0) {
-        if ($min_tahun > 0 && $max_tahun > $min_tahun) $where_kerja .= "AND (YEAR(CURDATE()) - YEAR(p.tmt_kerja)) <= $max_tahun ";
-        elseif ($max_tahun > 0 && $min_tahun == 0) $where_kerja .= "AND (YEAR(CURDATE()) - YEAR(p.tmt_kerja)) <= $max_tahun ";
+    if ($max > 0) {
+        // Range (contoh: 11 s/d 20 tahun)
+        $where_kerja = "AND $formula_masa_kerja BETWEEN $min AND $max";
+    } else {
+        // Unlimited (contoh: > 30 tahun)
+        $where_kerja = "AND $formula_masa_kerja >= $min";
     }
-    
-    // QUERY STRICT (Pegawai Aktif + Jabatan Aktif)
+
+    // Query Utama
+    // DISTINCT id_peg untuk memastikan jika ada data double di jabatan, pegawai tetap terhitung 1
     $query_sql = "SELECT COUNT(DISTINCT p.id_peg) AS total_pegawai_unik 
                   FROM tb_pegawai p 
                   JOIN tb_jabatan j ON p.id_peg = j.id_peg 
@@ -30,22 +50,32 @@ function get_masa_kerja_query($conn, $min_tahun, $max_tahun, $where_unit) {
                   $where_unit";
     
     $result = mysqli_query($conn, $query_sql);
-    if ($result && $row = mysqli_fetch_assoc($result)) return $row['total_pegawai_unik'];
-    return 0;
+    
+    // Error Handling sederhana
+    if (!$result) {
+        return 0; // Atau die(mysqli_error($conn)) saat debugging
+    }
+    
+    $row = mysqli_fetch_assoc($result);
+    return $row['total_pegawai_unik'];
 }
 
-// Hitung Data (Menggunakan variabel $where_unit)
+// 3. Eksekusi Perhitungan
+// Range 0 - 10 Tahun
 $jml1 = get_masa_kerja_query($conn, 0, 10, $where_unit);
+// Range 11 - 20 Tahun
 $jml2 = get_masa_kerja_query($conn, 11, 20, $where_unit);
+// Range 21 - 30 Tahun
 $jml3 = get_masa_kerja_query($conn, 21, 30, $where_unit);
+// Range > 30 Tahun (Max set ke 0 sebagai tanda unlimited)
 $jml4 = get_masa_kerja_query($conn, 31, 0, $where_unit);
 
-// Setup Array Data untuk Tampilan
+// 4. Setup Array Data untuk Tampilan
 $stats = [
-    ["label" => "< 10 Tahun", "jml" => $jml1, "color" => "info", "icon" => "fa-user-clock", "bar" => "25%"],
-    ["label" => "11 - 20 Tahun", "jml" => $jml2, "color" => "success", "icon" => "fa-user-check", "bar" => "50%"],
-    ["label" => "21 - 30 Tahun", "jml" => $jml3, "color" => "warning", "icon" => "fa-user-tie", "bar" => "75%"],
-    ["label" => "> 30 Tahun", "jml" => $jml4, "color" => "danger", "icon" => "fa-user-shield", "bar" => "100%"],
+    ["label" => "< 10 Tahun",    "jml" => $jml1, "color" => "info",    "icon" => "fa-user-clock",  "bar" => "25%"],
+    ["label" => "11 - 20 Tahun", "jml" => $jml2, "color" => "success", "icon" => "fa-user-check",  "bar" => "50%"],
+    ["label" => "21 - 30 Tahun", "jml" => $jml3, "color" => "warning", "icon" => "fa-user-tie",    "bar" => "75%"],
+    ["label" => "> 30 Tahun",    "jml" => $jml4, "color" => "danger",  "icon" => "fa-user-shield", "bar" => "100%"],
 ];
 ?>
 
@@ -88,11 +118,10 @@ $stats = [
 </div>
 
 <style>
-    /* Styling Card Utama */
     .rounded-lg { border-radius: 15px; }
     .bg-light-gray { background-color: #f8f9fa; }
 
-    /* Styling Stat Card (Kotak Kecil) */
+    /* Card Effect */
     .stat-card {
         border-radius: 16px;
         background: #fff;
@@ -107,7 +136,7 @@ $stats = [
         box-shadow: 0 12px 24px rgba(0,0,0,0.08);
     }
 
-    /* Icon Shape (Kotak di Kanan Atas) */
+    /* Icon Styling */
     .icon-shape {
         width: 48px;
         height: 48px;
@@ -119,6 +148,7 @@ $stats = [
         transition: all 0.3s ease;
     }
     
+    /* Background Colors Soft */
     .bg-soft-info { background-color: rgba(23, 162, 184, 0.1); color: #17a2b8; }
     .bg-soft-success { background-color: rgba(40, 167, 69, 0.1); color: #28a745; }
     .bg-soft-warning { background-color: rgba(255, 193, 7, 0.1); color: #ffc107; }
@@ -130,6 +160,7 @@ $stats = [
 
     .ls-1 { letter-spacing: 0.5px; font-size: 0.7rem; }
 
+    /* Animation */
     @keyframes slideUp {
         from { opacity: 0; transform: translateY(20px); }
         to { opacity: 1; transform: translateY(0); }
@@ -145,8 +176,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const statCounters = document.querySelectorAll('.counter-stat');
     statCounters.forEach(counter => {
         const target = +counter.getAttribute('data-target');
-        const duration = 1000; 
-        const increment = target / (duration / 16);
+        
+        // Jika target 0, langsung tampilkan 0
+        if(target === 0) {
+            counter.innerText = "0";
+            return;
+        }
+
+        const duration = 1000; // durasi animasi dalam ms
+        const increment = target / (duration / 16); // 60fps
         let current = 0;
         
         const updateStat = () => {

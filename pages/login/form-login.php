@@ -221,10 +221,10 @@ list($als, $app) = explode(" ", $alias);
 
             <form action="index.php?page=act-login&op=in" method="post">
                 <div class="input-group-modern">
-                    <label class="input-label">User ID / NIP</label>
+                    <label class="input-label">Username</label>
                     <div class="input-wrapper">
                         <i class="fas fa-user input-icon"></i>
-                        <input type="text" name="id_user" class="form-control-modern" placeholder="Masukkan NIP Anda" required autocomplete="off">
+                        <input type="text" name="id_user" class="form-control-modern" placeholder="Masukkan Username Anda" required autocomplete="off">
                     </div>
                 </div>
 

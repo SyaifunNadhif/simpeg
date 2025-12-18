@@ -4,47 +4,59 @@ include "dist/koneksi.php";
 $jabatan = [];
 $jmlJabatan = [];
 
-// Query Data
+// --- 1. AMAN DARI SQL INJECTION ---
+// Query ini aman karena tidak menerima input user ($_POST/$_GET).
+// Tapi kita pastikan error database tidak bocor ke user (Silent Error).
 $sql = "SELECT jabatan, COUNT(*) as total FROM tb_jabatan GROUP BY jabatan ORDER BY jabatan ASC";
 $hasil = mysqli_query($conn, $sql);
 
-while ($data = mysqli_fetch_array($hasil)) {
-  // Potong nama jabatan jika terlalu panjang biar grafik ga berantakan
-  $nama_jabatan = $data['jabatan'];
-  if (strlen($nama_jabatan) > 20) {
-      $nama_jabatan = substr($nama_jabatan, 0, 20) . '...';
-  }
-  
-  $jabatan[] = $nama_jabatan;
-  $jmlJabatan[] = (int)$data['total'];
+if (!$hasil) {
+    // Jika query error, jangan die(mysqli_error), cukup log atau kosongkan data
+    // error_log(mysqli_error($conn)); 
+} else {
+    while ($data = mysqli_fetch_array($hasil)) {
+        // --- 2. AMAN DARI XSS (Sanitasi Output) ---
+        // Bersihkan nama jabatan dari karakter HTML berbahaya
+        $nama_raw = htmlspecialchars($data['jabatan'], ENT_QUOTES, 'UTF-8');
+        
+        // --- 3. LOGIC POTONG TEKS (Support UTF-8) ---
+        // Gunakan mb_substr agar aman untuk karakter khusus
+        if (mb_strlen($nama_raw) > 20) {
+            $nama_raw = mb_substr($nama_raw, 0, 20) . '...';
+        }
+        
+        $jabatan[] = $nama_raw;
+        $jmlJabatan[] = (int)$data['total'];
+    }
 }
 ?>
 
 <style>
 .card-modern {
   border: none;
-  border-radius: 20px;
+  border-radius: 16px; /* Sedikit dikurangi biar pas sama AdminLTE */
   background: #ffffff;
-  box-shadow: 0 12px 40px rgba(0,0,0,0.04);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.05); /* Shadow lebih soft */
   margin-bottom: 2rem;
   overflow: hidden;
 }
 
 .card-modern .card-header {
   background: #ffffff;
-  border-bottom: 1px solid #f2f4f8;
-  padding: 25px 35px;
+  border-bottom: 1px solid #f0f2f5;
+  padding: 20px 25px;
 }
 
 .title-group h3 {
-  font-size: 1.3rem;
-  font-weight: 800;
-  color: #1e293b;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #343a40;
   margin-bottom: 5px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 .title-group p {
-  font-size: 0.9rem;
-  color: #94a3b8;
+  font-size: 0.875rem;
+  color: #6c757d;
   margin-bottom: 0;
 }
 </style>
@@ -58,7 +70,7 @@ while ($data = mysqli_fetch_array($hasil)) {
   </div>
   
   <div class="card-body">
-    <div style="position: relative; height: 400px; width: 100%;">
+    <div style="position: relative; height: 350px; width: 100%;">
       <canvas id="barChartJabatan"></canvas>
     </div>
   </div>
@@ -67,78 +79,92 @@ while ($data = mysqli_fetch_array($hasil)) {
 <script src="plugins/chart.js/Chart.min.js"></script> 
 
 <script>
+// Pastikan DOM sudah load sebelum script jalan
 document.addEventListener('DOMContentLoaded', function () {
-  var ctx = document.getElementById('barChartJabatan').getContext('2d');
+  
+  var chartCanvas = document.getElementById('barChartJabatan');
+  
+  // Cek apakah canvas ada (mencegah error console jika elemen tidak ketemu)
+  if (chartCanvas) {
+      var ctx = chartCanvas.getContext('2d');
 
-  // 1. Buat Gradient Warna (Supaya Modern)
-  var gradient = ctx.createLinearGradient(0, 0, 0, 400);
-  gradient.addColorStop(0, 'rgba(14, 165, 233, 0.9)'); // Sky Blue Tebal
-  gradient.addColorStop(1, 'rgba(56, 189, 248, 0.4)'); // Sky Blue Transparan
+      // Gradient Warna Modern
+      var gradient = ctx.createLinearGradient(0, 0, 0, 400);
+      gradient.addColorStop(0, 'rgba(60, 141, 188, 0.9)'); // Warna AdminLTE Utama
+      gradient.addColorStop(1, 'rgba(60, 141, 188, 0.2)'); // Transparan bawah
 
-  new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: <?= json_encode($jabatan) ?>,
-      datasets: [{
-        label: 'Jumlah Pegawai',
-        data: <?= json_encode($jmlJabatan) ?>,
-        backgroundColor: gradient, // Pakai Gradient
-        borderColor: '#0ea5e9',    // Garis tepi biru
-        borderWidth: 1,
-        borderRadius: 5,           // Ujung batang melengkung (Modern)
-        barPercentage: 0.6,        // Lebar batang tidak terlalu gemuk
-        hoverBackgroundColor: '#0284c7' // Warna saat di-hover mouse
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: false // Hide legend karena judul sudah jelas
+      // Font Stack Offline (System Fonts)
+      // Ini akan pakai font bawaan Windows/Mac, jadi gak perlu download font Inter lagi
+      var systemFont = "'-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif";
+
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: <?= json_encode($jabatan) ?>,
+          datasets: [{
+            label: 'Jumlah Pegawai',
+            data: <?= json_encode($jmlJabatan) ?>,
+            backgroundColor: gradient,
+            borderColor: '#3c8dbc',     
+            borderWidth: 1,
+            borderRadius: 4,          
+            barPercentage: 0.6, 
+            hoverBackgroundColor: '#307095' 
+          }]
         },
-        tooltip: {
-          backgroundColor: '#1e293b',
-          titleFont: { size: 13 },
-          bodyFont: { size: 13 },
-          padding: 10,
-          cornerRadius: 8,
-          displayColors: false // Hilangkan kotak warna di tooltip
-        }
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          grid: {
-            color: '#f1f5f9',      // Warna grid sangat halus
-            borderDash: [5, 5],    // Grid putus-putus (Modern look)
-            drawBorder: false      // Hilangkan garis batas kiri
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: 'index',
+            intersect: false,
           },
-          ticks: {
-            color: '#64748b',
-            font: { size: 11, family: "'Inter', sans-serif" }
-          }
-        },
-        x: {
-          grid: {
-            display: false,        // Hilangkan grid vertikal biar bersih
-            drawBorder: false
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              titleFont: { size: 13, family: systemFont },
+              bodyFont: { size: 13, family: systemFont },
+              padding: 12,
+              cornerRadius: 6,
+              displayColors: false
+            }
           },
-          ticks: {
-            color: '#64748b',
-            font: { size: 10, family: "'Inter', sans-serif" },
-            maxRotation: 45,       // Miringkan text biar muat
-            minRotation: 45,
-            autoSkip: true,        // Skip label kalau terlalu padat
-            maxTicksLimit: 20      // Batasi jumlah label yg tampil
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: {
+                color: '#f4f6f9',     
+                borderDash: [3, 3],   
+                drawBorder: false
+              },
+              ticks: {
+                color: '#6c757d',
+                font: { size: 11, family: systemFont },
+                precision: 0 // Biar sumbu Y angkanya bulat (gak ada 1.5 orang)
+              }
+            },
+            x: {
+              grid: {
+                display: false,
+                drawBorder: false
+              },
+              ticks: {
+                color: '#6c757d',
+                font: { size: 11, family: systemFont },
+                maxRotation: 45,
+                minRotation: 0,
+                autoSkip: true,
+                maxTicksLimit: 15
+              }
+            }
+          },
+          animation: {
+            duration: 1500,
+            easing: 'easeOutQuart'
           }
         }
-      },
-      animation: {
-        duration: 2000,
-        easing: 'easeOutQuart' // Animasi smooth saat load
-      }
-    }
-  });
+      });
+  }
 });
 </script>

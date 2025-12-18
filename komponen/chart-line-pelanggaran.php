@@ -1,12 +1,12 @@
 <?php
-// Bagian atas cukup ambil TAHUN UNIK saja untuk dropdown
-// Data chart diambil via AJAX nanti
+// Pastikan koneksi database sudah di-include sebelumnya
+// include "dist/koneksi.php"; 
+
 $tahunList = [];
 $tahunQuery = mysqli_query($conn, "SELECT DISTINCT YEAR(tgl_sk) AS tahun FROM tb_hukuman ORDER BY tahun DESC");
 while ($row = mysqli_fetch_assoc($tahunQuery)) {
   $tahunList[] = $row['tahun'];
 }
-// Default tahun sekarang
 $tahun_sekarang = date('Y');
 ?>
 
@@ -19,7 +19,7 @@ $tahun_sekarang = date('Y');
     <div class="card-tools">
       <select id="filter_tahun_pelanggaran" class="form-control form-control-sm border-0 bg-light text-muted fw-bold" style="width: 100px;">
         <?php foreach ($tahunList as $t): ?>
-          <option value="<?= $t ?>" <?= $t == $tahun_sekarang ? 'selected' : '' ?>><?= $t ?></option>
+          <option value="<?= htmlspecialchars($t) ?>" <?= $t == $tahun_sekarang ? 'selected' : '' ?>><?= htmlspecialchars($t) ?></option>
         <?php endforeach; ?>
       </select>
     </div>
@@ -36,80 +36,110 @@ $tahun_sekarang = date('Y');
 </div>
 
 <style>
-  .text-pastel-red { color: #E57373 !important; } /* Merah Soft */
+  .text-pastel-red { color: #E57373 !important; }
 </style>
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  const ctxLine = document.getElementById('lineChartPelanggaran').getContext('2d');
+  const ctxElement = document.getElementById('lineChartPelanggaran');
   
-  // 1. Inisialisasi Chart Kosong Dulu
-  let pelanggaranChart = new Chart(ctxLine, {
-    type: 'line',
-    data: {
-      labels: [], // Nanti diisi AJAX
-      datasets: [{
-        label: 'Jumlah Pelanggaran',
-        data: [], // Nanti diisi AJAX
-        borderColor: '#E57373', // Warna Garis (Pastel Red)
-        backgroundColor: 'rgba(229, 115, 115, 0.1)', // Warna Arsiran bawah garis
-        borderWidth: 2,
-        pointBackgroundColor: '#fff',
-        pointBorderColor: '#E57373',
-        pointRadius: 4,
-        pointHoverRadius: 6,
-        fill: true,
-        tension: 0.4 // Garis melengkung (smooth)
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-            backgroundColor: '#fff', titleColor: '#555', bodyColor: '#666',
-            borderColor: '#f0f0f0', borderWidth: 1, padding: 10,
-            callbacks: {
-                label: function(ctx) { return ' Total: ' + ctx.raw + ' Kasus'; }
-            }
-        }
-      },
-      scales: {
-        y: { 
-           beginAtZero: true, 
-           grid: { borderDash: [5,5], drawBorder: false },
-           ticks: { stepSize: 1, font:{size:10} } // Step 1 biar gak ada koma (kasus orang masak 0.5)
+  if (ctxElement && typeof Chart !== 'undefined') {
+      const ctxLine = ctxElement.getContext('2d');
+      const systemFont = "'-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif";
+      
+      // 1. Inisialisasi Chart Kosong (Syntax v2 AdminLTE Compatible)
+      let pelanggaranChart = new Chart(ctxLine, {
+        type: 'line',
+        data: {
+          labels: [], // Diisi AJAX
+          datasets: [{
+            label: 'Jumlah Pelanggaran',
+            data: [], // Diisi AJAX
+            borderColor: '#E57373',
+            backgroundColor: 'rgba(229, 115, 115, 0.1)',
+            borderWidth: 2,
+            pointBackgroundColor: '#fff',
+            pointBorderColor: '#E57373',
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            fill: true,
+            lineTension: 0.4 // v2 pakai 'lineTension', v3 pakai 'tension'
+          }]
         },
-        x: { 
-           grid: { display: false },
-           ticks: { font:{size:10} }
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          
+          // --- FIX CHART V2 SYNTAX ---
+          legend: { display: false },
+          tooltips: {
+            backgroundColor: '#fff',
+            titleFontColor: '#555',
+            titleFontFamily: systemFont,
+            bodyFontColor: '#666',
+            bodyFontFamily: systemFont,
+            borderColor: '#f0f0f0',
+            borderWidth: 1,
+            xPadding: 10,
+            yPadding: 10,
+            displayColors: false,
+            callbacks: {
+                label: function(tooltipItem, data) {
+                    return ' Total: ' + tooltipItem.yLabel + ' Kasus';
+                }
+            }
+          },
+          scales: {
+            yAxes: [{ // v2 pakai array yAxes
+               ticks: {
+                   beginAtZero: true,
+                   stepSize: 1, // Biar angka bulat
+                   fontFamily: systemFont,
+                   fontSize: 10
+               },
+               gridLines: {
+                   borderDash: [5, 5],
+                   drawBorder: false,
+                   color: '#f2f2f2'
+               }
+            }],
+            xAxes: [{ // v2 pakai array xAxes
+               gridLines: {
+                   display: false
+               },
+               ticks: {
+                   fontFamily: systemFont,
+                   fontSize: 10
+               }
+            }]
+          }
         }
+      });
+
+      // 2. Fungsi Load Data via AJAX
+      function loadDataPelanggaran(tahun) {
+        // PENTING: File ini harus dibuat (lihat kode di bawah)
+        fetch(`komponen/get_data_pelanggaran.php?tahun=${tahun}`)
+          .then(response => response.json())
+          .then(result => {
+            // Update Data Chart
+            pelanggaranChart.data.labels = result.labels;
+            pelanggaranChart.data.datasets[0].data = result.data;
+            pelanggaranChart.update(); 
+          })
+          .catch(error => console.error('Error fetching data:', error));
       }
-    }
-  });
 
-  // 2. Fungsi Load Data via AJAX
-  function loadDataPelanggaran(tahun) {
-    // Ganti path sesuai letak file ajax kamu
-    fetch(`komponen/get_data_pelanggaran.php?tahun=${tahun}`)
-      .then(response => response.json())
-      .then(result => {
-        // Update Data Chart
-        pelanggaranChart.data.labels = result.labels;
-        pelanggaranChart.data.datasets[0].data = result.data;
-        pelanggaranChart.update(); // Render ulang chart dengan animasi
-      })
-      .catch(error => console.error('Error fetching data:', error));
+      // 3. Load Data Pertama Kali
+      const selectTahun = document.getElementById('filter_tahun_pelanggaran');
+      if(selectTahun){
+          loadDataPelanggaran(selectTahun.value);
+
+          // 4. Event Listener
+          selectTahun.addEventListener('change', function() {
+            loadDataPelanggaran(this.value);
+          });
+      }
   }
-
-  // 3. Load Data Pertama Kali (Tahun Sekarang)
-  const selectTahun = document.getElementById('filter_tahun_pelanggaran');
-  loadDataPelanggaran(selectTahun.value);
-
-  // 4. Event Listener saat Ganti Tahun
-  selectTahun.addEventListener('change', function() {
-    loadDataPelanggaran(this.value);
-  });
 });
 </script>

@@ -1,7 +1,7 @@
 <?php
 include_once "dist/koneksi.php";
 
-// Filter Unit Kerja
+// --- 1. FILTER & SECURITY ---
 $hak_akses = isset($_SESSION['hak_akses']) ? strtolower($_SESSION['hak_akses']) : '';
 $kode_cabang_session = isset($_SESSION['kode_kantor']) ? $_SESSION['kode_kantor'] : '';
 $where_unit = '';
@@ -11,7 +11,10 @@ if ($hak_akses === 'kepala') {
     $where_unit = "AND j.unit_kerja = '$unit'";
 }
 
-// Logic Pendidikan Tertinggi
+// --- 2. LOGIC DATA (PHP Array) ---
+$labels = [];
+$values = [];
+
 $sql_pend = "
 SELECT 
     CASE WHEN highest_edu IS NULL OR highest_edu = '' THEN 'Belum Input' ELSE highest_edu END as jenjang_fix,
@@ -27,11 +30,12 @@ GROUP BY jenjang_fix
 ORDER BY FIELD(jenjang_fix, 'S3', 'S2', 'S1', 'D4', 'D3', 'D2', 'D1', 'SMA', 'SMK', 'SMP', 'SD', 'Belum Input')";
 
 $hasil_pend = mysqli_query($conn, $sql_pend);
-$label_pend = ""; $data_pend = "";
 
-while ($d = mysqli_fetch_array($hasil_pend)) {
-    $label_pend .= "'$d[jenjang_fix]', ";
-    $data_pend .= "$d[total], ";
+if ($hasil_pend) {
+    while ($d = mysqli_fetch_assoc($hasil_pend)) {
+        $labels[] = $d['jenjang_fix'];
+        $values[] = (int)$d['total'];
+    }
 }
 ?>
 
@@ -54,35 +58,80 @@ while ($d = mysqli_fetch_array($hasil_pend)) {
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-    // Render Chart Pendidikan
-    const ctx = document.getElementById('barChartPendidikan');
-    if(ctx){
+    const ctxElement = document.getElementById('barChartPendidikan');
+    
+    if (ctxElement && typeof Chart !== 'undefined') {
+        const ctx = ctxElement.getContext('2d');
+        
+        // Font Sistem Offline
+        const systemFont = "'-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif";
+
         new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: [<?= $label_pend ?>],
+                labels: <?= json_encode($labels) ?>,
                 datasets: [{
-                    data: [<?= $data_pend ?>],
+                    label: 'Jumlah Pegawai', // Tambah label biar aman
+                    data: <?= json_encode($values) ?>,
                     backgroundColor: [
                         '#BA68C8', '#CE93D8', '#90CAF9', '#4DD0E1', '#4DB6AC', 
                         '#FFF176', '#FFB74D', '#A1887F', '#E0E0E0'
                     ],
-                    borderRadius: 6, barPercentage: 0.5, borderWidth: 0
+                    borderWidth: 0
                 }]
             },
             options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        backgroundColor: '#fff', titleColor: '#555', bodyColor: '#666',
-                        borderColor: '#f0f0f0', borderWidth: 1, padding: 10,
-                        callbacks: { label: function(ctx) { return ' Total: ' + ctx.raw + ' Pegawai'; } }
+                responsive: true,
+                maintainAspectRatio: false,
+                // --- FIX CHART.JS V2 COMPATIBILITY ---
+                legend: {
+                    display: false // Ini cara hide legend di Chart.js v2
+                },
+                tooltips: { // Di v2 namanya 'tooltips' bukan 'plugins.tooltip'
+                    backgroundColor: '#fff',
+                    titleFontColor: '#555',
+                    titleFontFamily: systemFont,
+                    bodyFontColor: '#666',
+                    bodyFontFamily: systemFont,
+                    borderColor: '#f0f0f0',
+                    borderWidth: 1,
+                    xPadding: 10,
+                    yPadding: 10,
+                    cornerRadius: 8,
+                    displayColors: true,
+                    callbacks: {
+                        label: function(tooltipItem, data) {
+                            // Logic ambil data di v2 sedikit beda
+                            var value = data.datasets[tooltipItem.datasetIndex].data[tooltipItem.index];
+                            return ' Total: ' + value + ' Pegawai';
+                        }
                     }
                 },
                 scales: {
-                    y: { beginAtZero: true, grid: { borderDash: [5,5], drawBorder: false }, ticks: { precision:0, font:{size:10} } },
-                    x: { grid: { display: false }, ticks: { font:{size:10} } }
+                    yAxes: [{ // Di v2 namanya 'yAxes' (array)
+                        ticks: {
+                            beginAtZero: true,
+                            precision: 0,
+                            fontFamily: systemFont,
+                            fontSize: 11,
+                            fontColor: '#888'
+                        },
+                        gridLines: {
+                            borderDash: [5, 5],
+                            drawBorder: false,
+                            color: '#f2f2f2'
+                        }
+                    }],
+                    xAxes: [{ // Di v2 namanya 'xAxes' (array)
+                        gridLines: {
+                            display: false
+                        },
+                        ticks: {
+                            fontFamily: systemFont,
+                            fontSize: 11,
+                            fontColor: '#666'
+                        }
+                    }]
                 }
             }
         });
