@@ -1,7 +1,7 @@
 <?php
 /*********************************************************
  * FILE     : pages/ref-jabatan/form-master-data-jabatan.php
- * MODULE   : SIMPEG — Entry Jabatan (Update vs Mutasi)
+ * MODULE   : SIMPEG — Entry Jabatan (Create vs Update vs Mutasi)
  *********************************************************/
 
 if (session_id()==='') session_start();

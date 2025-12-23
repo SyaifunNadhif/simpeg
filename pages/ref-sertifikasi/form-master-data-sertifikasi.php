@@ -2,8 +2,7 @@
 /*********************************************************
  * FILE    : pages/ref-sertifikasi/form-master-data-sertifikasi.php
  * MODULE  : SIMPEG — Data Sertifikasi (Entry & Edit FIX)
- * VERSION : v3.1 (Auto-Populate Data & Smart Logic)
- * DATE    : 2025-12-12
+ * VERSION : v3.2 (Fix ID Column & Auto Populate)
  *********************************************************/
 
 if (session_id() == '') session_start();
@@ -26,7 +25,9 @@ $mode      = $id_sertif > 0 ? 'edit' : 'add';
 // --- [FIX] LOGIC AMBIL DATA LAMA UTK DI-EDIT ---
 $data = null;
 if ($mode === 'edit') {
-    $qData = mysqli_query($conn, "SELECT * FROM tb_sertifikasi WHERE id_sertifikasi = '$id_sertif' LIMIT 1");
+    // PERBAIKAN: Gunakan kolom 'id_sertif' sesuai database
+    $qData = mysqli_query($conn, "SELECT * FROM tb_sertifikasi WHERE id_sertif = '$id_sertif' LIMIT 1");
+    
     if ($qData && mysqli_num_rows($qData) > 0) {
         $data = mysqli_fetch_assoc($qData);
         $uid  = $data['id_peg']; // Override UID agar sesuai dengan pemilik data
@@ -72,20 +73,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $tgl_expired    = clean($conn, postv('tgl_expired'));
     
     // Ambil ID dari hidden input
-    $id_sertif_post = (int)postv('id_sertifikasi', 0);
+    $id_sertif_post = (int)postv('id_sertifikasi', 0); // Nama field POST tetap id_sertifikasi gpp
     $mode_post      = $id_sertif_post > 0 ? 'edit' : 'add';
 
     if ($id_peg !== '' && $sertifikasi !== '') {
         
         if ($mode_post === 'edit') {
             // --- [FIX] QUERY UPDATE ---
+            // Perbaikan: WHERE id_sertif (bukan id_sertifikasi)
             $sql = "UPDATE tb_sertifikasi SET 
                     sertifikasi    = '$sertifikasi',
                     penyelenggara  = '$penyelenggara',
-                    sertifikat  = '$no_sertifikat',
+                    sertifikat     = '$no_sertifikat',
                     tgl_sertifikat = ".($tgl_sertifikat ? "'$tgl_sertifikat'" : "NULL").",
                     tgl_expired    = ".($tgl_expired ? "'$tgl_expired'" : "NULL")."
-                    WHERE id_sertifikasi = $id_sertif_post LIMIT 1";
+                    WHERE id_sertif = $id_sertif_post LIMIT 1";
         } else {
             // --- QUERY INSERT ---
             // Cek Duplikat
@@ -94,8 +96,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $status = 'duplikat';
                 $msg = 'Sertifikasi ini sudah ada.';
             } else {
+                // Perbaikan: Kolom DB 'sertifikat', bukan 'no_sertifikat'
                 $sql = "INSERT INTO tb_sertifikasi 
-                        (id_peg, sertifikasi, penyelenggara, no_sertifikat, tgl_sertifikat, tgl_expired, date_reg, created_by)
+                        (id_peg, sertifikasi, penyelenggara, sertifikat, tgl_sertifikat, tgl_expired, date_reg, created_by)
                         VALUES 
                         ('$id_peg', '$sertifikasi', '$penyelenggara', '$no_sertifikat', ".($tgl_sertifikat ? "'$tgl_sertifikat'" : "NULL").", ".($tgl_expired ? "'$tgl_expired'" : "NULL").", NOW(), '$created_by')";
             }
@@ -104,13 +107,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($status !== 'duplikat') {
             $ok = mysqli_query($conn, $sql);
             $status = $ok ? 'sukses' : 'gagal';
-            if (!$ok) $msg = 'Gagal menyimpan data.';
+            if (!$ok) $msg = 'Gagal menyimpan data: ' . mysqli_error($conn);
             
             // Refresh data agar form tidak kosong setelah simpan
             if ($ok && $mode_post === 'edit') { 
                 $mode = 'edit'; 
                 $id_sertif = $id_sertif_post; 
-                $data = $_POST; // Update tampilan dengan data baru
+                // Simulasi data baru untuk tampilan form
+                $data = [
+                    'sertifikasi' => $sertifikasi,
+                    'penyelenggara' => $penyelenggara,
+                    'sertifikat' => $no_sertifikat,
+                    'tgl_sertifikat' => $tgl_sertifikat,
+                    'tgl_expired' => $tgl_expired
+                ];
             }
         }
 
@@ -220,7 +230,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <div class="col-md-4 input-group-valid">
             <label class="form-label">No. Sertifikat</label>
             <input name="no_sertifikat" class="form-control check-field" placeholder="Nomor Seri" 
-                   value="<?php echo e($data ? ($data['sertifikat'] ? $data['sertifikat'] : $data['sertifikat']) : ''); ?>">
+                   value="<?php echo e($data ? $data['sertifikat'] : ''); ?>">
             <span class="validation-icon"></span>
           </div>
           <div class="col-md-4 input-group-valid">

@@ -15,7 +15,7 @@ $spreadsheet = new Spreadsheet();
 $sheet = $spreadsheet->getActiveSheet();
 
 // Header Kolom
-$headers = ['A'=>'ID Pegawai', 'B'=>'Nama Sertifikasi', 'C'=>'Penyelenggara', 'D'=>'Tgl Sertifikat', 'E'=>'Tgl Expired', 'F'=>'No Sertifikat'];
+$headers = ['A'=>'ID Pegawai', 'B'=>'Nama Sertifikasi', 'C'=>'Penyelenggara', 'D'=>'Tgl Sertifikat (dd-mm-yyyy)', 'E'=>'Tgl Expired (dd-mm-yyyy)', 'F'=>'No Sertifikat'];
 
 foreach ($headers as $col => $text) {
     $sheet->setCellValue($col . '1', $text);

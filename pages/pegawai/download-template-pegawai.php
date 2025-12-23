@@ -13,7 +13,7 @@ $headers = [
     'NIP',                // B
     'Nama Lengkap',       // C
     'Tempat Lahir',       // D
-    'Tgl Lahir (YYYY-MM-DD)', // E
+    'Tgl Lahir (DD-MM-YY)', // E
     'Agama',              // F
     'Jenis Kelamin',      // G
     'Gol Darah',          // H
@@ -23,8 +23,8 @@ $headers = [
     'No Telp',            // L
     'Email',              // M
     'Nama File Foto',     // N
-    'TMT Kerja (YYYY-MM-DD)',   // O (BARU)
-    'Tgl Pensiun (YYYY-MM-DD)', // P (BARU)
+    'TMT Kerja (DD-MM-YY)',   // O (BARU)
+    'Tgl Pensiun (DD-MM-YY - Opsional)', // P (BARU)
     'No BPJS TK',         // Q (Geser)
     'No BPJS Kes'         // R (Geser)
 ];
@@ -49,7 +49,7 @@ $sheet->setCellValue('A2', '101-001');
 $sheet->setCellValue('B2', '199001012015011001');
 $sheet->setCellValue('C2', 'Budi Santoso');
 $sheet->setCellValue('D2', 'Jakarta');
-$sheet->setCellValue('E2', '1990-01-01');
+$sheet->setCellValue('E2', '20-11-1990');
 $sheet->setCellValue('F2', 'Islam');
 $sheet->setCellValue('G2', 'Laki-laki');
 $sheet->setCellValue('H2', 'O');
@@ -59,8 +59,8 @@ $sheet->setCellValue('K2', 'Jl. Merdeka No. 1');
 $sheet->setCellValue('L2', '081234567890');
 $sheet->setCellValue('M2', 'budi@mail.com');
 $sheet->setCellValue('N2', 'budi.jpg');
-$sheet->setCellValue('O2', '2015-01-01'); // TMT
-$sheet->setCellValue('P2', '2045-01-01'); // Pensiun
+$sheet->setCellValue('O2', '20-11-2015'); // TMT
+$sheet->setCellValue('P2', '20-11-2045'); // Pensiun
 $sheet->setCellValue('Q2', '12345678901');
 $sheet->setCellValue('R2', '00012345678');
 

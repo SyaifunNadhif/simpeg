@@ -22,9 +22,9 @@ $headers = [
     'C' => 'Penyelenggara',
     'D' => 'Tempat',
     'E' => 'Biaya (Rp)',      // <--- POSISI BARU (Sebelah Tempat)
-    'F' => 'Angkatan',
-    'G' => 'Tahun',
-    'H' => 'Tgl Registrasi (yyyy-mm-dd)'
+    'F' => 'Angkatan (opsional)',
+    'G' => 'Tahun (tahun)',
+    'H' => 'Tgl Awal Diklat (dd-mm-yyyy)'
 ];
 
 foreach ($headers as $col => $text) {
@@ -46,7 +46,7 @@ $sheet->setCellValue('D2', 'Bandung');
 $sheet->setCellValue('E2', '5000000'); // Contoh Biaya
 $sheet->setCellValue('F2', 'XIX');
 $sheet->setCellValue('G2', '2023');
-$sheet->setCellValue('H2', '2023-05-20');
+$sheet->setCellValue('H2', '20-11-2023');
 
 // Format Text
 $sheet->getStyle('G:H')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);

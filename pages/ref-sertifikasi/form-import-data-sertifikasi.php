@@ -1,17 +1,18 @@
 <?php
 // ===========================================================
 // FILE: pages/ref-sertifikasi/form-import-data-sertifikasi.php
-// STATUS: FIX TOMBOL DOWNLOAD (AUTO GENERATE)
+// STATUS: SECURE & OFFLINE READY (NO CDN)
 // ===========================================================
 
-$page_title = "Import Data";
-$page_subtitle = "Sertifikasi Pegawai";
-$breadcrumbs = [
-  ["label" => "Dashboard", "url" => "home-admin.php"],
-  ["label" => "Import Sertifikasi"]
-];
-include "komponen/header.php";
+if (session_id() == '') session_start();
+// Pastikan user admin yang boleh akses
+if (!isset($_SESSION['hak_akses']) || ($_SESSION['hak_akses'] != 'admin' && $_SESSION['hak_akses'] != 'superadmin')) {
+    echo "<script>alert('Akses Ditolak');window.history.back();</script>";
+    exit;
+}
 ?>
+
+<link rel="stylesheet" href="plugins/sweetalert2-theme-bootstrap-4/bootstrap-4.min.css">
 
 <style>
     .upload-container { background: #fff; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); padding: 30px; }
@@ -22,16 +23,19 @@ include "komponen/header.php";
     .file-input-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; }
     .file-preview { display: none; margin-top: 20px; padding: 15px; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
     .step-badge { background: #28a745; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-block; text-align: center; line-height: 28px; font-weight: bold; margin-right: 10px; }
+    
+    /* Loading Overlay Custom */
+    .swal2-container { z-index: 9999 !important; }
 </style>
 
-<section class="content">
+<section class="content p-3">
   <div class="container-fluid">
     <div class="row justify-content-center">
         <div class="col-md-10">
             <div class="upload-container">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h3 class="m-0 font-weight-bold text-dark"><i class="fas fa-file-import text-success mr-2"></i> Import Sertifikasi</h3>
-                    <a href="home-admin.php?page=form-view-data-sertifikasi" class="btn btn-light btn-sm rounded-pill px-3"><i class="fas fa-times"></i> Tutup</a>
+                    <a href="home-admin.php?page=form-view-data-sertifikasi" class="btn btn-light btn-sm rounded-pill px-3 shadow-sm text-secondary font-weight-bold"><i class="fas fa-times mr-1"></i> Tutup</a>
                 </div>
 
                 <div class="alert alert-secondary bg-white border shadow-sm rounded-lg mb-4">
@@ -71,7 +75,9 @@ include "komponen/header.php";
                         </div>
                     </div>
                     <div class="text-center mt-4">
-                        <button type="submit" class="btn btn-primary btn-lg rounded-pill px-5 shadow-sm"><i class="fas fa-eye mr-2"></i> Preview Data</button>
+                        <button type="submit" class="btn btn-primary btn-lg rounded-pill px-5 shadow-sm font-weight-bold" style="background-color: #5D5FEF; border-color: #5D5FEF;">
+                            <i class="fas fa-eye mr-2"></i> Preview Data
+                        </button>
                     </div>
                 </form>
 
@@ -82,9 +88,10 @@ include "komponen/header.php";
   </div>
 </section>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="plugins/sweetalert2/sweetalert2.min.js"></script>
+
 <script>
-// UI Logic
+// UI Logic: Drag & Drop Effect
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('file_excel');
 const filePreview = document.getElementById('filePreview');
@@ -105,13 +112,21 @@ fileInput.addEventListener('change', function() {
 // PREVIEW LOGIC
 document.getElementById('uploadForm').addEventListener('submit', function(e) {
     e.preventDefault();
-    if (!fileInput.files.length) { Swal.fire('Warning', 'Pilih file dulu!', 'warning'); return; }
+    if (!fileInput.files.length) { 
+        Swal.fire({icon: 'warning', title: 'Perhatian', text: 'Silakan pilih file Excel terlebih dahulu!'}); 
+        return; 
+    }
 
     const formData = new FormData();
     formData.append('file_excel', fileInput.files[0]);
     formData.append('action', 'preview');
 
-    Swal.fire({title: 'Memproses...', didOpen: () => Swal.showLoading()});
+    Swal.fire({
+        title: 'Menganalisis File...', 
+        html: 'Mohon tunggu sebentar',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
 
     fetch('pages/ref-sertifikasi/upload-data-sertifikasi.php', { method: 'POST', body: formData })
     .then(res => res.json())
@@ -120,29 +135,38 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
         if (res.status === 'success') {
             document.getElementById('preview-area').innerHTML = res.html;
             document.getElementById('preview-area').scrollIntoView({ behavior: 'smooth' });
-            Swal.fire({icon: 'success', title: 'Preview Berhasil', timer: 1500, showConfirmButton: false});
+            Swal.fire({icon: 'success', title: 'Data Terbaca', timer: 1500, showConfirmButton: false});
         } else {
-            Swal.fire('Gagal', res.message, 'error');
+            Swal.fire('Gagal Membaca', res.message, 'error');
         }
-    }).catch(err => Swal.fire('Error', 'Server Error', 'error'));
+    }).catch(err => {
+        console.error(err);
+        Swal.fire('Server Error', 'Terjadi kesalahan saat upload. Cek console log.', 'error');
+    });
 });
 
-// SIMPAN LOGIC
+// SIMPAN LOGIC (Event Delegation)
 document.body.addEventListener('click', function(e) {
+    // Cek apakah tombol Simpan yang diklik (atau elemen di dalamnya)
     if (e.target && (e.target.id == 'btnSimpanSertifikasi' || e.target.closest('#btnSimpanSertifikasi'))) {
         e.preventDefault();
         const textArea = document.getElementById('json_data_sertifikasi');
         
-        if(!textArea) { Swal.fire('Error', 'Data hilang. Upload ulang.', 'error'); return; }
+        // Safety Check: Pastikan data hidden ada
+        if(!textArea || !textArea.value) { 
+            Swal.fire('Data Kosong', 'Silakan upload ulang file Excel.', 'error'); 
+            return; 
+        }
 
         Swal.fire({
-            title: 'Simpan Data?',
-            text: "Pastikan data sudah benar.",
+            title: 'Simpan Data ke Database?',
+            text: "Data yang valid akan ditambahkan ke sistem.",
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#28a745',
             cancelButtonColor: '#d33',
-            confirmButtonText: 'Ya, Simpan!'
+            confirmButtonText: 'Ya, Proses!',
+            cancelButtonText: 'Batal'
         }).then((result) => {
             if (result.isConfirmed) {
                 simpanKeDatabase(textArea.value);
@@ -156,18 +180,30 @@ function simpanKeDatabase(jsonData) {
     formData.append('action', 'save');
     formData.append('data_sertifikasi', jsonData); 
 
-    Swal.fire({title: 'Menyimpan...', didOpen: () => Swal.showLoading()});
+    Swal.fire({
+        title: 'Menyimpan Data...', 
+        html: 'Jangan tutup halaman ini.',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
 
     fetch('pages/ref-sertifikasi/upload-data-sertifikasi.php', { method: 'POST', body: formData })
     .then(res => res.json())
     .then(res => {
         if (res.status === 'success') {
-            Swal.fire('Sukses!', res.message, 'success').then(() => {
+            Swal.fire({
+                icon: 'success', 
+                title: 'Import Berhasil!', 
+                text: res.message,
+                confirmButtonText: 'OK'
+            }).then(() => {
                 window.location.href = "home-admin.php?page=form-view-data-sertifikasi"; 
             });
         } else {
-            Swal.fire('Gagal', res.message, 'error');
+            Swal.fire('Gagal Menyimpan', res.message, 'error');
         }
-    }).catch(err => Swal.fire('Error', 'Koneksi Gagal', 'error'));
+    }).catch(err => {
+        Swal.fire('Error Koneksi', 'Gagal terhubung ke server.', 'error');
+    });
 }
 </script>

@@ -1,139 +1,137 @@
 <?php
 /*********************************************************
- * FILE    : pages/ref-keluarga/ajax-data-pasangan.php
- * MODULE  : SIMPEG — Data Pasangan (DataTables Server-side)
- * VERSION : v1.0 (PHP 5.6)
- * DATE    : 2025-10-11
- * AUTHOR  : ChatGPT (SIMPEG Assistant)
- * COMPAT  : PHP 5.6, MySQL 5.5
- * PURPOSE : Endpoint server-side untuk DataTables pada
- *           form-view-data-suami-istri.php
- *
- * INPUT (GET)
- *   - draw, start, length, search[value], order[0][column], order[0][dir]
- *   - uid (opsional): filter berdasarkan id_peg
- *
- * OUTPUT (JSON)
- *   {
- *     draw: <int>,
- *     recordsTotal: <int>,
- *     recordsFiltered: <int>,
- *     data: [
- *       { no, id_peg, nama_peg, nama, nik, pendidikan, pekerjaan_desc, status_hub, aksi }
- *     ]
- *   }
+ * FILE     : pages/ref-keluarga/ajax-data-pasangan.php
+ * MODULE   : Backend JSON Data Pasangan (Secure & Sanitized)
+ * VERSION  : v2.0 (Standardized)
  *********************************************************/
-if (session_id()==='') session_start();
+
+if (session_id() == '') session_start();
+
+// Matikan error display agar JSON valid
+ini_set('display_errors', 0);
+while(ob_get_level()){ ob_end_clean(); }
 header('Content-Type: application/json; charset=utf-8');
 
-/* === Koneksi standar proyek === */
+// --- 1. KONEKSI ---
 @include_once __DIR__ . '/../../dist/koneksi.php';
-if (!isset($koneksi)){
-  // fallback lama jika proyek masih pakai $conn
-  @include_once __DIR__ . '/../../config/koneksi.php';
-  if (isset($conn) && !isset($koneksi)) $koneksi = $conn;
-}
-if (!isset($koneksi)){
-  echo json_encode(array('draw'=>0,'recordsTotal'=>0,'recordsFiltered'=>0,'data'=>array()));
-  exit;
+if (!isset($conn)) { 
+    @include_once __DIR__ . '/../../config/koneksi.php'; 
+    $conn = isset($koneksi) ? $koneksi : null; 
 }
 
-/* === Helpers === */
-function e($s){ return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
-function req($key,$def=''){ return isset($_GET[$key]) ? $_GET[$key] : $def; }
+if (!$conn) {
+    echo json_encode(['draw'=>0, 'recordsTotal'=>0, 'recordsFiltered'=>0, 'data'=>[], 'error'=>'Koneksi DB Gagal']);
+    exit;
+}
 
-$draw   = (int) req('draw', 1);
-$start  = (int) req('start', 0);
-$length = (int) req('length', 10);
-if ($length < 1) $length = 10; if ($length > 500) $length = 500; // guard
-$uid    = preg_replace('~[^A-Za-z0-9_\-]~','', req('uid',''));
+// --- 2. HELPER SECURITY ---
+function esc($s){ global $conn; return mysqli_real_escape_string($conn, trim($s)); }
+function h($s){ return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
+
+// --- 3. PARAMETER DATATABLES ---
+$draw   = isset($_GET['draw']) ? (int)$_GET['draw'] : 1;
+$start  = isset($_GET['start']) ? (int)$_GET['start'] : 0;
+$len    = isset($_GET['length']) ? (int)$_GET['length'] : 10;
 $search = isset($_GET['search']['value']) ? trim($_GET['search']['value']) : '';
+$uid    = isset($_GET['uid']) ? esc($_GET['uid']) : ''; // Filter ID Pegawai
 
-/* === Mapping kolom untuk ordering (index DataTables) === */
-// Kolom pada tabel: [0]No [1]id_peg [2]nama_peg [3]nama [4]nik [5]pendidikan [6]pekerjaan_desc [7]status_hub [8]aksi
-$columnsMap = array(
-  1 => 'si.id_peg',
-  2 => 'p.nama',
-  3 => 'si.nama',
-  4 => 'si.nik',
-  5 => 'si.pendidikan',
-  6 => 'mp.desc_pekerjaan',
-  7 => 'si.status_hub'
-);
-$orderIdx = isset($_GET['order'][0]['column']) ? (int)$_GET['order'][0]['column'] : 2;
-$orderDir = isset($_GET['order'][0]['dir']) ? strtolower($_GET['order'][0]['dir']) : 'asc';
-if (!in_array($orderDir, array('asc','desc'))) $orderDir = 'asc';
-$orderCol = isset($columnsMap[$orderIdx]) ? $columnsMap[$orderIdx] : 'p.nama';
+// --- 4. QUERY BUILDER ---
+$baseQuery = " FROM tb_suamiistri si 
+               LEFT JOIN tb_pegawai p ON si.id_peg = p.id_peg 
+               LEFT JOIN tb_master_pekerjaan mp ON mp.id_pekerjaan = si.pekerjaan ";
 
-/* === Base FROM & JOIN === */
-$from = " FROM tb_suamiistri si
-          LEFT JOIN tb_pegawai p ON p.id_peg = si.id_peg
-          LEFT JOIN tb_master_pekerjaan mp ON mp.id_pekerjaan = si.pekerjaan ";
+$where = " WHERE 1=1 ";
 
-/* === WHERE conditions === */
-$where = array();
-$params = array();
-if ($uid !== ''){
-  $where[] = "si.id_peg='".mysqli_real_escape_string($koneksi,$uid)."'";
+// Filter UID (Jika dipanggil dari halaman Detail Pegawai)
+if($uid !== ''){ 
+    $where .= " AND si.id_peg='$uid' "; 
 }
-if ($search !== ''){
-  $s = mysqli_real_escape_string($koneksi, $search);
-  $like = "(p.nama LIKE '%$s%' OR si.nama LIKE '%$s%' OR si.nik LIKE '%$s%' OR si.pendidikan LIKE '%$s%' OR COALESCE(mp.desc_pekerjaan,'') LIKE '%$s%' OR si.status_hub LIKE '%$s%')";
-  $where[] = $like;
+
+// Global Search
+if($search !== ''){
+    $s = esc($search);
+    $where .= " AND (
+        si.nama LIKE '%$s%' OR 
+        p.nama LIKE '%$s%' OR
+        si.nik LIKE '%$s%' OR
+        si.pendidikan LIKE '%$s%' OR
+        COALESCE(mp.desc_pekerjaan, '') LIKE '%$s%'
+    ) ";
 }
-$whereSql = count($where) ? (' WHERE '.implode(' AND ', $where)) : '';
 
-/* === Query counts === */
-// Total tanpa filter
-$sqlTotal = "SELECT COUNT(*) AS jml FROM tb_suamiistri si"; // tanpa join biar cepat
-$resTotal = mysqli_query($koneksi, $sqlTotal);
-$rowTotal = ($resTotal? mysqli_fetch_assoc($resTotal): array('jml'=>0));
-$recordsTotal = (int) $rowTotal['jml'];
+// --- 5. HITUNG TOTAL ---
+$total = 0;
+$qCount = mysqli_query($conn, "SELECT COUNT(*) AS c $baseQuery $where");
+if($qCount){ $r = mysqli_fetch_assoc($qCount); $total = (int)$r['c']; }
 
-// Total dengan filter
-$sqlFiltered = "SELECT COUNT(*) AS jml " . $from . $whereSql;
-$resFiltered = mysqli_query($koneksi, $sqlFiltered);
-$rowFiltered = ($resFiltered? mysqli_fetch_assoc($resFiltered): array('jml'=>0));
-$recordsFiltered = (int) $rowFiltered['jml'];
+// --- 6. AMBIL DATA ---
+$sql = "SELECT si.*, p.nama AS nama_peg, p.nip, 
+               COALESCE(mp.desc_pekerjaan, si.pekerjaan) AS pekerjaan_desc
+        $baseQuery $where
+        ORDER BY si.id_si DESC
+        LIMIT $start, $len";
 
-/* === Data query (paged) === */
-$select = "SELECT si.id_si, si.id_peg, si.nama, si.nik, si.pendidikan, si.status_hub,
-                  COALESCE(mp.desc_pekerjaan, si.pekerjaan) AS pekerjaan_desc,
-                  p.nama AS nama_peg ";
-$sqlData = $select . $from . $whereSql . " ORDER BY $orderCol $orderDir LIMIT ".$start.", ".$length;
-$resData = mysqli_query($koneksi, $sqlData);
-
+$q = mysqli_query($conn, $sql);
 $data = array();
 $no = $start + 1;
-if ($resData){
-  while ($r = mysqli_fetch_assoc($resData)){
-    $id_peg = $r['id_peg'];
-    $id_si  = $r['id_si'];
-    $aksi = '<div class="btn-group btn-group-sm" role="group">'
-          . '<a class="btn btn-primary" title="Detail Pegawai" href="home-admin.php?page=view-detail-data-pegawai&id_peg='.rawurlencode($id_peg).'"><i class="fa fa-folder-open"></i></a>'
-          . '<a class="btn btn-warning" title="Edit Pasangan" href="home-admin.php?page=form-master-data-suami-istri&mode=edit&id_si='.rawurlencode($id_si).'"><i class="fa fa-edit"></i></a>'
-          . '</div>';
 
-    $data[] = array(
-      'no'             => $no++,
-      'id_peg'         => e($r['id_peg']),
-      'nama_peg'       => e($r['nama_peg']),
-      'nama'           => e($r['nama']),
-      'nik'            => e($r['nik']),
-      'pendidikan'     => e($r['pendidikan']),
-      'pekerjaan_desc' => e($r['pekerjaan_desc']),
-      'status_hub'     => e($r['status_hub']),
-      'aksi'           => $aksi
-    );
-  }
+if($q){
+    while($r = mysqli_fetch_assoc($q)){
+        
+        // --- FORMAT DATA (Secure Output) ---
+        
+        // 1. Pegawai (Gabungan Nama & NIP)
+        $idpeg_nama = '<div class="font-weight-bold text-dark">'.h($r['nama_peg'] ?: '-').'</div>
+                       <small class="text-muted">'.h($r['id_peg']).'</small>';
+
+        // 2. Nama Pasangan
+        $nama_si = '<div class="font-weight-bold text-primary">'.h($r['nama']).'</div>';
+        if(!empty($r['nik'])){
+             $nama_si .= '<small class="text-muted"><i class="fa fa-id-card mr-1"></i> '.h($r['nik']).'</small>';
+        }
+
+        // 3. Status Hubungan
+        $status_hub = h($r['status_hub']);
+        $status_badge = '<span class="badge badge-light border">'.$status_hub.'</span>';
+        if (stripos($status_hub, 'suami') !== false) {
+            $status_badge = '<span class="badge badge-info text-white">Suami</span>';
+        } elseif (stripos($status_hub, 'istri') !== false) {
+            $status_badge = '<span class="badge badge-danger">Istri</span>';
+        }
+
+        // 4. Tombol Aksi (Edit & Delete)
+        $id_val = $r['id_si']; // Sesuaikan PK tabel tb_suamiistri
+        $link_edit = "home-admin.php?page=form-master-data-suami-istri&mode=edit&id_si=".h($id_val).($uid ? "&uid=".h($uid) : "");
+        
+        $aksi_html = '<div class="btn-group">
+                        <a href="'.$link_edit.'" class="btn btn-sm btn-light border shadow-sm rounded-circle text-primary" title="Edit">
+                            <i class="fa fa-pen"></i>
+                        </a>
+                        <button type="button" class="btn btn-sm btn-light border shadow-sm rounded-circle text-danger btn-delete" data-id="'.h($id_val).'" title="Hapus">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                      </div>';
+
+        // Menyusun Array Data
+        $data[] = array(
+            'no'            => $no++,
+            'idpeg_nama'    => $idpeg_nama,
+            'nama_pasangan' => $nama_si,
+            'nik'           => h($r['nik']),
+            'pendidikan'    => h($r['pendidikan']) ?: '-',
+            'pekerjaan'     => h($r['pekerjaan_desc']) ?: '-',
+            'status_hub'    => $status_badge,
+            'aksi'          => $aksi_html
+        );
+    }
 }
 
-$out = array(
-  'draw' => $draw,
-  'recordsTotal' => $recordsTotal,
-  'recordsFiltered' => $recordsFiltered,
-  'data' => $data
-);
-
-echo json_encode($out);
+// Output JSON
+echo json_encode(array(
+    'draw'            => $draw,
+    'recordsTotal'    => $total,
+    'recordsFiltered' => $total,
+    'data'            => $data
+), JSON_UNESCAPED_UNICODE); 
 exit;
+?>

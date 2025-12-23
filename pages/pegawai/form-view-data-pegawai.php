@@ -2,8 +2,11 @@
 /*********************************************************
  * FILE     : pages/pegawai/form-view-data-pegawai.php
  * MODULE   : SIMPEG — Data Pegawai (Smart Filter UI)
- * UPDATE   : Hide "Belum Ada Jabatan" Tab for Non-Admin
+ * STATUS   : SECURE & OFFLINE READY
  *********************************************************/
+
+// Pastikan session dimulai
+if (session_id() == '') session_start(); 
 
 $hak_akses_user = isset($_SESSION['hak_akses']) ? strtolower($_SESSION['hak_akses']) : '';
 $kode_kantor_session = isset($_SESSION['kode_kantor']) ? $_SESSION['kode_kantor'] : '';
@@ -21,16 +24,14 @@ if ($hak_akses_user === 'kepala') {
 <link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
 
 <style>
-    /* --- LAYOUT UTAMA --- */
+    /* --- CSS UTAMA --- */
     .content-header { display: none !important; }
-    .content-wrapper { background-color: #f8f9fa; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    .content-wrapper { background-color: #f8f9fa; font-family: sans-serif; }
     
-    /* --- CARD MODERN --- */
     .card-modern {
         border: none; border-radius: 16px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-        background: #fff; overflow: visible;
-        margin-bottom: 25px;
+        background: #fff; margin-bottom: 25px;
     }
     .card-header-modern {
         padding: 20px 30px; background: #fff; border-bottom: 1px solid #f1f5f9;
@@ -38,7 +39,7 @@ if ($hak_akses_user === 'kepala') {
         display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;
     }
 
-    /* --- TABS --- */
+    /* TABS STYLE */
     .nav-pills-modern { background: #f1f5f9; padding: 4px; border-radius: 50px; display: inline-flex; }
     .nav-pills-modern .nav-link {
         border-radius: 50px; padding: 8px 24px; font-weight: 600; color: #64748b; font-size: 0.9rem; transition: all 0.2s;
@@ -46,42 +47,28 @@ if ($hak_akses_user === 'kepala') {
     .nav-pills-modern .nav-link:hover { color: #0f172a; }
     .nav-pills-modern .nav-link.active { background-color: #fff; color: #0ea5e9; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
 
-    /* --- SELECT2 CUSTOM --- */
+    /* SELECT2 CUSTOM */
     .select2-container .select2-selection--single {
-        height: 45px !important;
-        border-radius: 10px !important;
-        border: 1px solid #e2e8f0 !important;
-        padding: 8px 10px !important;
-        background-color: #fff !important;
-        display: flex; align-items: center;
+        height: 45px !important; border-radius: 10px !important;
+        border: 1px solid #e2e8f0 !important; padding: 8px 10px !important;
+        background-color: #fff !important; display: flex; align-items: center;
     }
-    .select2-container--default .select2-selection--single .select2-selection__arrow {
-        height: 45px !important; right: 10px !important;
-    }
-    .select2-container--default .select2-selection--single .select2-selection__rendered {
-        line-height: normal !important; color: #334155 !important; font-size: 0.9rem; padding-left: 5px;
-    }
-    .select2-dropdown {
-        border-radius: 10px !important; border: 1px solid #e2e8f0 !important; box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow { height: 45px !important; right: 10px !important; }
+    .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: normal !important; color: #334155 !important; padding-left: 5px; }
     
-    .filter-label {
-        font-size: 0.75rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 8px; display: block; letter-spacing: 0.5px;
-    }
+    .filter-label { font-size: 0.75rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 8px; display: block; }
 
-    /* --- TABLE STYLE --- */
+    /* TABLE STYLE */
     table.dataTable { border-collapse: separate; border-spacing: 0; width: 100% !important; margin-top: 0 !important; }
     table.dataTable thead th {
         background-color: #fff; color: #64748b; font-size: 0.75rem; font-weight: 800; text-transform: uppercase;
-        border-bottom: 2px solid #f1f5f9 !important; padding: 15px 20px; letter-spacing: 0.5px;
+        border-bottom: 2px solid #f1f5f9 !important; padding: 15px 20px;
     }
-    table.dataTable tbody td {
-        padding: 15px 20px; vertical-align: middle; border-bottom: 1px solid #f8fafc; color: #334155; font-size: 0.95rem;
-    }
+    table.dataTable tbody td { padding: 15px 20px; vertical-align: middle; border-bottom: 1px solid #f8fafc; color: #334155; font-size: 0.95rem; }
     table.dataTable tbody tr:hover { background-color: #fcfdfe; }
 
-    /* --- HELPER CLASSES --- */
-    .avatar-wrapper { width: 45px; height: 45px; border-radius: 50%; overflow: hidden; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    /* AVATAR & TEXT HELPERS */
+    .avatar-wrapper { width: 45px; height: 45px; border-radius: 50%; overflow: hidden; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); background: #eee;}
     .avatar-img { width: 100%; height: 100%; object-fit: cover; }
     
     .text-pegawai-name { font-weight: 700; color: #1e293b; font-size: 0.95rem; display: block; }
@@ -91,12 +78,11 @@ if ($hak_akses_user === 'kepala') {
     .text-kantor { color: #0ea5e9; font-weight: 600; font-size: 0.8rem; display: block; }
     .text-divisi { color: #94a3b8; font-size: 0.8rem; display: block; }
 
-    /* --- CONTROLS DATATABLE --- */
+    /* DATATABLE CONTROLS */
     .dt-controls-wrapper { display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; gap: 10px; }
     .dataTables_filter input { border-radius: 50px !important; border: 1px solid #e2e8f0; padding: 8px 20px !important; outline: none; }
     .dataTables_length select { border-radius: 50px !important; border: 1px solid #e2e8f0; padding: 5px 15px; outline: none; }
 
-    /* Responsive */
     @media (max-width: 768px) {
         .card-header-modern { flex-direction: column; align-items: flex-start; }
         .dt-controls-wrapper { flex-direction: column; align-items: stretch; }
@@ -167,14 +153,15 @@ if ($hak_akses_user === 'kepala') {
                                     echo '<option value="">-- Semua Kantor --</option>';
                                     $qUnit = mysqli_query($conn, "SELECT * FROM tb_kantor WHERE level IN ('KP','KANWIL','KC') ORDER BY kode_kantor_detail ASC");
                                     while ($u = mysqli_fetch_assoc($qUnit)) {
-                                        echo "<option value='".$u['kode_kantor_detail']."'>".$u['nama_kantor']."</option>";
+                                        // [SECURITY] Pakai htmlspecialchars agar aman dari XSS
+                                        echo "<option value='".htmlspecialchars($u['kode_kantor_detail'])."'>".htmlspecialchars($u['nama_kantor'])."</option>";
                                     }
                                 } 
                                 elseif ($hak_akses_user === 'kepala') {
                                     $safe_kantor = mysqli_real_escape_string($conn, $kode_kantor_session);
                                     $qUnit = mysqli_query($conn, "SELECT * FROM tb_kantor WHERE kode_kantor_detail = '$safe_kantor'");
                                     while ($u = mysqli_fetch_assoc($qUnit)) {
-                                        echo "<option value='".$u['kode_kantor_detail']."' selected>".$u['nama_kantor']."</option>";
+                                        echo "<option value='".htmlspecialchars($u['kode_kantor_detail'])."' selected>".htmlspecialchars($u['nama_kantor'])."</option>";
                                     }
                                 }
                             ?>
@@ -275,6 +262,7 @@ $(document).ready(function() {
 
   $('.select2').select2({ theme: 'bootstrap4', width: '100%' });
 
+  // Fungsi Render Kolom Pegawai (Foto + Nama + ID)
   function renderPegawai(fotoHtml, namaHtml, idHtml) {
       return `<div class="d-flex align-items-center">
                 <div class="mr-3">${fotoHtml}</div>
@@ -285,6 +273,7 @@ $(document).ready(function() {
               </div>`;
   }
 
+  // Fungsi Render Kolom Jabatan
   function renderJabatan(jabatan, kantor, divisi) {
       var j = jabatan ? jabatan : '<span class="text-danger font-italic small">Belum ada jabatan</span>';
       var k = kantor ? kantor : '-';
@@ -331,7 +320,7 @@ $(document).ready(function() {
       ]
   }));
 
-  // === CASCADING DROPDOWN ===
+  // === CASCADING DROPDOWN LOGIC ===
   $('#filter_kantor').on('change', function(){
       var kodeKantor = $(this).val();
       $('#filter_divisi').html('<option value="">-- Loading... --</option>').prop('disabled', true).trigger('change');
@@ -351,7 +340,7 @@ $(document).ready(function() {
       }
   });
 
-  // AUTO TRIGGER FOR KEPALA
+  // Trigger otomatis jika user adalah Kepala
   if ($('#filter_kantor').val()) { $('#filter_kantor').trigger('change'); }
 
   $('#filter_divisi').on('change', function(){
@@ -375,7 +364,7 @@ $(document).ready(function() {
 
   $('#filter_jabatan').on('change', function(){ tableAktif.ajax.reload(); });
 
-  // 2. TABEL NONJOB (INIT HANYA JIKA ADA DI DOM / ADMIN)
+  // 2. TABEL NONJOB
   <?php if ($hak_akses_user === 'admin'): ?>
   $('#nonjob-tab').on('click', function(){
       if ($.fn.DataTable.isDataTable('#tableNonJob')) return;
@@ -391,14 +380,19 @@ $(document).ready(function() {
   });
   <?php endif; ?>
 
-  // 3. TABEL PURNA
+  // 3. TABEL PURNA (FIX: Hapus CDN ui-avatars.com)
   $('#purna-tab').on('click', function(){
       if ($.fn.DataTable.isDataTable('#tablePurna')) return;
       $('#tablePurna').DataTable($.extend({}, dtOptions, {
           ajax: { url: 'pages/pegawai/ajax-pegawai-purna.php', type: 'GET' },
           columns: [
               { data: 'nama', render: function(d,t,r) { 
-                  var foto = '<div class="avatar-wrapper"><img src="https://ui-avatars.com/api/?name='+r.nama+'&background=random&color=fff" class="avatar-img"></div>';
+                  // [OFFLINE FIX] Gunakan avatar lokal default
+                  var fotoUrl = 'dist/img/avatar5.png';
+                  // Jika ada data foto dari DB, bisa ditambahkan logic di sini:
+                  // if(r.foto) fotoUrl = 'pages/assets/foto/'+r.foto;
+                  
+                  var foto = '<div class="avatar-wrapper"><img src="'+fotoUrl+'" class="avatar-img"></div>';
                   return renderPegawai(foto, r.nama, r.id_peg);
               }},
               { data: 'ttl' }, { data: 'jabatan' }, 

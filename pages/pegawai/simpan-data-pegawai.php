@@ -1,8 +1,8 @@
 <?php
 /*********************************************************
  * FILE    : pages/pegawai/simpan-data-pegawai.php
- * MODULE  : Simpan Pegawai (Fix: Tambah UUID)
- * VERSION : v2.3 (Fixed)
+ * MODULE  : Simpan Pegawai (Fix: Tambah UUID & Redirect)
+ * VERSION : v2.4 (Offline & Secure)
  *********************************************************/
 
 if (session_id()=='') session_start();
@@ -34,7 +34,7 @@ $status     = 'gagal';
  * 1) MODE KOLEKTIF (JSON)
  * ========================================================== */
 if (isset($_POST['kolektif']) && $_POST['kolektif'] == '1') {
-  exit; // Logic kolektif di-skip agar fokus
+  exit; // Logic kolektif di-skip
 }
 
 /* ==========================================================
@@ -71,8 +71,7 @@ if (!empty($_FILES['foto']['name']) && is_uploaded_file($_FILES['foto']['tmp_nam
   if (in_array($ext, $allowed) && $size_ok) {
     $safeId = preg_replace('~[^A-Za-z0-9_\-]~','', $id_peg);
     $foto_name = 'foto_' . $safeId . '_' . time() . '.' . $ext;
-    $dest_dir  = realpath(__DIR__ . '/../../uploads');
-    if ($dest_dir === false) { $dest_dir = __DIR__ . '/../../uploads'; }
+    // Gunakan path relatif dari file ini
     $target_dir = '../../pages/assets/foto/';
     ensure_dir($target_dir);
     @move_uploaded_file($_FILES['foto']['tmp_name'], $target_dir . $foto_name);
@@ -169,6 +168,8 @@ if ($status == 'sukses' || $status == 'ajukan') {
 }
 
 // 2. TAMBAHKAN PREFIKS DIRECTORY
+// File ini ada di: pages/pegawai/
+// home-admin.php ada di: root (dua folder ke atas)
 $final_redirect_url = "../../" . $redirect_to;
 
 ?>
@@ -178,7 +179,10 @@ $final_redirect_url = "../../" . $redirect_to;
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Proses Simpan</title>
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  
+  <script src="../../plugins/sweetalert2/sweetalert2.all.min.js"></script>
+  <script>if(typeof Swal === 'undefined'){document.write('<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"><\/script>');}</script>
+
   <style>html,body{background:#f4f6f9;font-family:sans-serif}</style>
 </head>
 <body>

@@ -1,82 +1,136 @@
 <?php
-// FILE: pages/ref-keluarga/ajax-data-anak.php
-include '../../dist/koneksi.php'; // Sesuaikan path koneksi
+/*********************************************************
+ * FILE     : pages/ref-keluarga/ajax-data-anak.php
+ * MODULE   : Backend JSON Data Anak (Secure & Sanitized)
+ * VERSION  : v2.0 (Standardized)
+ *********************************************************/
 
-// 1. Ambil Parameter DataTables
-$draw   = isset($_GET['draw']) ? intval($_GET['draw']) : 1;
-$start  = isset($_GET['start']) ? intval($_GET['start']) : 0;
-$length = isset($_GET['length']) ? intval($_GET['length']) : 10;
-$search = isset($_GET['search']['value']) ? $_GET['search']['value'] : '';
+if (session_id() == '') session_start();
 
-// 2. Ambil Parameter Filter (UID / ID Pegawai)
-$uid = isset($_GET['uid']) ? mysqli_real_escape_string($conn, $_GET['uid']) : '';
+// Matikan error display agar JSON valid
+ini_set('display_errors', 0);
+while(ob_get_level()){ ob_end_clean(); }
+header('Content-Type: application/json; charset=utf-8');
 
-// 3. Bangun Query WHERE
+// --- 1. KONEKSI ---
+@include_once __DIR__ . '/../../dist/koneksi.php';
+if (!isset($conn)) { 
+    @include_once __DIR__ . '/../../config/koneksi.php'; 
+    $conn = isset($koneksi) ? $koneksi : null; 
+}
+
+if (!$conn) {
+    echo json_encode(['draw'=>0, 'recordsTotal'=>0, 'recordsFiltered'=>0, 'data'=>[], 'error'=>'Koneksi DB Gagal']);
+    exit;
+}
+
+// --- 2. HELPER SECURITY ---
+function esc($s){ global $conn; return mysqli_real_escape_string($conn, trim($s)); }
+function h($s){ return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
+
+// --- 3. PARAMETER DATATABLES ---
+$draw   = isset($_GET['draw']) ? (int)$_GET['draw'] : 1;
+$start  = isset($_GET['start']) ? (int)$_GET['start'] : 0;
+$len    = isset($_GET['length']) ? (int)$_GET['length'] : 10;
+$search = isset($_GET['search']['value']) ? trim($_GET['search']['value']) : '';
+$uid    = isset($_GET['uid']) ? esc($_GET['uid']) : ''; // Filter ID Pegawai
+
+// --- 4. QUERY BUILDER ---
+$baseQuery = " FROM tb_anak a 
+               LEFT JOIN tb_pegawai p ON a.id_peg = p.id_peg ";
+
 $where = " WHERE 1=1 ";
 
-// Filter berdasarkan ID Pegawai (Wajib jika ada)
-if (!empty($uid)) {
-    $where .= " AND a.id_peg = '$uid' ";
+// Filter UID (Jika dipanggil dari halaman Detail Pegawai)
+if($uid !== ''){ 
+    $where .= " AND a.id_peg='$uid' "; 
 }
 
-// Filter Pencarian Global
-if (!empty($search)) {
-    $search = mysqli_real_escape_string($conn, $search);
-    $where .= " AND (a.nama LIKE '%$search%' OR p.nama LIKE '%$search%') ";
+// Global Search
+if($search !== ''){
+    $s = esc($search);
+    $where .= " AND (
+        a.nama LIKE '%$s%' OR 
+        p.nama LIKE '%$s%' OR
+        a.pendidikan LIKE '%$s%' OR
+        a.pekerjaan LIKE '%$s%'
+    ) ";
 }
 
-// 4. Hitung Total Data
-$sqlCount = "SELECT count(*) as total 
-             FROM tb_anak a 
-             LEFT JOIN tb_pegawai p ON a.id_peg = p.id_peg 
-             $where";
-$resCount = mysqli_query($conn, $sqlCount);
-$rowC = mysqli_fetch_assoc($resCount);
-$totalRecords = $rowC['total'];
+// --- 5. HITUNG TOTAL ---
+$total = 0;
+$qCount = mysqli_query($conn, "SELECT COUNT(*) AS c $baseQuery $where");
+if($qCount){ $r = mysqli_fetch_assoc($qCount); $total = (int)$r['c']; }
 
-// 5. Ambil Data Utama
-// PENTING: Pastikan kolom 'id_anak' (Primary Key) terambil!
-$sqlData = "SELECT a.*, p.nama as nama_pegawai 
-            FROM tb_anak a 
-            LEFT JOIN tb_pegawai p ON a.id_peg = p.id_peg 
-            $where 
-            ORDER BY a.tgl_lhr ASC 
-            LIMIT $start, $length";
+// --- 6. AMBIL DATA ---
+$sql = "SELECT a.*, p.nama AS nama_peg, p.nip
+        $baseQuery $where
+        ORDER BY a.tgl_lhr ASC
+        LIMIT $start, $len";
 
-$resData = mysqli_query($conn, $sqlData);
+$q = mysqli_query($conn, $sql);
 $data = array();
 $no = $start + 1;
 
-while ($row = mysqli_fetch_assoc($resData)) {
-    
-    $nestedData = array();
-    $nestedData['no']         = $no++;
-    // Tampilkan Nama Pegawai + NIP
-    $nestedData['idpeg_nama'] = '<strong>'.htmlspecialchars($row['nama_pegawai']).'</strong><br><small class="text-muted">'.htmlspecialchars($row['id_peg']).'</small>';
-    
-    $nestedData['nama']       = htmlspecialchars($row['nama']);
-    $nestedData['tgl_lhr']    = ($row['tgl_lhr'] && $row['tgl_lhr']!='0000-00-00') ? date('d-m-Y', strtotime($row['tgl_lhr'])) : '-';
-    $nestedData['pendidikan'] = $row['pendidikan'];
-    $nestedData['pekerjaan']  = $row['pekerjaan'];
-    $nestedData['status_hub'] = $row['status_hub'];
-    $nestedData['anak_ke']    = $row['anak_ke'];
-    $nestedData['bpjs_anak']  = $row['bpjs_anak'];
+if($q){
+    while($r = mysqli_fetch_assoc($q)){
+        
+        // --- FORMAT DATA (Secure Output) ---
+        
+        // 1. Pegawai (Gabungan Nama & NIP)
+        $idpeg_nama = '<div class="font-weight-bold text-dark">'.h($r['nama_peg'] ?: '-').'</div>
+                       <small class="text-muted">'.h($r['id_peg']).'</small>';
 
-    // --- KUNCI AGAR TOMBOL EDIT MUNCUL ---
-    // Kirim ID Primary Key (Sesuaikan nama kolom di database, misal: id_anak atau id)
-    $nestedData['id_anak']    = isset($row['id_anak']) ? $row['id_anak'] : (isset($row['id']) ? $row['id'] : '');
-    
-    // Kirim ID Pegawai juga untuk tombol profil
-    $nestedData['id_peg']     = $row['id_peg'];
+        // 2. Nama Anak & Status
+        $nama_anak = '<div class="font-weight-bold text-primary">'.h($r['nama']).'</div>';
+        $status_hub = h($r['status_hub']);
+        
+        // Badge Anak Ke-
+        $anak_ke = '';
+        if(!empty($r['anak_ke'])){
+             $anak_ke = '<span class="badge badge-info ml-1">Ke-'.h($r['anak_ke']).'</span>';
+        }
 
-    $data[] = $nestedData;
+        // 3. TTL
+        $tgl_lhr = ($r['tgl_lhr'] && $r['tgl_lhr']!='0000-00-00') ? date('d-m-Y', strtotime($r['tgl_lhr'])) : '-';
+        $ttl = h($r['tmp_lhr']) . ', ' . $tgl_lhr;
+
+        // 4. BPJS
+        $bpjs = h($r['bpjs_anak']) ?: '-';
+
+        // 5. Tombol Aksi (Edit & Delete)
+        $id_val = $r['id_anak']; // Sesuaikan PK tabel anak
+        $link_edit = "home-admin.php?page=form-master-data-anak&mode=edit&id_anak=".h($id_val).($uid ? "&uid=".h($uid) : "");
+        
+        $aksi_html = '<div class="btn-group">
+                        <a href="'.$link_edit.'" class="btn btn-sm btn-light border shadow-sm rounded-circle text-primary" title="Edit">
+                            <i class="fa fa-pen"></i>
+                        </a>
+                        <button type="button" class="btn btn-sm btn-light border shadow-sm rounded-circle text-danger btn-delete" data-id="'.h($id_val).'" title="Hapus">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                      </div>';
+
+        // Menyusun Array Data
+        $data[] = array(
+            'no'            => $no++,
+            'idpeg_nama'    => $idpeg_nama,
+            'nama_anak'     => $nama_anak . $anak_ke,
+            'ttl'           => $ttl,
+            'pendidikan'    => h($r['pendidikan']) ?: '-',
+            'pekerjaan'     => h($r['pekerjaan']) ?: '-',
+            'bpjs'          => $bpjs,
+            'aksi'          => $aksi_html
+        );
+    }
 }
 
-// 6. Return JSON
+// Output JSON
 echo json_encode(array(
-    "draw" => $draw,
-    "recordsTotal" => $totalRecords,
-    "recordsFiltered" => $totalRecords,
-    "data" => $data
-));
+    'draw'            => $draw,
+    'recordsTotal'    => $total,
+    'recordsFiltered' => $total,
+    'data'            => $data
+), JSON_UNESCAPED_UNICODE); 
+exit;
 ?>

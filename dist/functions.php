@@ -203,13 +203,7 @@ function getPage($page) {
     // Kantor
     'form-view-data-kantor'        => 'pages/kantor/form-view-data-kantor.php',
 
-    // User
-    // 'view-data-user'                  => 'pages/user/daftar-user.php',
-    'form-user'                    => 'pages/user/form-user.php',
-    'simpan-user'                  => 'pages/user/simpan-user.php',
-    'proses-user'                  => 'pages/user/proses-user.php',
-    'view-data-user'               => 'pages/user/view-data-user.php',
-    'form-master-data-user'        => 'pages/user/form-master-data-user.php',
+  
 
     // Sertifikasi (contoh tambahan)
     'form-view-data-sertifikasi'   => 'pages/ref-sertifikasi/form-view-data-sertifikasi.php',
@@ -243,7 +237,11 @@ function getPage($page) {
     'master-data-diklat'        => 'pages/ref-diklat/master-data-diklat.php',
     'form-diklat'               => 'pages/ref-diklat/form-diklat.php',
     'ref-diklat'                => 'pages/ref-diklat/ref-diklat.php',
-    'rekap-biaya-diklat'      => 'pages/ref-diklat/rekap-biaya-diklat.php'
+    'rekap-biaya-diklat'      => 'pages/ref-diklat/rekap-biaya-diklat.php',
+
+    // User
+    'form-view-data-user'          => 'pages/user/form-view-data-user.php',
+    'form-master-data-user'        => 'pages/user/form-master-data-user.php'
 
   ];
 

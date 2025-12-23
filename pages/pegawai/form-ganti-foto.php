@@ -6,6 +6,89 @@ include __DIR__ . '/../../dist/koneksi.php';
 if (!isset($_GET['id_peg'])) die("Error. No Kode Selected!");
 $id_peg = mysqli_real_escape_string($conn, $_GET['id_peg']);
 
+// --- HANDLE POST REQUEST (PROSES SIMPAN) ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cropped_image'])) {
+    
+    // Ambil URL Redirect dari Hidden Input
+    $redirect_url = isset($_POST['redirect_back']) && !empty($_POST['redirect_back']) 
+                    ? $_POST['redirect_back'] 
+                    : 'home-admin.php?page=profil-pegawai'; // Default jika kosong
+
+    $dataURL = $_POST['cropped_image'];
+
+    // 1. Validasi Ukuran (Max 3MB)
+    $sizeInBytes = (strlen($dataURL) * 3 / 4) - substr_count(substr($dataURL, -2), '=');
+    $maxSizeMB = 3;
+    $maxSizeBytes = $maxSizeMB * 1024 * 1024;
+
+    // Helper output SweetAlert
+    $swalHeader = '<!DOCTYPE html><html><head><script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script></head><body style="background:#f4f6f9">';
+    $swalFooter = '</body></html>';
+
+    if ($sizeInBytes > $maxSizeBytes) {
+        echo $swalHeader;
+        echo "<script>Swal.fire('File Terlalu Besar', 'Maksimal 3MB.', 'error').then(() => { history.back(); });</script>";
+        echo $swalFooter;
+        exit;
+    }
+
+    // 2. Proses Simpan
+    $parts = explode(',', $dataURL);
+    if (count($parts) === 2) {
+        $data = base64_decode($parts[1]);
+        $nama_file_baru = 'foto_' . $id_peg . '_' . time() . '.jpg';
+        $path_tujuan = __DIR__ . '/../../pages/assets/foto/' . $nama_file_baru; 
+
+        // Cek folder & permission
+        if (!is_dir(dirname($path_tujuan))) mkdir(dirname($path_tujuan), 0755, true);
+        
+        if (file_put_contents($path_tujuan, $data)) {
+            // Hapus foto lama
+            $qLama = mysqli_query($conn, "SELECT foto FROM tb_pegawai WHERE id_peg='$id_peg'");
+            $rLama = mysqli_fetch_assoc($qLama);
+            $fileLama = __DIR__ . '/../../pages/assets/foto/' . $rLama['foto'];
+            if (!empty($rLama['foto']) && file_exists($fileLama) && is_file($fileLama)) {
+                unlink($fileLama);
+            }
+
+            // Update DB
+            mysqli_query($conn, "UPDATE tb_pegawai SET foto='$nama_file_baru' WHERE id_peg='$id_peg'");
+            
+            // SUKSES - Redirect ke URL Asal
+            echo $swalHeader;
+            echo "<script>
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil!',
+                    text: 'Foto pegawai telah diperbarui.',
+                    showConfirmButton: false,
+                    timer: 1500
+                }).then(() => {
+                    window.location.href = '$redirect_url';
+                });
+            </script>";
+            echo $swalFooter;
+            exit;
+        } else {
+            echo $swalHeader;
+            echo "<script>Swal.fire('Gagal!', 'Gagal menyimpan file.', 'error').then(() => { history.back(); });</script>";
+            echo $swalFooter;
+            exit;
+        }
+    } else {
+        echo $swalHeader;
+        echo "<script>Swal.fire('Error!', 'Data gambar invalid.', 'error').then(() => { history.back(); });</script>";
+        echo $swalFooter;
+        exit;
+    }
+}
+
+// --- TAMPILAN FORM (METHOD GET) ---
+
+// 1. Tentukan URL Kembali (Referer)
+// Jika ada referer dari server, pakai itu. Jika tidak, default ke Profil.
+$redirect_back = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : 'home-admin.php?page=profil-pegawai';
+
 // Ambil Data Pegawai
 $q = mysqli_query($conn, "SELECT nama, foto FROM tb_pegawai WHERE id_peg = '$id_peg'");
 if (!$q || mysqli_num_rows($q) == 0) {
@@ -20,119 +103,23 @@ $foto_file = trim($peg['foto']);
 $uploadRel = 'pages/assets/foto/';
 $foto_display = (!empty($foto_file) && file_exists(__DIR__ . '/../../' . $uploadRel . $foto_file))
     ? $uploadRel . $foto_file
-    : 'dist/img/avatar5.png'; // Default avatar jika kosong
+    : 'dist/img/avatar5.png'; 
 ?>
 
 <style>
-    .crop-container {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 30px;
-        justify-content: center;
-        padding: 20px;
-        background: #fff;
-        border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    }
-
-    /* Area Kiri: Editor */
-    .editor-area {
-        flex: 1;
-        min-width: 300px;
-        max-width: 500px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    }
-
-    .crop-frame {
-        width: 320px;
-        height: 320px;
-        border-radius: 50%;
-        border: 8px solid #fff;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-        overflow: hidden;
-        position: relative;
-        background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAACpJREFUeNpiVk6xcgYDCgAjIyMp+k0YGBgY/v///x8Hxk+00Q9G4w8ABBgAVj0E0/2/j/QAAAAASUVORK5CYII='); /* Pattern transparan */
-        cursor: grab;
-    }
-
-    .crop-frame:active {
-        cursor: grabbing;
-    }
-
-    .crop-image {
-        position: absolute;
-        top: 0; 
-        left: 0;
-        max-width: none; /* Penting agar zoom tidak dibatasi CSS */
-        user-select: none;
-        -webkit-user-drag: none;
-        transform-origin: center center;
-    }
-
-    /* Area Kanan: Preview & Aksi */
-    .preview-area {
-        flex: 1;
-        min-width: 250px;
-        max-width: 400px;
-        text-align: center;
-        border-left: 1px solid #eee;
-        padding-left: 30px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-    }
-
-    .preview-circle {
-        width: 160px;
-        height: 160px;
-        border-radius: 50%;
-        overflow: hidden;
-        border: 4px solid #e9ecef;
-        margin: 0 auto 20px;
-        background: #f8f9fa;
-    }
-
-    .preview-img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover; /* Preview statis hanya ilustrasi */
-    }
-    
-    /* Controls */
-    .control-group {
-        width: 100%;
-        margin-top: 20px;
-    }
-
-    .custom-file-label {
-        cursor: pointer;
-        overflow: hidden;
-    }
-    
-    .range-slider {
-        width: 100%;
-        margin: 15px 0;
-        cursor: pointer;
-    }
-
-    .btn-block { width: 100%; }
-    
-    .helper-text {
-        font-size: 13px;
-        color: #888;
-        margin-top: 5px;
-        text-align: center;
-    }
-
+    .crop-container { display: flex; flex-wrap: wrap; gap: 30px; justify-content: center; padding: 20px; background: #fff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+    .editor-area { flex: 1; min-width: 300px; max-width: 500px; display: flex; flex-direction: column; align-items: center; }
+    .crop-frame { width: 320px; height: 320px; border-radius: 50%; border: 8px solid #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.15); overflow: hidden; position: relative; background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAACpJREFUeNpiVk6xcgYDCgAjIyMp+k0YGBgY/v///x8Hxk+00Q9G4w8ABBgAVj0E0/2/j/QAAAAASUVORK5CYII='); cursor: grab; }
+    .crop-frame:active { cursor: grabbing; }
+    .crop-image { position: absolute; top: 0; left: 0; max-width: none; user-select: none; -webkit-user-drag: none; transform-origin: center center; }
+    .preview-area { flex: 1; min-width: 250px; max-width: 400px; text-align: center; border-left: 1px solid #eee; padding-left: 30px; display: flex; flex-direction: column; justify-content: center; }
+    .preview-circle { width: 160px; height: 160px; border-radius: 50%; overflow: hidden; border: 4px solid #e9ecef; margin: 0 auto 20px; background: #f8f9fa; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    .control-group { width: 100%; margin-top: 20px; }
+    .range-slider { width: 100%; margin: 15px 0; cursor: pointer; }
+    .helper-text { font-size: 13px; color: #888; margin-top: 5px; text-align: center; }
+    .btn-block { width: 100%; display: block; }
     @media(max-width: 768px) {
-        .preview-area {
-            border-left: none;
-            padding-left: 0;
-            border-top: 1px solid #eee;
-            padding-top: 20px;
-        }
+        .preview-area { border-left: none; padding-left: 0; border-top: 1px solid #eee; padding-top: 20px; }
         .crop-container { gap: 15px; }
     }
 </style>
@@ -140,9 +127,7 @@ $foto_display = (!empty($foto_file) && file_exists(__DIR__ . '/../../' . $upload
 <section class="content-header">
     <div class="container-fluid">
         <div class="row mb-2">
-            <div class="col-sm-6">
-                <h1>Ganti Foto Pegawai</h1>
-            </div>
+            <div class="col-sm-6"><h1>Ganti Foto Pegawai</h1></div>
             <div class="col-sm-6">
                 <ol class="breadcrumb float-sm-right">
                     <li class="breadcrumb-item"><a href="#">Home</a></li>
@@ -160,7 +145,6 @@ $foto_display = (!empty($foto_file) && file_exists(__DIR__ . '/../../' . $upload
                 <h3 class="card-title">Upload Foto untuk <b><?= $nama ?></b></h3>
             </div>
             <div class="card-body">
-                
                 <div class="crop-container">
                     
                     <div class="editor-area">
@@ -173,40 +157,39 @@ $foto_display = (!empty($foto_file) && file_exists(__DIR__ . '/../../' . $upload
                                 <input type="file" class="custom-file-input" id="fileInput" accept="image/*">
                                 <label class="custom-file-label" for="fileInput">Pilih Foto Baru...</label>
                             </div>
-
-                            <label><i class="fas fa-search-minus"></i> Zoom <i class="fas fa-search-plus"></i></label>
+                            <label class="text-muted small"><i class="fas fa-search-minus"></i> Zoom <i class="fas fa-search-plus"></i></label>
                             <input type="range" class="custom-range range-slider" id="zoomRange" min="0.5" max="3" step="0.01" value="1">
                             <div class="helper-text"><i class="fas fa-arrows-alt"></i> Geser gambar untuk memposisikan wajah di tengah lingkaran.</div>
                         </div>
                     </div>
 
                     <div class="preview-area">
-                        <h5 class="mb-3 text-muted">Preview Hasil</h5>
-                        
+                        <h5 class="mb-3 text-muted font-weight-bold">Preview Hasil</h5>
                         <canvas id="previewCanvas" class="preview-circle" width="300" height="300"></canvas>
                         
-                        <div class="mt-4">
-                            <button id="btnSave" class="btn btn-primary btn-block btn-lg shadow-sm">
+                        <div class="mt-4" style="width: 100%;">
+                            <button id="btnSave" class="btn btn-primary btn-block btn-lg shadow-sm mb-2">
                                 <i class="fas fa-save mr-1"></i> Simpan Foto
                             </button>
-                            <a href="home-admin.php?page=profil-pegawai&id_peg=<?=urlencode($id_peg)?>" class="btn btn-default btn-block mt-2">
+                            <a href="<?= htmlspecialchars($redirect_back) ?>" class="btn btn-default btn-block">
                                 <i class="fas fa-times mr-1"></i> Batal
                             </a>
                         </div>
-                        <div class="helper-text mt-2">Foto akan otomatis dipotong bulat sesuai tampilan editor.</div>
+                        <div class="helper-text mt-2">Ukuran file maksimal: <b>3 MB</b></div>
                     </div>
 
                 </div>
-
             </div>
         </div>
     </div>
 </section>
 
-<form id="postForm" action="home-admin.php?page=ganti-foto&id_peg=<?=urlencode($id_peg)?>" method="POST" style="display:none">
+<form id="postForm" method="POST" style="display:none">
     <input type="hidden" name="cropped_image" id="cropped_image_input" value="">
+    <input type="hidden" name="redirect_back" value="<?= htmlspecialchars($redirect_back) ?>">
 </form>
 
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const cropBox   = document.getElementById('cropBox');
@@ -219,192 +202,110 @@ document.addEventListener('DOMContentLoaded', function() {
     const postForm  = document.getElementById('postForm');
     const hiddenInput = document.getElementById('cropped_image_input');
 
-    // Variabel State
-    let state = {
-        imgWidth: 0,
-        imgHeight: 0,
-        scale: 1,
-        posX: 0,
-        posY: 0,
-        isDragging: false,
-        startX: 0,
-        startY: 0,
-        boxSize: 320 // Ukuran container crop (px)
-    };
+    let state = { imgWidth: 0, imgHeight: 0, scale: 1, posX: 0, posY: 0, isDragging: false, startX: 0, startY: 0, boxSize: 320 };
 
-    // 1. Inisialisasi Gambar saat Load
     img.onload = function() {
         state.imgWidth  = img.naturalWidth;
         state.imgHeight = img.naturalHeight;
-        
-        // Reset posisi ke tengah & fit to box
         fitImageToBox();
-        render(); // Render awal
+        render(); 
     };
 
-    // Fungsi Fit Gambar ke Kotak (Reset)
     function fitImageToBox() {
         const ratioW = state.boxSize / state.imgWidth;
         const ratioH = state.boxSize / state.imgHeight;
-        // Pilih skala yang mengisi kotak (cover) atau memuat (contain) - disini pakai cover agar penuh
         state.scale = Math.max(ratioW, ratioH); 
-        
-        // Pusatkan
         state.posX = (state.boxSize - (state.imgWidth * state.scale)) / 2;
         state.posY = (state.boxSize - (state.imgHeight * state.scale)) / 2;
-
-        // Update slider
         zoomRange.value = state.scale;
-        // Update min/max slider agar responsif thd ukuran gambar asli
-        zoomRange.min = state.scale * 0.5; // Bisa zoom out dikit
-        zoomRange.max = state.scale * 3;   // Bisa zoom in 3x
+        zoomRange.min = state.scale * 0.5; 
+        zoomRange.max = state.scale * 3;   
     }
 
-    // 2. Handle File Input (Ganti Gambar)
     fileInput.addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
-
-        // Update label input file (nama file)
-        e.target.nextElementSibling.innerText = file.name;
-
-        const reader = new FileReader();
-        reader.onload = function(ev) {
-            img.src = ev.target.result; // Trigger img.onload
+        if(file.size > 5 * 1024 * 1024) { 
+             Swal.fire('File Terlalu Besar', 'Mohon pilih foto di bawah 5MB.', 'warning');
+             this.value = ''; return;
         }
+        e.target.nextElementSibling.innerText = file.name;
+        const reader = new FileReader();
+        reader.onload = function(ev) { img.src = ev.target.result; }
         reader.readAsDataURL(file);
     });
 
-    // 3. Render Gambar ke Editor & Preview Canvas
     function render() {
-        // Update CSS Image di Editor
         img.style.width     = (state.imgWidth * state.scale) + 'px';
         img.style.height    = (state.imgHeight * state.scale) + 'px';
         img.style.transform = `translate(${state.posX}px, ${state.posY}px)`;
-
-        // Update Canvas Preview (Realtime)
-        // Bersihkan canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Isi background putih (opsional, mencegah transparan hitam)
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Hitung kordinat relatif untuk canvas
-        // Canvas size kita set 300x300, Box Editor 320x320. Kita mapping proporsional.
         const ratioCanvas = canvas.width / state.boxSize; 
-
         const drawX = state.posX * ratioCanvas;
         const drawY = state.posY * ratioCanvas;
         const drawW = (state.imgWidth * state.scale) * ratioCanvas;
         const drawH = (state.imgHeight * state.scale) * ratioCanvas;
-
-        // Gambar ke canvas
         ctx.drawImage(img, 0, 0, state.imgWidth, state.imgHeight, drawX, drawY, drawW, drawH);
     }
 
-    // 4. Handle Zoom (Slider) - Zoom ke Tengah (Center Zoom)
     zoomRange.addEventListener('input', function() {
         const oldScale = state.scale;
         const newScale = parseFloat(this.value);
-
-        // Hitung pusat kotak saat ini relative terhadap gambar
-        const boxCenterX = state.boxSize / 2;
-        const boxCenterY = state.boxSize / 2;
-
-        // Hitung posisi pusat gambar relatif thd pojok kiri atas gambar (dalam skala lama)
-        const imgRelCenterX = (boxCenterX - state.posX) / oldScale;
-        const imgRelCenterY = (boxCenterY - state.posY) / oldScale;
-
-        // Update skala
+        const boxCenter = state.boxSize / 2;
+        const imgRelCenterX = (boxCenter - state.posX) / oldScale;
+        const imgRelCenterY = (boxCenter - state.posY) / oldScale;
         state.scale = newScale;
-
-        // Hitung posisi baru agar titik pusat gambar tetap di tengah kotak
-        state.posX = boxCenterX - (imgRelCenterX * newScale);
-        state.posY = boxCenterY - (imgRelCenterY * newScale);
-
+        state.posX = boxCenter - (imgRelCenterX * newScale);
+        state.posY = boxCenter - (imgRelCenterY * newScale);
         render();
     });
 
-    // 5. Handle Drag (Mouse & Touch)
-    const startDrag = (e) => {
-        e.preventDefault(); // Cegah drag bawaan browser
-        state.isDragging = true;
-        // Ambil posisi pointer (support touch & mouse)
-        state.startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
-        state.startY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
-        cropBox.style.cursor = 'grabbing';
-    };
-
+    const startDrag = (e) => { e.preventDefault(); state.isDragging = true; state.startX = getX(e); state.startY = getY(e); cropBox.style.cursor = 'grabbing'; };
     const doDrag = (e) => {
         if (!state.isDragging) return;
-        e.preventDefault(); // Cegah scrolling saat touch drag
-        
-        const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
-        const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
-
-        const dx = clientX - state.startX;
-        const dy = clientY - state.startY;
-
-        state.posX += dx;
-        state.posY += dy;
-
-        // Update start point untuk frame berikutnya
-        state.startX = clientX;
-        state.startY = clientY;
-
+        e.preventDefault(); 
+        const curX = getX(e); const curY = getY(e);
+        state.posX += curX - state.startX;
+        state.posY += curY - state.startY;
+        state.startX = curX; state.startY = curY;
         render();
     };
+    const stopDrag = () => { state.isDragging = false; cropBox.style.cursor = 'grab'; };
+    const getX = (e) => e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+    const getY = (e) => e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
 
-    const stopDrag = () => {
-        state.isDragging = false;
-        cropBox.style.cursor = 'grab';
-    };
+    cropBox.addEventListener('mousedown', startDrag); window.addEventListener('mousemove', doDrag); window.addEventListener('mouseup', stopDrag);
+    cropBox.addEventListener('touchstart', startDrag, {passive:false}); window.addEventListener('touchmove', doDrag, {passive:false}); window.addEventListener('touchend', stopDrag);
 
-    // Event Listeners Mouse
-    cropBox.addEventListener('mousedown', startDrag);
-    window.addEventListener('mousemove', doDrag);
-    window.addEventListener('mouseup', stopDrag);
-
-    // Event Listeners Touch (Mobile)
-    cropBox.addEventListener('touchstart', startDrag, {passive: false});
-    window.addEventListener('touchmove', doDrag, {passive: false});
-    window.addEventListener('touchend', stopDrag);
-
-
-    // 6. Handle Simpan (Generate Final Output)
     btnSave.addEventListener('click', function() {
-        // Buat canvas baru untuk output high-res (misal 600x600)
-        const outSize = 600; 
-        const outCanvas = document.createElement('canvas');
-        outCanvas.width = outSize;
-        outCanvas.height = outSize;
-        const outCtx = outCanvas.getContext('2d');
-
-        // Background putih bersih
-        outCtx.fillStyle = "#ffffff";
-        outCtx.fillRect(0, 0, outSize, outSize);
-
-        // Kalkulasi proporsi dari Editor(320px) ke Output(600px)
-        const ratio = outSize / state.boxSize;
-
-        const dX = state.posX * ratio;
-        const dY = state.posY * ratio;
-        const dW = (state.imgWidth * state.scale) * ratio;
-        const dH = (state.imgHeight * state.scale) * ratio;
-
-        // Gambar hasil akhir
-        outCtx.drawImage(img, 0, 0, state.imgWidth, state.imgHeight, dX, dY, dW, dH);
-
-        // Konversi ke Base64 String
-        const dataURL = outCanvas.toDataURL('image/jpeg', 0.9); // Kualitas 90%
-        
-        // Masukkan ke hidden input & submit
-        hiddenInput.value = dataURL;
-        postForm.submit();
+        Swal.fire({title: 'Memproses...', text: 'Sedang menyimpan gambar', allowOutsideClick: false, didOpen: () => { Swal.showLoading() }});
+        setTimeout(() => {
+            const outSize = 600; 
+            const outCanvas = document.createElement('canvas');
+            outCanvas.width = outSize; outCanvas.height = outSize;
+            const outCtx = outCanvas.getContext('2d');
+            outCtx.fillStyle = "#ffffff";
+            outCtx.fillRect(0, 0, outSize, outSize);
+            const ratio = outSize / state.boxSize;
+            const dX = state.posX * ratio;
+            const dY = state.posY * ratio;
+            const dW = (state.imgWidth * state.scale) * ratio;
+            const dH = (state.imgHeight * state.scale) * ratio;
+            outCtx.drawImage(img, 0, 0, state.imgWidth, state.imgHeight, dX, dY, dW, dH);
+            const dataURL = outCanvas.toDataURL('image/jpeg', 0.9); 
+            
+            const sizeInBytes = (dataURL.length * 3 / 4) - (dataURL.indexOf('=') > 0 ? (dataURL.length - dataURL.indexOf('=')) : 0);
+            if(sizeInBytes > 3 * 1024 * 1024) {
+                Swal.fire('Gagal', 'Hasil crop terlalu besar (>3MB).', 'error');
+                return;
+            }
+            hiddenInput.value = dataURL;
+            postForm.submit();
+        }, 300);
     });
 
-    // Trigger load awal jika gambar sudah ada di cache browser
     if (img.complete) img.onload();
 });
 </script>

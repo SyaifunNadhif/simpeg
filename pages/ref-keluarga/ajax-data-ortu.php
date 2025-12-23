@@ -1,188 +1,142 @@
 <?php
 /*********************************************************
- * DIR     : pages/ref-keluarga/ajax-data-ortu.php
- * MODULE  : SIMPEG — Data Orang Tua Pegawai (tb_ortu)
- * VERSION : v1.4.4 (Force exact o.id_peg match when uid provided)
+ * FILE     : pages/ref-keluarga/ajax-data-ortu.php
+ * MODULE   : Backend JSON Data Orang Tua (Secure & Sanitized)
+ * VERSION  : v2.0 (Standardized with Sertifikasi & Pendidikan)
  *********************************************************/
-if (session_id()==='') session_start();
 
-/* ---- koneksi (fleksibel dist|config) ---- */
-$__conn_ok = false;
-$__paths = array(
-  __DIR__ . '/../../dist/koneksi.php',
-  __DIR__ . '/../../config/koneksi.php'
-);
-foreach ($__paths as $__p) {
-  if (file_exists($__p)) { require_once $__p; $__conn_ok = true; break; }
-}
-if (!$__conn_ok) {
-  header('Content-Type: application/json; charset=UTF-8');
-  echo json_encode(array('draw'=>0,'recordsTotal'=>0,'recordsFiltered'=>0,'data'=>array(),'error'=>'Koneksi tidak ditemukan.'));
-  exit;
+if (session_id() == '') session_start();
+
+// Matikan error display agar JSON valid
+ini_set('display_errors', 0);
+while(ob_get_level()){ ob_end_clean(); }
+header('Content-Type: application/json; charset=utf-8');
+
+// --- 1. KONEKSI ---
+@include_once __DIR__ . '/../../dist/koneksi.php';
+if (!isset($conn)) { 
+    @include_once __DIR__ . '/../../config/koneksi.php'; 
+    $conn = isset($koneksi) ? $koneksi : null; 
 }
 
-/* ---- pilih handle koneksi ---- */
-$db = null;
-if (isset($koneksi) && $koneksi) $db = $koneksi;
-elseif (isset($conn) && $conn)   $db = $conn;
-
-if (!$db) {
-  header('Content-Type: application/json; charset=UTF-8');
-  echo json_encode(array('draw'=>0,'recordsTotal'=>0,'recordsFiltered'=>0,'data'=>array(),'error'=>'Variabel koneksi tidak tersedia.'));
-  exit;
+if (!$conn) {
+    echo json_encode(['draw'=>0, 'recordsTotal'=>0, 'recordsFiltered'=>0, 'data'=>[], 'error'=>'Koneksi DB Gagal']);
+    exit;
 }
 
-header('Content-Type: application/json; charset=UTF-8');
+// --- 2. HELPER SECURITY ---
+function esc($s){ global $conn; return mysqli_real_escape_string($conn, trim($s)); }
+function h($s){ return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
 
-/* ---- helpers ---- */
-function esc($c,$s){ return mysqli_real_escape_string($c, $s); }
-function nv($v,$dash='-'){ return ($v!==null && $v!=='') ? $v : $dash; }
-function getv($k,$d=''){ return isset($_GET[$k]) ? trim($_GET[$k]) : $d; }
-function col_exists($conn,$table,$col){
-  $q = mysqli_query($conn, "SHOW COLUMNS FROM {$table} LIKE '".mysqli_real_escape_string($conn,$col)."'");
-  return $q && mysqli_num_rows($q)>0;
-}
-
-/* ---- DataTables params ---- */
-$draw   = isset($_GET['draw'])  ? (int)$_GET['draw']  : 1;
+// --- 3. PARAMETER DATATABLES ---
+$draw   = isset($_GET['draw']) ? (int)$_GET['draw'] : 1;
 $start  = isset($_GET['start']) ? (int)$_GET['start'] : 0;
-$length = isset($_GET['length'])? (int)$_GET['length']: 10;
-if ($length < 1) $length = 10; if ($length > 500) $length = 500;
+$len    = isset($_GET['length']) ? (int)$_GET['length'] : 10;
+$search = isset($_GET['search']['value']) ? trim($_GET['search']['value']) : '';
+$uid    = isset($_GET['uid']) ? esc($_GET['uid']) : ''; // Filter ID Pegawai (opsional)
 
-$search = isset($_GET['search']['value']) ? esc($db, trim($_GET['search']['value'])) : '';
-$filter_idpeg  = isset($_GET['filter_idpeg']) ? esc($db, trim($_GET['filter_idpeg'])) : '';
-$filter_status = isset($_GET['filter_status']) ? esc($db, trim($_GET['filter_status'])) : '';
-$uid           = getv('uid','');          // use exactly as provided, e.g. "K-102-065"
-$ctx_idpeg     = getv('id_peg','');       // context id_peg (priority)
-$dbg           = getv('dbg','');
+// --- 4. QUERY BUILDER ---
+// Asumsi tabel 'tb_ortu' dan 'tb_pegawai'. Sesuaikan jika beda.
+$baseQuery = " FROM tb_ortu o 
+               LEFT JOIN tb_pegawai p ON o.id_peg = p.id_peg 
+               LEFT JOIN tb_jabatan j ON p.id_peg = j.id_peg AND j.status_jab = 'Aktif'
+               LEFT JOIN tb_kantor k ON j.unit_kerja = k.kode_kantor_detail ";
 
-$has_namalengkap = col_exists($db,'tb_pegawai','nama_lengkap');
-$has_idpegcode   = col_exists($db,'tb_pegawai','id_peg_code');
+$where = " WHERE 1=1 ";
 
-$COL_NAMA = $has_namalengkap ? 'p.nama_lengkap' : 'p.nama';
-$COL_IDPG = $has_idpegcode   ? 'p.id_peg_code'  : 'o.id_peg';
-
-/* ---- mapping kolom sort ---- */
-$columns = array(
-  0 => 'o.id_ortu',
-  1 => $COL_IDPG,
-  2 => $COL_NAMA,
-  3 => 'o.status_hub',
-  4 => 'o.nama',
-  5 => 'o.nik',
-  6 => 'o.tgl_lhr',
-  7 => 'o.pendidikan',
-  8 => 'o.pekerjaan'
-);
-$order_col_index = isset($_GET['order'][0]['column']) ? (int)$_GET['order'][0]['column'] : 1;
-$order_col = isset($columns[$order_col_index]) ? $columns[$order_col_index] : $COL_IDPG;
-$order_dir = (isset($_GET['order'][0]['dir']) && strtolower($_GET['order'][0]['dir'])==='desc') ? 'DESC' : 'ASC';
-
-/* ---- base FROM/WHERE ---- */
-$from  = ' FROM tb_ortu o LEFT JOIN tb_pegawai p ON p.id_peg = o.id_peg ';
-$where = ' WHERE 1=1 ';
-
-/* -- konteks: id_peg (prioritas) atau uid (fallback) --
-   IMPORTANT: use exact match on o.id_peg to avoid accidental matches */
-if ($ctx_idpeg !== '') {
-  $where .= " AND o.id_peg = '".esc($db,$ctx_idpeg)."' ";
-} elseif ($uid !== '') {
-  // Use exactly o.id_peg = :uid (no broad OR/LIKE)
-  $where .= " AND o.id_peg = '".esc($db,$uid)."' ";
+// Filter UID (Jika dipanggil dari halaman Detail Pegawai)
+if($uid !== ''){ 
+    $where .= " AND o.id_peg='$uid' "; 
 }
 
-/* -- filter kolom -- */
-if ($filter_idpeg !== '')   { $where .= " AND (p.id_peg_code LIKE '%".esc($db,$filter_idpeg)."%' OR o.id_peg LIKE '%".esc($db,$filter_idpeg)."%') "; }
-if ($filter_status !== '')  { $where .= " AND o.status_hub = '".esc($db,$filter_status)."' "; }
-
-/* -- where tanpa search untuk total -- */
-$where_no_search = $where;
-
-/* -- search global -- */
-if ($search !== '') {
-  $like = esc($db, $search);
-  $where .= " AND (
-      {$COL_IDPG}  LIKE '%{$like}%' OR
-      o.id_peg     LIKE '%{$like}%' OR
-      {$COL_NAMA}  LIKE '%{$like}%' OR
-      o.nama       LIKE '%{$like}%' OR
-      o.nik        LIKE '%{$like}%' OR
-      o.pendidikan LIKE '%{$like}%' OR
-      o.pekerjaan  LIKE '%{$like}%'
-  ) ";
+// Global Search
+if($search !== ''){
+    $s = esc($search);
+    $where .= " AND (
+        o.nama LIKE '%$s%' OR 
+        o.status_hub LIKE '%$s%' OR 
+        p.nama LIKE '%$s%' OR
+        o.nik LIKE '%$s%' OR
+        o.pekerjaan LIKE '%$s%'
+    ) ";
 }
 
-/* ---- total & filtered ---- */
-$q_total = mysqli_query($db, "SELECT COUNT(*) AS c {$from} {$where_no_search}");
-$total = ($q_total && ($r=mysqli_fetch_assoc($q_total))) ? (int)$r['c'] : 0;
+// --- 6. HITUNG TOTAL ---
+$total = 0;
+$qCount = mysqli_query($conn, "SELECT COUNT(*) AS c $baseQuery $where");
+if($qCount){ $r = mysqli_fetch_assoc($qCount); $total = (int)$r['c']; }
 
-$q_filtered = mysqli_query($db, "SELECT COUNT(*) AS c {$from} {$where}");
-$filtered = ($q_filtered && ($r=mysqli_fetch_assoc($q_filtered))) ? (int)$r['c'] : 0;
+// --- 7. AMBIL DATA ---
+// Pastikan kolom yang diambil ada di tabel Anda.
+$sql = "SELECT o.*, p.nama AS nama_peg, p.nip
+        $baseQuery $where
+        ORDER BY o.id_ortu DESC
+        LIMIT $start, $len";
 
-/* ---- data ---- */
-$sql = "SELECT
-          o.id_ortu,
-          o.id_peg,
-          {$COL_NAMA} AS nama_peg,
-          {$COL_IDPG} AS id_peg_code,
-          o.status_hub,
-          o.nama AS nama_ortu,
-          o.nik, o.tmp_lhr, o.tgl_lhr, o.pendidikan, o.pekerjaan
-        {$from} {$where}
-        ORDER BY {$order_col} {$order_dir}
-        LIMIT {$start}, {$length}";
-$res = mysqli_query($db, $sql);
-
+$q = mysqli_query($conn, $sql);
 $data = array();
-if ($res) {
-  while($row = mysqli_fetch_assoc($res)){
-    $ttl = nv($row['tmp_lhr']).', '.( $row['tgl_lhr'] ? date('d-m-Y', strtotime($row['tgl_lhr'])) : '-' );
+$no = $start + 1;
 
-    // Prioritaskan nilai id_peg dari baris DB (o.id_peg) untuk header/links.
-    // Jika kosong, fallback ke ctx_idpeg, lalu ke uid param.
-    $raw_idpeg = isset($row['id_peg']) ? $row['id_peg'] : '';
-    if ($raw_idpeg !== '') {
-      $uid_formatted = $raw_idpeg;
-    } elseif ($ctx_idpeg !== '') {
-      $uid_formatted = $ctx_idpeg;
-    } elseif ($uid !== '') {
-      $uid_formatted = $uid;
-    } else {
-      $uid_formatted = '';
+if($q){
+    while($r = mysqli_fetch_assoc($q)){
+        
+        // --- FORMAT DATA (Secure Output) ---
+        
+        // 1. Pegawai (Gabungan Nama & NIP)
+        $idpeg_nama = '<div class="font-weight-bold text-dark">'.h($r['nama_peg'] ?: '-').'</div>
+                       <small class="text-muted">'.h($r['id_peg']).'</small>';
+
+        // 2. Nama Orang Tua
+        $nama_ortu = '<div class="font-weight-bold text-primary">'.h($r['nama']).'</div>';
+        if(!empty($r['nik'])){
+             $nama_ortu .= '<small class="text-muted"><i class="fa fa-id-card mr-1"></i> '.h($r['nik']).'</small>';
+        }
+
+        // 3. Status Hubungan (Ayah/Ibu)
+        $status_hub = h($r['status_hub']);
+        $status_badge = '<span class="badge badge-light border">'.$status_hub.'</span>';
+        if (stripos($status_hub, 'ayah') !== false) {
+            $status_badge = '<span class="badge badge-info text-white">Ayah</span>';
+        } elseif (stripos($status_hub, 'ibu') !== false) {
+            $status_badge = '<span class="badge badge-danger">Ibu</span>';
+        }
+
+        // 4. TTL
+        $ttl = h($r['tmp_lhr']) . ', ' . ($r['tgl_lhr'] ? date('d-m-Y', strtotime($r['tgl_lhr'])) : '-');
+
+        // 5. Tombol Aksi (Edit & Delete) - Style Modern
+        $id_val = $r['id_ortu'];
+        // Jika ada UID, kirim juga UID-nya agar tombol back di form edit bisa kembali ke profil pegawai
+        $link_edit = "home-admin.php?page=form-master-data-ortu&mode=edit&id_ortu=".h($id_val).($uid ? "&uid=".h($uid) : "");
+        
+        $aksi_html = '<div class="btn-group">
+                        <a href="'.$link_edit.'" class="btn btn-sm btn-light border shadow-sm rounded-circle text-primary" title="Edit">
+                            <i class="fa fa-pen"></i>
+                        </a>
+                        <button type="button" class="btn btn-sm btn-light border shadow-sm rounded-circle text-danger btn-delete" data-id="'.h($id_val).'" title="Hapus">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                      </div>';
+
+        // Menyusun Array Data
+        $data[] = array(
+            'no'            => $no++,
+            'idpeg_nama'    => $idpeg_nama,
+            'nama_ortu'     => $nama_ortu,
+            'status_hub'    => $status_badge,
+            'ttl'           => $ttl,
+            'pekerjaan'     => h($r['pekerjaan']) ?: '-',
+            'aksi'          => $aksi_html
+        );
     }
-
-    // buat link aksi: gunakan id_ortu dan uid_formatted (verbatis)
-    $href_profile = 'home-admin.php?page=view-detail-data-pegawai&id_peg=' . rawurlencode($row['id_peg']);
-    $href_edit = 'home-admin.php?page=form-master-data-ortu&mode=edit&id_ortu=' . rawurlencode($row['id_ortu'])
-                 . ($uid_formatted !== '' ? '&uid=' . rawurlencode($uid_formatted) : '&id_peg=' . rawurlencode($row['id_peg']));
-
-    $aksi  = '<a class="btn btn-xs btn-outline-info" title="Profil Pegawai" href="'.htmlspecialchars($href_profile,ENT_QUOTES,'UTF-8').'"><i class="fa fa-user"></i></a> ';
-    $aksi .= '<a class="btn btn-xs btn-outline-primary" title="Edit" href="'.htmlspecialchars($href_edit,ENT_QUOTES,'UTF-8').'"><i class="fa fa-edit"></i></a>';
-
-    $data[] = array(
-      'id_ortu'     => (string)$row['id_ortu'],
-      'uid'         => $uid_formatted,
-      'aksi'        => $aksi,
-      'id_peg'      => nv($row['id_peg_code']) ? nv($row['id_peg_code']) : nv($row['id_peg']),
-      'nama_peg'    => nv($row['nama_peg']),
-      'status_hub'  => nv($row['status_hub']),
-      'nama_ortu'   => nv($row['nama_ortu']),
-      'nik'         => nv($row['nik']),
-      'ttl'         => $ttl,
-      'pendidikan'  => nv($row['pendidikan']),
-      'pekerjaan'   => nv($row['pekerjaan'])
-    );
-  }
-} else if ($dbg==='1') {
-  $data[] = array('id_peg'=>'','nama_peg'=>'','status_hub'=>'','nama_ortu'=>'','nik'=>'','ttl'=>'','pendidikan'=>'','pekerjaan'=>'','aksi'=>mysqli_error($db));
 }
 
-/* ---- bersihkan output liar lalu kirim JSON ---- */
-if (function_exists('ob_get_length') && ob_get_length()) { ob_clean(); }
-
+// Output JSON
 echo json_encode(array(
-  'draw' => $draw,
-  'recordsTotal' => $total,
-  'recordsFiltered' => $filtered,
-  'data' => $data
-));
+    'draw'            => $draw,
+    'recordsTotal'    => $total,
+    'recordsFiltered' => $total,
+    'data'            => $data
+), JSON_UNESCAPED_UNICODE); 
+exit;
+?>

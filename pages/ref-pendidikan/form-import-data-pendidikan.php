@@ -6,23 +6,16 @@
     .file-input-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; }
 </style>
 
-<section class="content-header">
-  <div class="container-fluid">
-    <div class="row mb-2">
-      <div class="col-sm-6"><h1>Import Riwayat Pendidikan</h1></div>
-      <div class="col-sm-6"><ol class="breadcrumb float-sm-right"><li class="breadcrumb-item"><a href="#">Home</a></li><li class="breadcrumb-item active">Import Pendidikan</li></ol></div>
-    </div>
-  </div>
-</section>
 
-<section class="content">
+
+<section class="content p-3">
   <div class="container-fluid">
     <div class="row justify-content-center">
         <div class="col-md-10">
             <div class="upload-container">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h3 class="m-0 font-weight-bold text-dark"><i class="fas fa-graduation-cap text-success mr-2"></i> Import Pendidikan</h3>
-                    <a href="home-admin.php?page=view-data-pendidikan" class="btn btn-light btn-sm rounded-pill px-3"><i class="fas fa-times"></i> Tutup</a>
+                    <a href="home-admin.php?page=form-view-data-pendidikan" class="btn btn-light btn-sm rounded-pill px-3"><i class="fas fa-times"></i> Tutup</a>
                 </div>
 
                 <div class="alert alert-secondary bg-white border shadow-sm rounded-lg mb-4">
@@ -131,7 +124,7 @@ document.body.addEventListener('click', function(e) {
                 .then(res => {
                     if (res.status === 'success') {
                         Swal.fire('Selesai!', res.message, 'success').then(() => { 
-                            window.location.href = "home-admin.php?page=view-data-pendidikan"; 
+                            window.location.href = "home-admin.php?page=form-view-data-pendidikan"; 
                         });
                     } else {
                         Swal.fire('Gagal', res.message, 'error');

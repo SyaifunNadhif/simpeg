@@ -1,72 +1,115 @@
 <?php
-// File: export-nominatif-pegawai-excel.php
-// Versi: 1.0 - Ekspor Data Nominatif Pegawai ke Excel
+/*********************************************************
+ * FILE     : pages/report/export-nominatif-excel.php
+ * MODULE   : Export Excel Laporan Nominatif
+ * STATUS   : Sesuai Logic Ajax (Smart Filter KC+KK)
+ *********************************************************/
 
+// Set Header untuk Download Excel
 header("Content-Type: application/vnd.ms-excel");
-header("Content-Disposition: attachment; filename=Nominatif_Pegawai_".date('dmY').".xls");
+header("Content-Disposition: attachment; filename=Nominatif_Pegawai_".date('dmY_His').".xls");
+header("Pragma: no-cache");
+header("Expires: 0");
 
-include "../../dist/koneksi.php";
+// Sertakan Koneksi
+@include_once __DIR__ . '/../../dist/koneksi.php';
+if (!isset($conn)) { @include_once __DIR__ . '/../../config/koneksi.php'; $conn = isset($koneksi)?$koneksi:null; }
 
-$status_kepeg = isset($_GET['status_kepeg']) ? mysqli_real_escape_string($conn, $_GET['status_kepeg']) : '';
+// --- 1. AMBIL PARAMETER FILTER ---
+// Kita ambil parameter GET yang dikirim dari tombol Download Excel
 $unit_kerja   = isset($_GET['unit_kerja']) ? mysqli_real_escape_string($conn, $_GET['unit_kerja']) : '';
 $jabatan      = isset($_GET['jabatan']) ? mysqli_real_escape_string($conn, $_GET['jabatan']) : '';
+$status_kepeg = isset($_GET['status_kepeg']) ? mysqli_real_escape_string($conn, $_GET['status_kepeg']) : '';
 
-$where = "WHERE tb_pegawai.status_aktif = 1";
-if ($status_kepeg != '') $where .= " AND tb_pegawai.status_kepeg = '$status_kepeg'";
-if ($unit_kerja != '')   $where .= " AND tb_jabatan.unit_kerja = '$unit_kerja'";
-if ($jabatan != '')      $where .= " AND tb_jabatan.jabatan = '$jabatan'";
+// --- 2. CEK HAK AKSES (KEPALA - LOCK FILTER) ---
+session_start();
+$hak_akses = isset($_SESSION['hak_akses']) ? $_SESSION['hak_akses'] : '';
+$kode_kantor_user = isset($_SESSION['kode_kantor']) ? $_SESSION['kode_kantor'] : '';
 
-echo "<table border='1'>";
-echo "<thead>
-<tr>
-  <th>No</th>
-  <th>ID Pegawai</th>
-  <th>Nama</th>
-  <th>NIK</th>
-  <th>Jabatan</th>
-  <th>TMT Jabatan</th>
-  <th>Unit Kerja</th>
-  <th>Status Kepegawaian</th>
-  <th>Sekolah/Univ.</th>
-  <th>Tahun Lulus</th>
-  <th>Jenjang</th>
-</tr>
-</thead>
-<tbody>";
-
-$no = 1;
-$query = "SELECT
-            tb_pegawai.id_peg,
-            tb_pegawai.nama,
-            tb_pegawai.nip,
-            tb_jabatan.jabatan,
-            tb_jabatan.tmt_jabatan,
-            (SELECT nama_kantor FROM tb_kantor WHERE kode_kantor_detail = tb_jabatan.unit_kerja) AS unit_kerja,
-            tb_pegawai.status_kepeg,
-            tb_sekolah.nama_sekolah,
-            tb_sekolah.tgl_ijazah,
-            tb_sekolah.jenjang
-          FROM tb_pegawai
-          LEFT JOIN tb_jabatan ON tb_pegawai.id_peg = tb_jabatan.id_peg
-          LEFT JOIN tb_sekolah ON tb_pegawai.id_peg = tb_sekolah.id_peg
-          $where";
-
-$result = mysqli_query($conn, $query);
-while ($peg = mysqli_fetch_array($result)) {
-  echo "<tr>
-    <td align='center'>".$no++."</td>
-    <td>".$peg['id_peg']."</td>
-    <td>".$peg['nama']."</td>
-    <td>".$peg['nip']."</td>
-    <td>".$peg['jabatan']."</td>
-    <td>".$peg['tmt_jabatan']."</td>
-    <td>".$peg['unit_kerja']."</td>
-    <td>".$peg['status_kepeg']."</td>
-    <td>".$peg['nama_sekolah']."</td>
-    <td>".$peg['tgl_ijazah']."</td>
-    <td>".$peg['jenjang']."</td>
-  </tr>";
+if ($hak_akses == 'kepala') {
+    $unit_kerja = $kode_kantor_user; 
 }
 
-echo "</tbody></table>";
-exit;
+// --- 3. BANGUN QUERY (SAMA PERSIS DENGAN AJAX) ---
+$sqlJoin = "FROM tb_pegawai p
+            LEFT JOIN tb_jabatan j ON p.id_peg = j.id_peg AND j.status_jab = 'Aktif'
+            LEFT JOIN tb_kantor k ON j.unit_kerja = k.kode_kantor_detail
+            LEFT JOIN tb_pendidikan s ON p.id_peg = s.id_peg AND s.status = 'Akhir'";
+
+$where = "WHERE p.status_aktif = 1";
+
+// A. SMART FILTER KANTOR
+if ($unit_kerja != '') {
+    $qK = mysqli_query($conn, "SELECT level, kode_cabang FROM tb_kantor WHERE kode_kantor_detail = '$unit_kerja'");
+    $dK = mysqli_fetch_assoc($qK);
+
+    if ($dK && $dK['level'] == 'KC') {
+        // Jika KC, ambil Induk + semua KK
+        $kode_cabang = $dK['kode_cabang'];
+        $where .= " AND k.kode_cabang = '$kode_cabang'";
+    } else {
+        // Exact match
+        $where .= " AND j.unit_kerja = '$unit_kerja'";
+    }
+}
+
+// B. FILTER LAIN
+if ($jabatan != '') { 
+    $where .= " AND j.jabatan = '$jabatan'"; 
+}
+if ($status_kepeg != '') { 
+    $where .= " AND p.status_kepeg = '$status_kepeg'"; 
+}
+
+// --- 4. QUERY DATA ---
+$query = "SELECT
+            p.id_peg, p.nama, p.nip, p.status_kepeg,
+            j.jabatan, j.tmt_jabatan,
+            k.nama_kantor AS nama_unit_kerja,
+            s.nama_sekolah, s.jenjang, s.tgl_ijazah
+          $sqlJoin
+          $where
+          ORDER BY p.nama ASC";
+
+$result = mysqli_query($conn, $query);
+
+// --- 5. OUTPUT TABLE EXCEL ---
+?>
+<table border="1" style="border-collapse: collapse; width: 100%;">
+    <thead>
+        <tr style="background-color: #f2f2f2;">
+            <th style="padding: 10px;">No</th>
+            <th style="padding: 10px;">Nama Pegawai</th>
+            <th style="padding: 10px;">NIP / NIK</th>
+            <th style="padding: 10px;">Jabatan</th>
+            <th style="padding: 10px;">TMT Jabatan</th>
+            <th style="padding: 10px;">Unit Kerja</th>
+            <th style="padding: 10px;">Status Pegawai</th>
+            <th style="padding: 10px;">Jenjang Pendidikan</th>
+            <th style="padding: 10px;">Nama Sekolah/Univ</th>
+            <th style="padding: 10px;">Tahun Lulus</th>
+        </tr>
+    </thead>
+    <tbody>
+        <?php
+        $no = 1;
+        while ($row = mysqli_fetch_assoc($result)) {
+            // Format Tanggal
+            $tmt = ($row['tmt_jabatan'] && $row['tmt_jabatan']!='0000-00-00') ? date('d-m-Y', strtotime($row['tmt_jabatan'])) : '-';
+            $thn_lulus = ($row['tgl_ijazah'] && $row['tgl_ijazah']!='0000-00-00') ? date('Y', strtotime($row['tgl_ijazah'])) : '-';
+        ?>
+        <tr>
+            <td align="center"><?= $no++ ?></td>
+            <td><?= htmlspecialchars($row['nama']) ?></td>
+            <td align="center" style="mso-number-format:'@'"><?= htmlspecialchars($row['nip']) ?></td>
+            <td><?= htmlspecialchars($row['jabatan'] ?: '-') ?></td>
+            <td align="center" style="mso-number-format:'@'"><?= $tmt ?></td>
+            <td><?= htmlspecialchars($row['nama_unit_kerja'] ?: '-') ?></td>
+            <td align="center"><?= htmlspecialchars($row['status_kepeg']) ?></td>
+            <td align="center"><?= htmlspecialchars($row['jenjang'] ?: '-') ?></td>
+            <td><?= htmlspecialchars($row['nama_sekolah'] ?: '-') ?></td>
+            <td align="center"><?= $thn_lulus ?></td>
+        </tr>
+        <?php } ?>
+    </tbody>
+</table>

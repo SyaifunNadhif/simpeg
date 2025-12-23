@@ -9,16 +9,18 @@
 if (session_id()==='') session_start();
 
 /* ==== include koneksi + normalisasi variabel ==== */
+// Using absolute paths or a defined constant for ROOT_PATH is often more robust than relative paths
 $__paths = array(
   __DIR__ . '/../../dist/koneksi.php',
   __DIR__ . '/../../../dist/koneksi.php',
   __DIR__ . '/../dist/koneksi.php',
   __DIR__ . '/dist/koneksi.php'
 );
-foreach ($__paths as $__p) { if (is_file($__p)) { @include_once $__p; } }
+foreach ($__paths as $__p) { if (is_file($__p)) { include_once $__p; } } // Removed @ for better error visibility
 if (!isset($koneksi)) { if (isset($conn)) { $koneksi = $conn; } }
 
 /* ===== Guard ===== */
+// Good practice: Explicit access control check
 $hak_akses = isset($_SESSION['hak_akses']) ? strtolower($_SESSION['hak_akses']) : '';
 if ($hak_akses !== 'kepala') {
   echo "<script>alert('Anda tidak memiliki akses.'); window.location='home-admin.php';</script>";
@@ -26,7 +28,10 @@ if ($hak_akses !== 'kepala') {
 }
 
 /* ===== Helpers ===== */
+// Good practice: Output escaping function
 function e($s){ return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
+
+// Good practice: Input normalization
 function norm_date($s){
   if (!$s) return '';
   $s = trim($s);
@@ -42,6 +47,7 @@ function norm_date($s){
 $kode_kantor   = isset($_SESSION['kode_kantor']) ? $_SESSION['kode_kantor'] : '';
 $is_all_kantor = in_array($kode_kantor, array('000','000000'));
 
+// Good practice: Whitelisting input values
 $status_opt = array('Semua','Menunggu','Disetujui','Ditolak');
 $status = isset($_GET['status']) ? $_GET['status'] : 'Menunggu';
 if (!in_array($status, $status_opt)) $status = 'Menunggu';
@@ -62,10 +68,12 @@ $tgl_akhir = norm_date($tgl_akhir_raw);
 $where = array();
 
 if ($status !== 'Semua') {
+  // Good practice: Escaping string for SQL
   $where[] = "ep.status_otorisasi = '".mysqli_real_escape_string($koneksi, $status)."'";
 }
 
 if ($tgl_awal && $tgl_akhir) {
+  // Safe because variables are normalized via norm_date()
   $where[] = "DATE($date_col) BETWEEN '".$tgl_awal."' AND '".$tgl_akhir."'";
 } elseif ($tgl_awal) {
   $where[] = "DATE($date_col) >= '".$tgl_awal."'";
@@ -74,6 +82,7 @@ if ($tgl_awal && $tgl_akhir) {
 }
 
 if (!$is_all_kantor) {
+  // Good practice: Escaping session variable
   $kantor_safe = mysqli_real_escape_string($koneksi, $kode_kantor);
   $where[] = "(pengedit.unit_kerja = '".$kantor_safe."' OR p.kode_kantor = '".$kantor_safe."')";
 }

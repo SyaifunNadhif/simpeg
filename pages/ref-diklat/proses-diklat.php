@@ -2,13 +2,19 @@
 /*********************************************************
  * FILE    : pages/diklat/proses-diklat.php
  * MODULE  : Proses Simpan/Edit/Hapus Diklat (+ Biaya)
- * VERSION : v2.5
+ * VERSION : v2.6 (Secure & No Loading Delay)
  *********************************************************/
 
-// Gunakan include_once agar tidak error jika koneksi sudah ada dari home-admin.php
+// Gunakan include_once agar tidak error jika koneksi sudah ada
 include_once 'dist/koneksi.php'; 
-// Fallback jika dipanggil langsung
 if (!isset($conn)) { include_once '../../dist/koneksi.php'; }
+
+// SECURITY: Cek Login
+if (session_id() == '') session_start();
+if (empty($_SESSION['id_user'])) {
+    echo "<script>window.location='index.php';</script>";
+    exit;
+}
 
 $status_aksi = '';
 $pesan_error = '';
@@ -20,18 +26,18 @@ if (isset($_POST['simpan'])) {
     $penyelenggara = mysqli_real_escape_string($conn, $_POST['penyelenggara']);
     $tempat        = mysqli_real_escape_string($conn, $_POST['tempat']);
     
-    // Tangkap Biaya (Jika kosong, set jadi 0)
-    $biaya         = !empty($_POST['biaya']) ? mysqli_real_escape_string($conn, $_POST['biaya']) : 0;
+    // Tangkap Biaya (Hapus karakter non-angka biar aman masuk DB)
+    $biaya_raw     = !empty($_POST['biaya']) ? $_POST['biaya'] : 0;
+    $biaya         = mysqli_real_escape_string($conn, preg_replace('/[^0-9]/', '', $biaya_raw));
 
     $angkatan      = mysqli_real_escape_string($conn, $_POST['angkatan']);
     $tahun         = mysqli_real_escape_string($conn, $_POST['tahun']);
     $date_reg      = mysqli_real_escape_string($conn, $_POST['date_reg']);
-    $created_by    = isset($_SESSION['id_user']) ? $_SESSION['id_user'] : 'admin';
+    $created_by    = $_SESSION['id_user'];
 
     if(empty($id_peg) || empty($diklat)) {
         $status_aksi = 'kosong';
     } else {
-        // PERUBAHAN: Tambahkan kolom biaya
         $query = "INSERT INTO tb_diklat (id_peg, diklat, penyelenggara, tempat, biaya, angkatan, tahun, date_reg, created_by)
                   VALUES ('$id_peg', '$diklat', '$penyelenggara', '$tempat', '$biaya', '$angkatan', '$tahun', '$date_reg', '$created_by')";
         
@@ -52,15 +58,14 @@ if (isset($_POST['update'])) {
     $penyelenggara = mysqli_real_escape_string($conn, $_POST['penyelenggara']);
     $tempat        = mysqli_real_escape_string($conn, $_POST['tempat']);
     
-    // Tangkap Biaya (Jika kosong, set jadi 0)
-    $biaya         = !empty($_POST['biaya']) ? mysqli_real_escape_string($conn, $_POST['biaya']) : 0;
+    $biaya_raw     = !empty($_POST['biaya']) ? $_POST['biaya'] : 0;
+    $biaya         = mysqli_real_escape_string($conn, preg_replace('/[^0-9]/', '', $biaya_raw));
 
     $angkatan      = mysqli_real_escape_string($conn, $_POST['angkatan']);
     $tahun         = mysqli_real_escape_string($conn, $_POST['tahun']);
     $date_reg      = mysqli_real_escape_string($conn, $_POST['date_reg']);
-    $updated_by    = isset($_SESSION['id_user']) ? $_SESSION['id_user'] : 'admin';
+    $updated_by    = $_SESSION['id_user'];
 
-    // PERUBAHAN: Tambahkan update kolom biaya
     $query = "UPDATE tb_diklat SET
               id_peg        = '$id_peg',
               diklat        = '$diklat',
@@ -96,85 +101,62 @@ if (isset($_GET['act']) && $_GET['act'] == 'hapus' && isset($_GET['id'])) {
 }
 ?>
 
-<style>
-    /* Container Tengah */
-    .process-container {
-        display: flex; 
-        justify-content: center; 
-        align-items: center; 
-        min-height: 70vh; /* Tinggi minimal agar di tengah layar */
-        width: 100%;
-    }
-    
-    /* Card Loading */
-    .loading-card { 
-        background: white; 
-        padding: 40px; 
-        border-radius: 15px; 
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
-        text-align: center; 
-        width: 100%;
-        max-width: 350px;
-    }
-    
-    /* Animasi Spinner */
-    .loading-icon { 
-        color: #17a2b8; /* Warna Info */
-        animation: spin 1s linear infinite; 
-        margin-bottom: 20px;
-    }
-    
-    @keyframes spin { 
-        0% { transform: rotate(0deg); } 
-        100% { transform: rotate(360deg); } 
-    }
-    
-    .text-processing { font-size: 18px; font-weight: 600; color: #333; margin: 0; }
-    .text-wait { font-size: 14px; color: #888; margin-top: 5px; }
-</style>
+<script src="plugins/sweetalert2/sweetalert2.all.min.js"></script>
 
-<section class="content">
-    <div class="container-fluid">
-        <div class="process-container">
-            <div class="loading-card">
-                <i class="fas fa-circle-notch fa-3x loading-icon"></i>
-                <h4 class="text-processing">Memproses Data...</h4>
-                <p class="text-wait">Mohon tunggu sebentar.</p>
-            </div>
-        </div>
-    </div>
-</section>
-
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-    // Ambil status dari PHP
-    var status = "<?= $status_aksi ?>";
-    var errorMsg = "<?= $pesan_error ?>";
-    
-    // URL Redirect
+    var status   = "<?= $status_aksi ?>";
+    var errorMsg = "<?= htmlspecialchars($pesan_error) ?>"; // Anti XSS
     var redirectUrl = 'home-admin.php?page=master-data-diklat';
 
-    // Delay sedikit agar loading terlihat (UX)
-    setTimeout(function() {
-        if (status == 'sukses_tambah') {
-            Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'Data diklat ditambahkan.', showConfirmButton: false, timer: 1500 })
-            .then(() => { window.location.href = redirectUrl; });
+    if (status == 'sukses_tambah') {
+        Swal.fire({ 
+            icon: 'success', 
+            title: 'Berhasil!', 
+            text: 'Data diklat ditambahkan.', 
+            showConfirmButton: false, 
+            timer: 1500 
+        }).then(() => { 
+            window.location.href = redirectUrl; 
+        });
 
-        } else if (status == 'sukses_edit') {
-            Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'Data diklat diperbarui.', showConfirmButton: false, timer: 1500 })
-            .then(() => { window.location.href = redirectUrl; });
+    } else if (status == 'sukses_edit') {
+        Swal.fire({ 
+            icon: 'success', 
+            title: 'Berhasil!', 
+            text: 'Data diklat diperbarui.', 
+            showConfirmButton: false, 
+            timer: 1500 
+        }).then(() => { 
+            window.location.href = redirectUrl; 
+        });
 
-        } else if (status == 'sukses_hapus') {
-            Swal.fire({ icon: 'success', title: 'Terhapus!', text: 'Data diklat dihapus.', showConfirmButton: false, timer: 1500 })
-            .then(() => { window.location.href = redirectUrl; });
+    } else if (status == 'sukses_hapus') {
+        Swal.fire({ 
+            icon: 'success', 
+            title: 'Terhapus!', 
+            text: 'Data diklat dihapus.', 
+            showConfirmButton: false, 
+            timer: 1500 
+        }).then(() => { 
+            window.location.href = redirectUrl; 
+        });
 
-        } else if (status == 'kosong') {
-            Swal.fire({ icon: 'warning', title: 'Data Tidak Lengkap', text: 'Lengkapi data wajib.' })
-            .then(() => { window.history.back(); });
+    } else if (status == 'kosong') {
+        Swal.fire({ 
+            icon: 'warning', 
+            title: 'Data Tidak Lengkap', 
+            text: 'Lengkapi data wajib.' 
+        }).then(() => { 
+            window.history.back(); 
+        });
 
-        } else if (status == 'gagal') {
-            Swal.fire({ icon: 'error', title: 'Gagal!', text: 'Error: ' + errorMsg })
-            .then(() => { window.history.back(); });
-        }
-    }, 500); // Delay 0.5 detik
+    } else if (status == 'gagal') {
+        Swal.fire({ 
+            icon: 'error', 
+            title: 'Gagal!', 
+            text: 'Error: ' + errorMsg 
+        }).then(() => { 
+            window.history.back(); 
+        });
+    }
 </script>

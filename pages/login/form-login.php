@@ -1,6 +1,6 @@
 <?php
 include "dist/koneksi.php";
-// Cek koneksi & data config (Logic tetap sama)
+// Cek koneksi & data config
 $App = mysqli_query($conn, "SELECT * FROM tb_config WHERE id_app='1'");
 $set = mysqli_fetch_array($App);
 $alias = $set['nama_app'];
@@ -16,9 +16,8 @@ list($als, $app) = explode(" ", $alias);
   
   <link rel="stylesheet" href="plugins/fontawesome-free/css/all.min.css">
   <link rel="stylesheet" href="dist/css/adminlte.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-
-<style>
+  
+  <style>
     :root {
         --primary-color: #2563eb;
         --primary-dark: #1d4ed8;
@@ -29,7 +28,8 @@ list($als, $app) = explode(" ", $alias);
 
     body, html {
         height: 100%; margin: 0; padding: 0;
-        font-family: 'Plus Jakarta Sans', sans-serif; /* Ganti font biar lebih fresh */
+        /* Menggunakan System Font Stack (Offline tapi tetap modern) */
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
         background-color: var(--bg-color);
         overflow: hidden;
     }
@@ -44,15 +44,15 @@ list($als, $app) = explode(" ", $alias);
         display: flex; align-items: center; justify-content: center;
         height: 100vh; width: 100%; padding: 20px;
         background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
-        background-size: 20px 20px; /* Pattern titik halus */
+        background-size: 20px 20px;
     }
 
     .login-card {
         width: 100%; max-width: 1000px; height: 80vh; min-height: 550px;
         background: #fff; border-radius: 24px;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1); /* Shadow lebih soft */
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
         overflow: hidden; display: flex;
-        animation: fadeInUp 0.8s ease-out; /* Animasi di sini */
+        animation: fadeInUp 0.8s ease-out;
     }
 
     /* --- BAGIAN KIRI: SLIDER --- */
@@ -65,28 +65,40 @@ list($als, $app) = explode(" ", $alias);
     }
 
     .slider-bg {
-        display: flex; flex-direction: column; justify-content: flex-end; /* Teks di bawah */
+        display: flex; flex-direction: column; justify-content: flex-end;
         padding: 60px; 
         color: #fff; position: relative;
         z-index: 1;
     }
 
-    /* Overlay Gradient supaya teks terbaca */
+    /* Overlay Gradient */
     .slider-bg::after {
         content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-        background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.8) 100%);
+        /* Gradient lebih soft karena background sekarang warna solid */
+        background: linear-gradient(to bottom, transparent 20%, rgba(0,0,0,0.6) 100%);
         z-index: -1;
     }
 
-    /* Backgrounds yang lebih modern */
+    /* --- BACKGROUND DIGANTI GRADIENT (Supaya Offline Ready) --- */
+    /* Jika nanti punya gambar lokal, ganti 'linear-gradient(...)' dengan url('dist/img/gambar.jpg') */
     .bg-slide-1 { 
-        background: url('https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=1000') center/cover no-repeat; 
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8); 
     }
+
+    /*
+    .bg-slide-1 { 
+        
+        background: url('dist/img/foto1.jpg') center/cover no-repeat; 
+        
+        background-blend-mode: overlay;
+        background-color: rgba(0,0,0,0.5); 
+    }
+    */
     .bg-slide-2 { 
-        background: url('https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&q=80&w=1000') center/cover no-repeat; 
+        background: linear-gradient(135deg, #8b5cf6, #6d28d9); 
     }
     .bg-slide-3 { 
-        background: url('https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&q=80&w=1000') center/cover no-repeat; 
+        background: linear-gradient(135deg, #10b981, #047857); 
     }
 
     .hero-title {
@@ -94,7 +106,7 @@ list($als, $app) = explode(" ", $alias);
         color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }
     .hero-desc {
-        font-size: 16px; color: rgba(255,255,255,0.9); line-height: 1.6; max-width: 90%; font-weight: 400;
+        font-size: 16px; color: rgba(255,255,255,0.95); line-height: 1.6; max-width: 90%; font-weight: 400;
     }
 
     /* Indikator Slider */
@@ -117,7 +129,7 @@ list($als, $app) = explode(" ", $alias);
     .welcome-text h3 { font-weight: 800; color: var(--text-dark); margin-bottom: 8px; font-size: 1.8rem; letter-spacing: -0.5px; }
     .welcome-text p { color: var(--text-grey); font-size: 0.95rem; margin-bottom: 30px; }
 
-    /* Input Modern dengan Icon */
+    /* Input Modern */
     .input-group-modern { position: relative; margin-bottom: 20px; }
     .input-label { font-size: 0.85rem; font-weight: 600; color: var(--text-dark); margin-bottom: 8px; display: block; }
     
@@ -130,10 +142,10 @@ list($als, $app) = explode(" ", $alias);
     .form-control-modern {
         width: 100%; height: 50px; background: #fff; 
         border: 2px solid #e2e8f0; border-radius: 12px;
-        padding: 0 16px 0 48px; /* Padding kiri buat icon */
+        padding: 0 16px 0 48px;
         font-size: 0.95rem; color: var(--text-dark); 
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-family: inherit; /* Ikut font body */
     }
     
     .form-control-modern:focus { 
@@ -165,7 +177,7 @@ list($als, $app) = explode(" ", $alias);
     @media (max-width: 992px) {
         body, html { overflow: auto; height: auto; }
         .login-card { flex-direction: column; height: auto; max-width: 100%; border-radius: 0; box-shadow: none; min-height: 100vh; }
-        .login-left { display: none; } /* Hide slider on mobile for cleaner look */
+        .login-left { display: none; }
         .login-right { padding: 40px 30px; height: 100vh; justify-content: center; }
         .login-wrapper { padding: 0; background: #fff; align-items: flex-start; }
     }
@@ -209,7 +221,7 @@ list($als, $app) = explode(" ", $alias);
         </div>
 
         <div class="login-right">
-            <div class="header-logo">
+            <div class="header-logo mt-4">
                 <img src="dist/img/bkk.png" alt="Logo" onerror="this.style.display='none'"> 
                 <h4><?= $als ?> <span><?= $app ?></span></h4>
             </div>

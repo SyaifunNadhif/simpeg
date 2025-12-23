@@ -1,69 +1,105 @@
 <?php
 /*********************************************************
  * FILE    : pages/ref-sertifikasi/ajax-data-sertifikasi.php
- * MODULE  : Backend JSON Sertifikasi (Fix ID & Status)
+ * MODULE  : Backend JSON Sertifikasi (Secure & Sanitized)
  *********************************************************/
 
-// 1. PEMBERSIH OUTPUT (WAJIB ADA: Anti Error JSON)
 if (session_id() == '') session_start();
+
+// Matikan error display agar tidak merusak format JSON jika ada warning PHP
 ini_set('display_errors', 0);
 while(ob_get_level()){ ob_end_clean(); }
 header('Content-Type: application/json; charset=utf-8');
 
-// 2. KONEKSI
+// --- 1. KONEKSI DATABASE ---
 @include_once __DIR__ . '/../../dist/koneksi.php';
-if (!isset($conn)) { @include_once __DIR__ . '/../../config/koneksi.php'; $conn = isset($koneksi)?$koneksi:null; }
+if (!isset($conn)) { 
+    @include_once __DIR__ . '/../../config/koneksi.php'; 
+    $conn = isset($koneksi) ? $koneksi : null; 
+}
 
-function esc($s){ return mysqli_real_escape_string($GLOBALS['conn'], trim($s)); }
+// Jika koneksi gagal, kirim JSON kosong agar DataTables tidak error
+if (!$conn) {
+    echo json_encode(['draw'=>0, 'recordsTotal'=>0, 'recordsFiltered'=>0, 'data'=>[], 'error'=>'Koneksi DB Gagal']);
+    exit;
+}
 
-// 3. PARAMETER DATATABLES
+// --- 2. FUNGSI KEAMANAN (HELPER) ---
+
+// A. Anti SQL Injection untuk String (Escape)
+function esc($s){ 
+    global $conn;
+    return mysqli_real_escape_string($conn, trim($s)); 
+}
+
+// B. Anti XSS (Cross-Site Scripting) untuk Output HTML
+// Wajib dipakai saat menampilkan data nama, sertifikat, dll ke layar
+function h($s){
+    return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+}
+
+// --- 3. MENANGKAP PARAMETER DATATABLES ---
+
+// Casting ke (int) untuk mencegah injeksi di limit/offset
 $draw   = isset($_GET['draw']) ? (int)$_GET['draw'] : 1;
 $start  = isset($_GET['start']) ? (int)$_GET['start'] : 0;
 $len    = isset($_GET['length']) ? (int)$_GET['length'] : 10;
 $search = isset($_GET['search']['value']) ? trim($_GET['search']['value']) : '';
 
-// 4. FILTER CUSTOM
+// --- 4. MENANGKAP PARAMETER FILTER CUSTOM ---
+
 $f_tahun   = isset($_GET['tahun']) ? esc($_GET['tahun']) : date('Y');
 $f_sertif  = isset($_GET['sertifikasi']) ? esc($_GET['sertifikasi']) : '';
 $f_kantor  = isset($_GET['kantor']) ? esc($_GET['kantor']) : '';
 
-// 5. QUERY DASAR
+// --- 5. KONSTRUKSI QUERY ---
+
 $baseQuery = " FROM tb_sertifikasi s 
                JOIN tb_pegawai p ON s.id_peg = p.id_peg 
                LEFT JOIN tb_jabatan j ON p.id_peg = j.id_peg AND j.status_jab = 'Aktif'
                LEFT JOIN tb_kantor k ON j.unit_kerja = k.kode_kantor_detail ";
 
-// 6. FILTER LOGIC
 $where = " WHERE 1=1 ";
 
-// Filter Tahun
-if($f_tahun !== ''){ $where .= " AND YEAR(s.tgl_sertifikat) = '$f_tahun' "; }
-// Filter Nama Sertifikasi
-if($f_sertif !== ''){ $where .= " AND s.sertifikasi = '$f_sertif' "; }
-// Filter Unit Kerja
-if($f_kantor !== ''){ $where .= " AND j.unit_kerja = '$f_kantor' "; }
+// Filter Tahun (Validasi Numeric agar aman)
+if($f_tahun !== '' && is_numeric($f_tahun)){ 
+    $where .= " AND (YEAR(s.tgl_sertifikat) = '$f_tahun' OR s.tgl_sertifikat IS NULL OR s.tgl_sertifikat = '0000-00-00') "; 
+}
+
+// Filter Sertifikasi
+if($f_sertif !== ''){ 
+    $where .= " AND s.sertifikasi = '$f_sertif' "; 
+}
+
+// Filter Kantor
+if($f_kantor !== ''){ 
+    $where .= " AND j.unit_kerja = '$f_kantor' "; 
+}
 
 // Global Search
 if($search !== ''){
-    $s = esc($search);
+    $s = esc($search); // Escape input pencarian
     $where .= " AND (
         p.nama LIKE '%$s%' OR 
         s.sertifikasi LIKE '%$s%' OR 
         s.penyelenggara LIKE '%$s%' OR
-        s.no_sertifikat LIKE '%$s%'
+        s.sertifikat LIKE '%$s%'
     ) ";
 }
 
-// 7. HITUNG TOTAL
+// --- 6. HITUNG TOTAL DATA ---
 $total = 0;
 $qCount = mysqli_query($conn, "SELECT COUNT(*) AS c $baseQuery $where");
-if($qCount){ $r = mysqli_fetch_assoc($qCount); $total = (int)$r['c']; }
+if($qCount){ 
+    $r = mysqli_fetch_assoc($qCount); 
+    $total = (int)$r['c']; 
+}
 
-// 8. AMBIL DATA
+// --- 7. AMBIL DATA UTAMA ---
 $sql = "SELECT s.*, p.nama AS nama_peg, p.nip, k.nama_kantor
         $baseQuery $where
         ORDER BY s.tgl_sertifikat DESC
-        LIMIT $start, $len";
+        LIMIT $start, $len"; // $start dan $len sudah di-cast (int) jadi aman
 
 $q = mysqli_query($conn, $sql);
 $data = array();
@@ -72,22 +108,24 @@ $no = $start + 1;
 if($q){
     while($r = mysqli_fetch_assoc($q)){
         
-        // --- FORMAT TAMPILAN ---
-        
-        // Nama Pegawai
-        $nama_html = '<div class="font-weight-bold text-dark">'.$r['nama_peg'].'</div>
-                      <small class="text-muted">'.$r['nip'].'</small>';
+        // --- PROSES DATA (SANITASI OUTPUT DENGAN h()) ---
 
-        // Sertifikasi
-        $sertif_html = '<div class="font-weight-bold text-primary">'.$r['sertifikasi'].'</div>
-                        <small class="text-muted">No: '.$r['no_sertifikat'].'</small>';
+        // Nama & NIP (Gunakan h() agar script tidak jalan)
+        $nama_html = '<div class="font-weight-bold text-dark">'.h($r['nama_peg']).'</div>
+                      <small class="text-muted">'.h($r['nip']).'</small>';
 
-        // Penyelenggara
+        // Sertifikasi & No Sertifikat
+        $sertif_html = '<div class="font-weight-bold text-primary">'.h($r['sertifikasi']).'</div>';
+        if(!empty($r['sertifikat']) && $r['sertifikat'] != '-'){
+             $sertif_html .= '<small class="text-muted">'.h($r['sertifikat']).'</small>';
+        }
+
+        // Tanggal & Penyelenggara
         $tgl_sert = ($r['tgl_sertifikat'] != '0000-00-00') ? date('d M Y', strtotime($r['tgl_sertifikat'])) : '-';
-        $lokasi_html = '<div>'.$r['penyelenggara'].'</div>
+        $lokasi_html = '<div>'.h($r['penyelenggara']).'</div>
                         <small class="text-muted"><i class="fa fa-calendar-alt mr-1"></i> '.$tgl_sert.'</small>';
 
-        // Status Expired
+        // Status (Logika Tanggal)
         $tgl_exp = isset($r['tgl_expired']) ? $r['tgl_expired'] : '';
         if($tgl_exp == '' || $tgl_exp == '0000-00-00'){
             $status_html = '<span class="badge badge-success">Seumur Hidup</span>';
@@ -99,29 +137,36 @@ if($q){
             }
         }
 
-        // --- TOMBOL AKSI (FIX ID DISINI) ---
-        // Kita pakai $r['id_sertif'] sesuai database kamu
-        $id_val = $r['id_sertif']; 
+        $id_val = $r['id_sertif']; // ID biasanya auto-increment/uuid, relatif aman, tapi bisa di h() juga
 
-        $aksi_html = '<a href="home-admin.php?page=form-master-data-sertifikasi&id='.$id_val.'" class="btn btn-sm btn-light border shadow-sm rounded-circle text-primary" title="Edit">
-                        <i class="fa fa-pen"></i>
-                      </a>';
+        // Tombol Aksi
+        $aksi_html = '<div class="btn-group">
+                        <a href="home-admin.php?page=form-master-data-sertifikasi&id='.h($id_val).'" class="btn btn-sm btn-light border shadow-sm rounded-circle text-primary" title="Edit">
+                            <i class="fa fa-pen"></i>
+                        </a>
+                        <button type="button" class="btn btn-sm btn-light border shadow-sm rounded-circle text-danger btn-delete" data-id="'.h($id_val).'" title="Hapus">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                      </div>';
 
         $data[] = array(
             'no'            => $no++,
             'nama_peg'      => $nama_html,
             'sertifikasi'   => $sertif_html,
             'penyelenggara' => $lokasi_html,
-            'unit_kerja'    => $r['nama_kantor'] ?: '-',
+            'unit_kerja'    => h($r['nama_kantor']) ?: '-',
             'status'        => $status_html,
             'aksi'          => $aksi_html
         );
     }
 }
 
-// 9. OUTPUT JSON
+// Output JSON
 echo json_encode(array(
-    'draw' => $draw, 'recordsTotal' => $total, 'recordsFiltered' => $total, 'data' => $data
+    'draw' => $draw, 
+    'recordsTotal' => $total, 
+    'recordsFiltered' => $total, 
+    'data' => $data
 )); 
 exit;
 ?>

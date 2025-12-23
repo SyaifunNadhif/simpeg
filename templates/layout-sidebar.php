@@ -274,29 +274,29 @@
                     <ul class="nav nav-treeview">
                         <li class="nav-item">
                             <a href="home-admin.php?page=nominatif" class="nav-link <?php echo ($page == 'nominatif') ? 'active' : ''; ?>">
-                                <i class="far fa-circle nav-icon"></i> <p>Laporan Nominatif</p>
+                                <i class="far fa-circle nav-icon"></i> <p>Kepegawaian</p>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a href="home-admin.php?page=keadaan-pegawai" class="nav-link <?php echo ($page == 'keadaan-pegawai') ? 'active' : ''; ?>">
-                                <i class="far fa-circle nav-icon"></i> <p>Laporan Keadaan</p>
+                                <i class="far fa-circle nav-icon"></i> <p>Keadaan Pegawai</p>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a href="home-admin.php?page=formasi" class="nav-link <?php echo ($page == 'formasi') ? 'active' : ''; ?>">
-                                <i class="far fa-circle nav-icon"></i> <p>Laporan Formasi</p>
+                                <i class="far fa-circle nav-icon"></i> <p>Formasi Jabatan</p>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a href="home-admin.php?page=rekap-biaya-diklat" class="nav-link <?php echo ($page == 'rekap-biaya-diklat') ? 'active' : ''; ?>">
-                                <i class="far fa-circle nav-icon"></i> <p>Laporan Biaya Diklat</p>
+                                <i class="far fa-circle nav-icon"></i> <p>Biaya Diklat</p>
                             </a>
                         </li>
                     </ul>
                 </li>          
                 
                 <li class="nav-item">
-                    <a href="home-admin.php?page=view-data-user" class="nav-link <?php echo ($page == 'daftar-user') ? 'active' : ''; ?>">
+                    <a href="home-admin.php?page=form-view-data-user" class="nav-link <?php echo ($page == 'daftar-user') ? 'active' : ''; ?>">
                         <i class="nav-icon fas fa-user-lock"></i> <p>Data User</p>
                     </a>
                 </li>

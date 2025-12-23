@@ -1,217 +1,206 @@
 <?php
-// FILE: pages/user/form-master-data-user.php
+/*********************************************************
+ * FILE     : pages/user/form-master-data-user.php
+ * MODULE   : Manajemen User (Final Fix: No Auto-Complete)
+ * STATUS   : PHP 5.6 Ready | Validation OK | Clean Inputs
+ *********************************************************/
+
+if (session_id() == '') session_start();
 include "dist/koneksi.php";
 
+// --- HELPERS (PHP 5.6 SAFE) ---
+function e($s){ return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
+function clean($c, $s){ return mysqli_real_escape_string($c, trim($s)); }
+function v($arr, $key, $def=''){ return (isset($arr[$key]) && $arr[$key]!==null) ? $arr[$key] : $def; }
+
+// --- 1. INISIALISASI ---
 $mode = isset($_GET['mode']) ? $_GET['mode'] : 'create';
-$id   = isset($_GET['id']) ? $_GET['id'] : '';
+$id   = isset($_GET['id']) ? clean($conn, $_GET['id']) : '';
 $admin_login = isset($_SESSION['id_user']) ? $_SESSION['id_user'] : 'System';
 
-// --- 1. PROSES BACKEND (SIMPAN/UPDATE) ---
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    
-    // A. DELETE AMAN
-    if (isset($_POST['act']) && $_POST['act'] == 'delete_aman') {
-        $id_del = mysqli_real_escape_string($conn, $_POST['id_user']);
-        $alasan = mysqli_real_escape_string($conn, $_POST['alasan']);
-        
-        $qCek = mysqli_query($conn, "SELECT * FROM tb_user WHERE id_user = '$id_del'");
-        if(mysqli_num_rows($qCek) > 0) {
-            $dataLama = mysqli_fetch_assoc($qCek);
-            $json = mysqli_real_escape_string($conn, json_encode($dataLama));
-            
-            mysqli_query($conn, "INSERT INTO tb_recycle_bin (tabel_asal, id_data, data_json, alasan, dihapus_oleh) VALUES ('tb_user', '$id_del', '$json', '$alasan', '$admin_login')");
-            mysqli_query($conn, "DELETE FROM tb_user WHERE id_user = '$id_del'");
-            
-            echo "<script>Swal.fire('Terhapus!', 'User berhasil diamankan.', 'success').then(() => { window.location='home-admin.php?page=view-data-user'; });</script>";
-            exit;
-        }
-    }
+// Default Data
+$data = array('id_user'=>'','nama_user'=>'','hak_akses'=>'','id_pegawai'=>'','status_aktif'=>'Y');
 
-    // B. SIMPAN / UPDATE DATA
-    if (isset($_POST['btn_simpan'])) {
-        $mode_post = $_POST['mode'];
-        $id_user   = mysqli_real_escape_string($conn, $_POST['id_user']);
-        $nama      = mysqli_real_escape_string($conn, $_POST['nama_user']);
-        $akses     = $_POST['hak_akses'];
-        $pass_raw  = $_POST['password'];
-        $status    = isset($_POST['status_aktif']) ? 'Y' : 'N';
-        
-        // Data Pegawai & Jabatan
-        $id_peg    = !empty($_POST['id_pegawai']) ? $_POST['id_pegawai'] : NULL;
-        
-        // Logika Jabatan: Prioritas Input Hidden (Auto) -> Jika kosong ambil Select Manual
-        $jabatan   = !empty($_POST['jabatan_auto']) ? $_POST['jabatan_auto'] : (!empty($_POST['jabatan_manual']) ? $_POST['jabatan_manual'] : NULL);
-
-        if ($mode_post == 'create') {
-            $cek = mysqli_query($conn, "SELECT id_user FROM tb_user WHERE id_user = '$id_user'");
-            if (mysqli_num_rows($cek) > 0) {
-                echo "<script>Swal.fire('Gagal', 'Username sudah ada!', 'error');</script>";
-            } else {
-                $pass_hash = md5($pass_raw);
-                $sql = "INSERT INTO tb_user (id_user, nama_user, password, hak_akses, id_pegawai, jabatan, status_aktif, created_by, created_at) 
-                        VALUES ('$id_user', '$nama', '$pass_hash', '$akses', '$id_peg', '$jabatan', '$status', '$admin_login', NOW())";
-                if(mysqli_query($conn, $sql)) {
-                    echo "<script>Swal.fire('Sukses', 'User berhasil ditambahkan', 'success').then(() => { window.location='home-admin.php?page=view-data-user'; });</script>";
-                } else {
-                    echo "<script>Swal.fire('Gagal', 'Error: ".mysqli_error($conn)."', 'error');</script>";
-                }
-            }
-        } 
-        elseif ($mode_post == 'edit') {
-            $id_lama = $_POST['id_user_lama'];
-            $sql_pass = !empty($pass_raw) ? ", password = '".md5($pass_raw)."'" : "";
-            
-            // Update Data (Nama & Jabatan tidak diupdate jika mode edit, sesuai request terkunci)
-            // Kecuali jika admin memaksa ubah lewat backend, tapi di UI kita lock.
-            
-            $sql = "UPDATE tb_user SET hak_akses='$akses', status_aktif='$status', updated_by='$admin_login', updated_at=NOW() $sql_pass WHERE id_user='$id_lama'";
-                    
-            if(mysqli_query($conn, $sql)) {
-                echo "<script>Swal.fire('Sukses', 'Data user diperbarui', 'success').then(() => { window.location='home-admin.php?page=view-data-user'; });</script>";
-            }
-        }
-    }
-}
-
-// --- 2. PERSIAPAN DATA ---
-$data = ['id_user'=>'','nama_user'=>'','hak_akses'=>'','id_pegawai'=>'','jabatan'=>'','status_aktif'=>'Y'];
-
+// Ambil Data Edit
 if ($mode == 'edit' && !empty($id)) {
     $q = mysqli_query($conn, "SELECT * FROM tb_user WHERE id_user = '$id'");
-    if(mysqli_num_rows($q) > 0) { $data = mysqli_fetch_assoc($q); }
+    if (mysqli_num_rows($q) > 0) { $data = mysqli_fetch_assoc($q); }
+    else { echo "<script>window.location='home-admin.php?page=form-view-data-user';</script>"; exit; }
 }
 
-// QUERY PEGAWAI + JABATAN AKTIFNYA
-// Pastikan nama kolom 'nama_jabatan' sesuai dengan struktur tabel tb_master_jabatan
-$sqlPeg = "SELECT p.id_peg, p.nama, 
-          (SELECT mj.nama_jabatan 
-           FROM tb_jabatan j 
-           JOIN tb_master_jabatan mj ON j.kode_jabatan = mj.kode_jabatan 
-           WHERE j.id_peg = p.id_peg AND j.status_jab = 'Aktif' 
-           ORDER BY j.tmt_jabatan DESC LIMIT 1) as jabatan_aktif
-           FROM tb_pegawai p ORDER BY p.nama ASC";
-$qPeg = mysqli_query($conn, $sqlPeg);
+// --- 2. PROSES SIMPAN ---
+$status_process = '';
+$msg_process = '';
 
-// QUERY MASTER JABATAN (Untuk Pilihan Manual)
-$qMasterJab = mysqli_query($conn, "SELECT nama_jabatan FROM tb_master_jabatan ORDER BY nama_jabatan ASC");
+if (isset($_POST['btn_simpan'])) {
+    $mode_post = $_POST['mode'];
+    $id_user   = clean($conn, $_POST['id_user']);
+    $nama      = clean($conn, $_POST['nama_user']); 
+    $akses     = $_POST['hak_akses'];
+    $pass_raw  = $_POST['password'];
+    $status    = isset($_POST['status_aktif']) ? 'Y' : 'N';
+    $id_peg    = !empty($_POST['id_pegawai']) ? clean($conn, $_POST['id_pegawai']) : 'NULL';
+
+    $error = '';
+    
+    // Validasi
+    if ($mode_post == 'create') {
+        $cek = mysqli_query($conn, "SELECT id_user FROM tb_user WHERE id_user = '$id_user'");
+        if (mysqli_num_rows($cek) > 0) $error = "Username '$id_user' sudah dipakai!";
+        elseif ($id_peg != 'NULL') {
+            $cekPeg = mysqli_query($conn, "SELECT id_user FROM tb_user WHERE id_pegawai = '$id_peg'");
+            if (mysqli_num_rows($cekPeg) > 0) $error = "Pegawai ini sudah punya akun!";
+        }
+    }
+
+    if (empty($error)) {
+        $sqlValPeg = ($id_peg == 'NULL') ? "NULL" : "'$id_peg'";
+        
+        if ($mode_post == 'create') {
+            $pass_hash = md5($pass_raw);
+            $sql = "INSERT INTO tb_user (id_user, nama_user, password, hak_akses, id_pegawai, status_aktif, created_by, created_at) 
+                    VALUES ('$id_user', '$nama', '$pass_hash', '$akses', $sqlValPeg, '$status', '$admin_login', NOW())";
+        } else {
+            $id_lama  = clean($conn, $_POST['id_user_lama']);
+            $sql_pass = !empty($pass_raw) ? ", password = '".md5($pass_raw)."'" : "";
+            $sql = "UPDATE tb_user SET nama_user='$nama', hak_akses='$akses', id_pegawai=$sqlValPeg, 
+                    status_aktif='$status', updated_by='$admin_login', updated_at=NOW() $sql_pass 
+                    WHERE id_user='$id_lama'";
+        }
+
+        if (mysqli_query($conn, $sql)) { $status_process = 'sukses'; }
+        else { $status_process = 'gagal'; $msg_process = mysqli_error($conn); }
+    } else {
+        $status_process = 'warning'; $msg_process = $error;
+    }
+}
+
+// --- 3. DATA PEGAWAI ---
+$sqlPeg = "SELECT id_peg, nama FROM tb_pegawai WHERE status_aktif = '1' ORDER BY nama ASC";
+$qPeg = mysqli_query($conn, $sqlPeg);
 ?>
 
-<link href="plugins/select2/css/select2.min.css" rel="stylesheet" />
-<link rel="stylesheet" href="plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css">
-<script src="plugins/select2/js/select2.full.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css">
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <style>
-    .card-form { border-radius: 15px; border:none; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
-    .form-header { background: #0d6efd; color: white; padding: 15px 20px; border-radius: 15px 15px 0 0; }
-    .form-control-modern { border-radius: 8px; height: 45px; }
-    .select2-container .select2-selection--single { height: 45px !important; border-radius: 8px !important; display: flex; align-items: center; border-color: #ced4da; }
+    .card-form { border-radius: 12px; border:none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+    .form-header { background: #0d6efd; color: white; padding: 15px 20px; border-radius: 12px 12px 0 0; }
+    .form-control-modern { border-radius: 6px; height: 40px; }
+    .select2-container .select2-selection--single { height: 40px !important; display: flex; align-items: center; border-color: #ced4da; }
     .readonly-field { background-color: #e9ecef !important; cursor: not-allowed; pointer-events: none; }
 </style>
 
 <section class="content pt-4">
     <div class="container-fluid">
         <div class="row justify-content-center">
-            <div class="col-md-8">
+            <div class="col-md-9"> 
                 <div class="card card-form">
+                    
                     <div class="form-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0 font-weight-bold"><?= ($mode=='edit') ? 'Edit Data User' : 'Tambah User Baru' ?></h5>
-                        <a href="home-admin.php?page=view-data-user" class="btn btn-sm btn-light rounded-pill"><i class="fas fa-times"></i></a>
+                        <h5 class="mb-0 font-weight-bold"><i class="fas fa-user-shield mr-2"></i><?= ($mode=='edit') ? 'Edit Data User' : 'Tambah User Baru' ?></h5>
+                        <a href="home-admin.php?page=form-view-data-user" class="btn btn-sm btn-light rounded-pill px-3 font-weight-bold text-primary"><i class="fas fa-arrow-left mr-1"></i> Kembali</a>
                     </div>
+
                     <div class="card-body p-4">
                         
-                        <form action="" method="POST">
-                            <input type="hidden" name="mode" value="<?= $mode ?>">
-                            <input type="hidden" name="id_user_lama" value="<?= $data['id_user'] ?>">
-                            <input type="hidden" name="id_pegawai" id="final_id_peg" value="<?= $data['id_pegawai'] ?>">
+                        <?php if($status_process == 'sukses'): ?>
+                            <script>
+                                Swal.fire({icon: 'success', title: 'Berhasil!', text: 'Data user tersimpan.', timer: 1500, showConfirmButton: false})
+                                .then(function() { window.location.href = 'home-admin.php?page=form-view-data-user'; });
+                            </script>
+                        <?php elseif($status_process == 'gagal'): ?>
+                            <script>Swal.fire({icon: 'error', title: 'Gagal', text: '<?= $msg_process ?>'});</script>
+                        <?php elseif($status_process == 'warning'): ?>
+                            <script>Swal.fire({icon: 'warning', title: 'Perhatian', text: '<?= $msg_process ?>'});</script>
+                        <?php endif; ?>
 
-                            <div class="card bg-light border-0 mb-4 shadow-sm">
-                                <div class="card-body">
-                                    <label class="text-primary font-weight-bold text-uppercase small">1. Cari Data Pegawai (Auto-Fill)</label>
-                                    
-                                    <select id="sumber_pegawai" class="form-control select2" style="width: 100%;" <?= ($mode=='edit') ? 'disabled' : '' ?>>
-                                        <option value="">-- Ketik Nama Pegawai --</option>
-                                        <?php while($p = mysqli_fetch_assoc($qPeg)) { 
-                                            $sel = ($data['id_pegawai'] == $p['id_peg']) ? 'selected' : ''; 
-                                            $jabatan_aktif = !empty($p['jabatan_aktif']) ? $p['jabatan_aktif'] : ''; 
-                                        ?>
-                                            <option value="<?= $p['id_peg'] ?>" 
-                                                    data-nama="<?= $p['nama'] ?>" 
-                                                    data-jabatan="<?= $jabatan_aktif ?>" 
-                                                    <?= $sel ?>>
-                                                <?= $p['nama'] ?>
-                                            </option>
-                                        <?php } ?>
-                                    </select>
-                                    <small class="text-muted mt-2 d-block"><i class="fas fa-info-circle mr-1"></i> Otomatis mengisi Nama & Jabatan jika data tersedia.</small>
-                                </div>
+                        <form action="" method="POST" autocomplete="off">
+                            
+                            <input type="text" style="display:none">
+                            <input type="password" style="display:none">
+
+                            <input type="hidden" name="mode" value="<?= $mode ?>">
+                            <input type="hidden" name="id_user_lama" value="<?= v($data, 'id_user') ?>">
+                            <input type="hidden" name="id_pegawai" id="final_id_peg" value="<?= v($data, 'id_pegawai') ?>">
+
+                            <div class="alert alert-light border mb-4">
+                                <label class="text-primary font-weight-bold small text-uppercase mb-2"><i class="fas fa-search mr-1"></i> Pilih Pegawai (Otomatis Isi Nama)</label>
+                                
+                                <select id="sumber_pegawai" class="form-control select2">
+                                    <option value="">-- Ketik Nama / NIP Pegawai --</option>
+                                    <?php 
+                                    if($qPeg) {
+                                        while($p = mysqli_fetch_assoc($qPeg)) { 
+                                            $sel = (v($data, 'id_pegawai') == $p['id_peg']) ? 'selected' : ''; 
+                                            $nama_full = e($p['nama']);
+                                    ?>
+                                        <option value="<?= $p['id_peg'] ?>" data-namauser="<?= $nama_full ?>" <?= $sel ?>>
+                                            <?= $p['nama'] ?> (<?= $p['id_peg'] ?>)
+                                        </option>
+                                    <?php 
+                                        } 
+                                    }
+                                    ?>
+                                </select>
+                                <small class="text-muted mt-2 d-block">*Ketik nama di kotak pencarian untuk memilih.</small>
                             </div>
 
+                            <h6 class="font-weight-bold text-secondary mb-3 border-bottom pb-2">Detail Akun</h6>
+                            
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label>Username / ID User <span class="text-danger">*</span></label>
                                     <input type="text" name="id_user" class="form-control form-control-modern <?= ($mode=='edit')?'readonly-field':'' ?>" 
-                                           value="<?= $data['id_user'] ?>" <?= ($mode=='edit')?'readonly required':'required' ?>>
+                                           placeholder="Contoh: admin" 
+                                           value="<?= v($data, 'id_user') ?>" 
+                                           autocomplete="new-user"
+                                           <?= ($mode=='edit')?'readonly':'required' ?>>
                                 </div>
                                 <div class="col-md-6 mb-3">
-                                    <label>Nama Lengkap</label>
-                                    <input type="text" name="nama_user" id="nama_user_target" class="form-control form-control-modern readonly-field" 
-                                           value="<?= $data['nama_user'] ?>" readonly>
+                                    <label>Nama Lengkap User <span class="text-danger">*</span></label>
+                                    <input type="text" name="nama_user" id="nama_user_target" class="form-control form-control-modern" 
+                                           placeholder="Akan terisi otomatis..." value="<?= v($data, 'nama_user') ?>" required>
                                 </div>
                             </div>
 
                             <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label>Jabatan</label>
-                                    
-                                    <input type="text" name="jabatan_auto" id="jabatan_display" 
-                                           class="form-control form-control-modern readonly-field mb-2" 
-                                           placeholder="Terisi Otomatis..." value="<?= $data['jabatan'] ?>" readonly>
-                                    
-                                    <div id="manual_jabatan_box" style="display:none;">
-                                        <div class="alert alert-warning py-2 px-3 small font-weight-bold mb-2">
-                                            <i class="fas fa-exclamation-triangle mr-1"></i> Jabatan tidak ditemukan. Pilih manual:
-                                        </div>
-                                        <select name="jabatan_manual" id="manual_jabatan_select" class="form-control select2" style="width: 100%;">
-                                            <option value="">-- Pilih Master Jabatan --</option>
-                                            <?php while($mj = mysqli_fetch_assoc($qMasterJab)) { ?>
-                                                <option value="<?= $mj['nama_jabatan'] ?>"><?= $mj['nama_jabatan'] ?></option>
-                                            <?php } ?>
-                                        </select>
-                                    </div>
-                                </div>
-
                                 <div class="col-md-6 mb-3">
                                     <label>Level Akses <span class="text-danger">*</span></label>
                                     <select name="hak_akses" class="form-control form-control-modern" required>
                                         <option value="">-- Pilih Level --</option>
-                                        <option value="Admin" <?= ($data['hak_akses']=='Admin')?'selected':'' ?>>Admin</option>
-                                        <option value="Kepala" <?= ($data['hak_akses']=='Kepala')?'selected':'' ?>>Kepala</option>
-                                        <option value="User" <?= ($data['hak_akses']=='User')?'selected':'' ?>>User</option>
+                                        <option value="Admin" <?= (strtolower(v($data, 'hak_akses'))=='admin')?'selected':'' ?>>Admin</option>
+                                        <option value="Kepala" <?= (strtolower(v($data, 'hak_akses'))=='kepala')?'selected':'' ?>>Kepala</option>
+                                        <option value="User" <?= (strtolower(v($data, 'hak_akses'))=='user')?'selected':'' ?>>User</option>
                                     </select>
                                 </div>
+                                <div class="col-md-6 mb-3">
+                                    <label>Password <?= ($mode=='edit') ? '<small class="text-muted">(Kosongkan jika tetap)</small>' : '<span class="text-danger">*</span>' ?></label>
+                                    <input type="password" name="password" class="form-control form-control-modern" 
+                                           placeholder="******" 
+                                           autocomplete="new-password"
+                                           <?= ($mode=='create')?'required':'' ?>>
+                                </div>
                             </div>
 
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label>Password <?= ($mode=='edit') ? '<small class="text-muted">(Biarkan kosong jika tidak diganti)</small>' : '<span class="text-danger">*</span>' ?></label>
-                                    <input type="password" name="password" class="form-control form-control-modern" <?= ($mode=='create')?'required':'' ?>>
-                                </div>
-                                <div class="col-md-6 mb-3 pt-4">
+                            <div class="row align-items-center mt-2">
+                                <div class="col-md-6">
                                     <div class="custom-control custom-switch">
-                                        <input type="checkbox" class="custom-control-input" id="sw_aktif" name="status_aktif" value="Y" <?= ($data['status_aktif']=='Y')?'checked':'' ?>>
-                                        <label class="custom-control-label font-weight-bold" for="sw_aktif">Akun Aktif?</label>
+                                        <input type="checkbox" class="custom-control-input" id="sw_aktif" name="status_aktif" value="Y" <?= (v($data, 'status_aktif')=='Y')?'checked':'' ?>>
+                                        <label class="custom-control-label font-weight-bold text-success" for="sw_aktif">Status Akun Aktif</label>
                                     </div>
                                 </div>
+                                <div class="col-md-6 text-right">
+                                    <button type="submit" name="btn_simpan" class="btn btn-primary rounded-pill px-5 shadow-sm font-weight-bold">
+                                        <i class="fas fa-save mr-2"></i> SIMPAN
+                                    </button>
+                                </div>
                             </div>
 
-                            <div class="text-right mt-3 border-top pt-3">
-                                <a href="home-admin.php?page=view-data-user" class="btn btn-light border rounded-pill px-4 mr-2">Batal</a>
-                                <button type="submit" name="btn_simpan" class="btn btn-primary rounded-pill px-4 shadow-sm">
-                                    <i class="fas fa-save mr-1"></i> Simpan Data
-                                </button>
-                            </div>
                         </form>
-
                     </div>
                 </div>
             </div>
@@ -221,51 +210,35 @@ $qMasterJab = mysqli_query($conn, "SELECT nama_jabatan FROM tb_master_jabatan OR
 
 <script>
 $(document).ready(function() {
-    // 1. Inisialisasi Select2
-    $('.select2').select2({
-        theme: 'bootstrap4',
+    // Init Select2
+    $('#sumber_pegawai').select2({
+        theme: 'bootstrap-5',
         width: '100%',
-        placeholder: "Cari...",
-        allowClear: true
+        allowClear: true,
+        placeholder: "-- Pilih Pegawai --"
     });
 
-    // 2. LOGIC AUTO FILL (Event: select2:select)
-    $('#sumber_pegawai').on('select2:select', function(e) {
-        var data = e.params.data; // Mengambil data objek dari select2
-        
-        // Ambil atribut data custom dari elemen <option> yang dipilih
-        var element = $(data.element);
-        var idPeg = element.val();
-        var nama  = element.data('nama');
-        var jabatan = element.data('jabatan');
+    // AUTO FILL LOGIC
+    $('#sumber_pegawai').on('change', function() {
+        var selectedOption = $(this).find('option:selected');
+        var id = $(this).val();
+        var nama = selectedOption.attr('data-namauser');
 
-        console.log("Terpilih: ", nama, jabatan); // Debugging di Console
-
-        if(idPeg) {
-            // Isi Field
-            $('#final_id_peg').val(idPeg);
-            $('#nama_user_target').val(nama);
-            
-            // Logic Jabatan
-            if(jabatan && jabatan !== "") {
-                // Ada jabatan -> Isi otomatis & sembunyikan manual
-                $('#jabatan_display').val(jabatan);
-                $('#manual_jabatan_box').slideUp();
-                $('#manual_jabatan_select').val(null).trigger('change'); // Reset manual
-            } else {
-                // Tidak ada jabatan -> Minta input manual
-                $('#jabatan_display').val('');
-                $('#manual_jabatan_box').slideDown();
-            }
+        if(id) {
+            $('#final_id_peg').val(id);
+            if(nama) $('#nama_user_target').val(nama);
+        } else {
+            $('#final_id_peg').val('');
+            $('#nama_user_target').val('');
         }
     });
-
-    // 3. Reset jika dihapus (select2:unselect)
-    $('#sumber_pegawai').on('select2:unselect', function(e) {
-        $('#final_id_peg').val('');
-        $('#nama_user_target').val('');
-        $('#jabatan_display').val('');
-        $('#manual_jabatan_box').slideUp();
-    });
+    
+    // Extra Clear untuk memastikan form bersih saat load
+    <?php if($mode=='create'): ?>
+    setTimeout(function() {
+        $('input[name="id_user"]').val('');
+        $('input[name="password"]').val('');
+    }, 100);
+    <?php endif; ?>
 });
 </script>

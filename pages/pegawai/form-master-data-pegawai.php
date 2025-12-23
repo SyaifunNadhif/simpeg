@@ -1,37 +1,31 @@
 <?php
 /*********************************************************
  * FILE    : pages/pegawai/form-master-data-pegawai.php
- * MODULE  : Form Tambah/Edit Pegawai (Fix Account Bug & UI)
- * VERSION : v2.0
+ * MODULE  : Form Input Pegawai (Clean Layout & Fixed UI)
+ * VERSION : v3.0 (No Header, Vanilla JS)
  *********************************************************/
 
-// Header & Breadcrumbs
-$page_title    = "Form Pegawai";
-$page_subtitle = "Kelola Data";
-$breadcrumbs   = [
-    ["label" => "Dashboard", "url" => "home-admin.php"],
-    ["label" => "Data Pegawai", "url" => "home-admin.php?page=form-view-data-pegawai"],
-    ["label" => "Form Pegawai"]
-];
-include "komponen/header.php";
+// --- BAGIAN INI SAYA HAPUS AGAR HEADER/BREADCRUMB HILANG ---
+// include "komponen/header.php"; 
+
 include 'dist/koneksi.php';
 
-$mode   = isset($_GET['mode']) ? $_GET['mode'] : 'tambah';
-$id_peg = isset($_GET['id']) ? $_GET['id'] : null;
+// --- SECURITY: SANITASI INPUT ---
+$mode       = isset($_GET['mode']) ? $_GET['mode'] : 'tambah';
+$id_peg_raw = isset($_GET['id']) ? $_GET['id'] : null;
+$id_peg     = $id_peg_raw ? mysqli_real_escape_string($conn, $id_peg_raw) : null;
 
-// Inisialisasi Data Kosong (Untuk Mode Tambah)
+// Inisialisasi Data Kosong
 $data = array(
     'id_peg' => '', 'nip' => '', 'nama' => '', 'tempat_lhr' => '', 'tgl_lhr' => '',
     'agama' => '', 'jk' => '', 'gol_darah' => '', 'status_nikah' => '', 'status_kepeg' => '',
     'alamat' => '', 'telp' => '', 'email' => '', 'bpjstk' => '', 'bpjskes' => '', 'foto' => ''
 );
 
-// Data User Default (Untuk mencegah bug reset akun)
-$dataUser = array('hak_akses' => 'User', 'status_aktif' => 'Y', 'username' => '', 'password' => '');
+$dataUser = array('hak_akses' => 'User', 'status_aktif' => 'Y');
 
-// --- LOGIKA EDIT & FIX BUG AKUN ---
+// --- LOGIKA EDIT ---
 if ($mode == 'edit' && $id_peg) {
-    // 1. Ambil Data Pegawai
     $q = mysqli_query($conn, "SELECT * FROM tb_pegawai WHERE id_peg='".$id_peg."'");
     $data = mysqli_fetch_assoc($q);
     
@@ -40,39 +34,34 @@ if ($mode == 'edit' && $id_peg) {
         exit;
     }
 
-    // 2. Ambil Data User Terkait (PENTING UNTUK FIX BUG)
-    // Kita perlu tahu hak akses & status aktif saat ini agar tidak ter-reset saat save
     $qUser = mysqli_query($conn, "SELECT * FROM tb_user WHERE id_pegawai='".$id_peg."'");
     if(mysqli_num_rows($qUser) > 0){
         $dataUser = mysqli_fetch_assoc($qUser);
     }
 }
 
-// --- LOGIKA REDIRECT (KEMBALI KE MANA SETELAH SAVE?) ---
-// Jika admin mengedit orang lain -> ke Detail
-// Jika user mengedit diri sendiri -> ke Profil
-$redirect_back = "home-admin.php?page=form-view-data-pegawai"; // Default
+// Redirect Logic
+$redirect_back = "home-admin.php?page=form-view-data-pegawai";
 if(isset($_SESSION['id_pegawai']) && $_SESSION['id_pegawai'] == $id_peg){
     $redirect_back = "home-admin.php?page=profil-pegawai";
 } elseif($mode == 'edit') {
-    $redirect_back = "home-admin.php?page=view-detail-data-pegawai&id_peg=" . $id_peg;
+    $redirect_back = "home-admin.php?page=view-detail-data-pegawai&id_peg=" . urlencode($id_peg);
 }
 ?>
 
 <style>
+    /* Styling Manual karena Header dihapus */
     .content-wrapper { background-color: #f4f6f9; }
-    .card-modern { border: none; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+    .card-modern { border: none; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); margin-top: 20px; }
     .form-header { background: linear-gradient(135deg, #007bff, #6610f2); color: white; border-radius: 15px 15px 0 0; padding: 20px; }
     .input-group-text { background-color: #fff; border-right: none; border-radius: 10px 0 0 10px; }
     .form-control { border-left: none; border-radius: 0 10px 10px 0; }
     .form-control:focus { box-shadow: none; border-color: #ced4da; }
-    /* Fix select border */
     select.form-control { border-left: 1px solid #ced4da; border-radius: 10px; }
-    
     .section-title { font-size: 0.9rem; font-weight: 700; color: #6c757d; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; border-bottom: 2px solid #e9ecef; padding-bottom: 5px; }
 </style>
 
-<div class="container-fluid mt-3 pb-5">
+<div class="container-fluid pb-5">
     <form action="pages/pegawai/simpan-data-pegawai.php" method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
         
         <input type="hidden" name="mode" value="<?php echo htmlspecialchars($mode); ?>">
@@ -80,19 +69,17 @@ if(isset($_SESSION['id_pegawai']) && $_SESSION['id_pegawai'] == $id_peg){
         
         <?php if ($mode == 'edit'): ?>
             <input type="hidden" name="id_peg" value="<?php echo htmlspecialchars($data['id_peg']); ?>">
-            
-            <input type="hidden" name="hak_akses_lama" value="<?php echo $dataUser['hak_akses']; ?>">
-            <input type="hidden" name="status_aktif_lama" value="<?php echo $dataUser['status_aktif']; ?>">
-            <input type="hidden" name="hak_akses" value="<?php echo $dataUser['hak_akses']; ?>">
-            <input type="hidden" name="status_aktif" value="<?php echo $dataUser['status_aktif']; ?>">
+            <input type="hidden" name="hak_akses_lama" value="<?php echo htmlspecialchars($dataUser['hak_akses']); ?>">
+            <input type="hidden" name="status_aktif_lama" value="<?php echo htmlspecialchars($dataUser['status_aktif']); ?>">
+            <input type="hidden" name="hak_akses" value="<?php echo htmlspecialchars($dataUser['hak_akses']); ?>">
+            <input type="hidden" name="status_aktif" value="<?php echo htmlspecialchars($dataUser['status_aktif']); ?>">
         <?php endif; ?>
-
 
         <div class="row justify-content-center">
             <div class="col-md-10">
                 <div class="card card-modern">
                     <div class="form-header">
-                        <h4 class="m-0 font-weight-bold"><i class="fas fa-user-edit mr-2"></i> Form <?= ucfirst($mode) ?> Biodata</h4>
+                        <h4 class="m-0 font-weight-bold"><i class="fas fa-user-edit mr-2"></i> Form <?= ucfirst(htmlspecialchars($mode)) ?> Biodata</h4>
                         <p class="m-0 small opacity-75">Lengkapi data pegawai dengan benar.</p>
                     </div>
                     <div class="card-body p-4">
@@ -104,7 +91,7 @@ if(isset($_SESSION['id_pegawai']) && $_SESSION['id_pegawai'] == $id_peg){
                                 <div class="input-group">
                                     <div class="input-group-prepend"><span class="input-group-text"><i class="fas fa-id-badge"></i></span></div>
                                     <input type="text" name="id_peg" class="form-control" value="<?php echo htmlspecialchars($data['id_peg']); ?>" 
-                                           <?php echo $mode == 'edit' ? 'disabled' : 'name="id_peg" required'; ?> placeholder="Masukkan ID Pegawai">
+                                           <?php echo $mode == 'edit' ? 'disabled' : 'required'; ?> placeholder="Masukkan ID Pegawai">
                                 </div>
                                 <?php if($mode == 'edit'): ?><small class="text-muted">ID Pegawai tidak dapat diubah.</small><?php endif; ?>
                             </div>
@@ -116,7 +103,7 @@ if(isset($_SESSION['id_pegawai']) && $_SESSION['id_pegawai'] == $id_peg){
                                 </div>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label>Nomor Induk Kependudukan (NIK) <span class="text-danger">*</span></label>
+                                <label>NIK <span class="text-danger">*</span></label>
                                 <div class="input-group">
                                     <div class="input-group-prepend"><span class="input-group-text"><i class="fas fa-fingerprint"></i></span></div>
                                     <input type="number" name="nip" class="form-control" value="<?php echo htmlspecialchars($data['nip']); ?>" required placeholder="16 digit NIK">
@@ -229,18 +216,44 @@ if(isset($_SESSION['id_pegawai']) && $_SESSION['id_pegawai'] == $id_peg){
                         
                         <div class="section-title mt-4"><i class="fas fa-camera mr-2"></i> Foto Profil</div>
                         <div class="form-group">
-                            <div class="custom-file">
-                                <input type="file" class="custom-file-input" id="foto" name="foto">
-                                <label class="custom-file-label" for="foto">Pilih file foto...</label>
+                            <div class="row align-items-center">
+                                <div class="col-md-9">
+                                    <div class="custom-file">
+                                        <input type="file" class="custom-file-input" id="foto" name="foto">
+                                        
+                                        <?php 
+                                            $label_foto = "Pilih file foto...";
+                                            if ($mode == 'edit' && !empty($data['foto'])) {
+                                                $label_foto = $data['foto'];
+                                            }
+                                        ?>
+                                        <label class="custom-file-label text-truncate" for="foto">
+                                            <?php echo htmlspecialchars($label_foto); ?>
+                                        </label>
+                                    </div>
+                                    <small class="text-muted mt-2 d-block">* Kosongkan jika tidak ingin mengubah foto.</small>
+                                </div>
+                                <div class="col-md-3 text-center">
+                                    <?php 
+                                        $fotoShow = 'dist/img/avatar5.png'; // Default
+                                        if ($mode == 'edit' && !empty($data['foto'])) {
+                                            $path = 'pages/assets/foto/' . $data['foto'];
+                                            if (file_exists($path)) {
+                                                $fotoShow = $path;
+                                            }
+                                        }
+                                    ?>
+                                    <img src="<?php echo $fotoShow; ?>?t=<?php echo time(); ?>" 
+                                         class="img-thumbnail rounded-circle shadow-sm" 
+                                         style="width: 80px; height: 80px; object-fit: cover;" 
+                                         alt="Preview Foto">
+                                </div>
                             </div>
-                            <?php if ($mode == 'edit' && $data['foto']): ?>
-                                <small class="text-success mt-2 d-block"><i class="fa fa-check-circle"></i> Foto saat ini: <?php echo htmlspecialchars($data['foto']); ?></small>
-                            <?php endif; ?>
                         </div>
 
                     </div>
                     <div class="card-footer bg-white text-right py-3 rounded-bottom">
-                        <a href="<?php echo $redirect_back; ?>" class="btn btn-light rounded-pill px-4 mr-2">Batal</a>
+                        <a href="<?php echo htmlspecialchars($redirect_back); ?>" class="btn btn-light rounded-pill px-4 mr-2">Batal</a>
                         <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm"><i class="fas fa-save mr-2"></i> Simpan Data</button>
                     </div>
                 </div>
@@ -250,13 +263,14 @@ if(isset($_SESSION['id_pegawai']) && $_SESSION['id_pegawai'] == $id_peg){
 </div>
 
 <script>
-  // Custom File Input Label
-  $(".custom-file-input").on("change", function() {
-    var fileName = $(this).val().split("\\").pop();
-    $(this).siblings(".custom-file-label").addClass("selected").html(fileName);
+  // 1. Script Ganti Label File (Vanilla JS - Aman tanpa jQuery)
+  document.querySelector('.custom-file-input').addEventListener('change', function(e) {
+    var fileName = document.getElementById("foto").files[0].name;
+    var nextSibling = e.target.nextElementSibling;
+    nextSibling.innerText = fileName;
   });
 
-  // Bootstrap Validation
+  // 2. Validasi Form
   (function() {
     'use strict';
     window.addEventListener('load', function() {

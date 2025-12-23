@@ -7,21 +7,9 @@
     .step-badge { background: #007bff; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-block; text-align: center; line-height: 28px; font-weight: bold; margin-right: 10px; }
 </style>
 
-<section class="content-header">
-  <div class="container-fluid">
-    <div class="row mb-2">
-      <div class="col-sm-6"><h1>Import Riwayat Jabatan</h1></div>
-      <div class="col-sm-6">
-        <ol class="breadcrumb float-sm-right">
-          <li class="breadcrumb-item"><a href="home-admin.php">Home</a></li>
-          <li class="breadcrumb-item active">Import Jabatan</li>
-        </ol>
-      </div>
-    </div>
-  </div>
-</section>
 
-<section class="content">
+
+<section class="content p-3">
   <div class="container-fluid">
     <div class="row justify-content-center">
         <div class="col-md-10">

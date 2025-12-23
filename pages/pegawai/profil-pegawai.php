@@ -1,8 +1,8 @@
 <?php
 /*********************************************************
  * FILE    : pages/pegawai/profil-pegawai.php
- * MODULE  : Profil Pegawai (Fixed Link Edit Pattern)
- * VERSION : v6.0 (Final Link Fix)
+ * MODULE  : Profil Pegawai (User Only Change Photo)
+ * VERSION : v8.0
  *********************************************************/
 
 if (session_id() === '') session_start();
@@ -15,19 +15,17 @@ if (!isset($_SESSION['id_user'])) {
 
 include "dist/koneksi.php";
 
-// --- 2. LOGIKA ID PEGAWAI & HAK AKSES ---
+// --- 2. LOGIKA ID PEGAWAI & PERMISSION ---
 $hak_akses_session = isset($_SESSION['hak_akses']) ? strtolower($_SESSION['hak_akses']) : 'user';
+$id_session_peg    = isset($_SESSION['id_pegawai']) ? $_SESSION['id_pegawai'] : '';
 
-// Admin DAN Kepala boleh edit. User biasa tidak boleh.
-$can_edit = ($hak_akses_session == 'admin' || $hak_akses_session == 'kepala');
-
+// Tentukan ID Pegawai yang akan ditampilkan
 $id_peg = null;
-if ($hak_akses_session == 'user') {
-    $id_peg = $_SESSION['id_pegawai'];
-} elseif (isset($_GET['id_peg'])) {
-    $id_peg = $_GET['id_peg'];
-} else {
-    $id_peg = isset($_SESSION['id_pegawai']) ? $_SESSION['id_pegawai'] : '';
+
+if (isset($_GET['id_peg'])) {
+    $id_peg = mysqli_real_escape_string($conn, $_GET['id_peg']);
+} elseif (!empty($id_session_peg)) {
+    $id_peg = $id_session_peg;
 }
 
 if (empty($id_peg)) {
@@ -35,8 +33,20 @@ if (empty($id_peg)) {
     exit;
 }
 
+// --- LOGIKA HAK AKSES BARU ---
+$is_admin_or_kepala = ($hak_akses_session == 'admin' || $hak_akses_session == 'kepala');
+$is_own_profile     = ($id_peg == $id_session_peg);
+
+// 1. Hak Ganti Foto: Boleh Admin/Kepala ATAU Pemilik Profil Sendiri
+$bisa_ganti_foto = ($is_admin_or_kepala || $is_own_profile);
+
+// 2. Hak Edit Data (Biodata/Riwayat): HANYA Boleh Admin/Kepala
+$bisa_edit_data  = $is_admin_or_kepala;
+
+
 // --- 3. QUERY DATA UTAMA ---
 $tampilPeg = mysqli_query($conn, "SELECT p.*, u.id_user, u.hak_akses FROM tb_pegawai p LEFT JOIN tb_user u ON u.id_pegawai = p.id_peg WHERE p.id_peg = '$id_peg'");
+
 if (mysqli_num_rows($tampilPeg) == 0) {
     echo '<div class="alert alert-warning m-3">Data pegawai tidak ditemukan.</div>';
     exit;
@@ -48,6 +58,8 @@ $foto_db    = isset($peg['foto']) ? trim($peg['foto']) : '';
 $jk         = isset($peg['jk']) ? strtolower(trim($peg['jk'])) : '';
 $avatar_def = ($jk == 'laki-laki' || $jk == 'l') ? 'dist/img/avatar5.png' : 'dist/img/avatar3.png';
 $path_foto  = 'pages/assets/foto/' . $foto_db;
+
+// Cek fisik file
 $src_foto   = (!empty($foto_db) && file_exists($path_foto)) ? $path_foto : $avatar_def;
 ?>
 
@@ -91,7 +103,6 @@ $src_foto   = (!empty($foto_db) && file_exists($path_foto)) ? $path_foto : $avat
 </style>
 
 <section class="content-header pt-4 pb-2">
-
 </section>
 
 <section class="content pb-5">
@@ -102,11 +113,20 @@ $src_foto   = (!empty($foto_db) && file_exists($path_foto)) ? $path_foto : $avat
                 <div class="card shadow-sm border-0" style="border-radius: 12px;">
                     <div class="profile-header-cover"></div>
                     <div class="card-body text-center pt-0">
-                        <a href="<?= ($can_edit) ? "home-admin.php?page=form-ganti-foto&id_peg=".urlencode($peg['id_peg']) : '#' ?>">
+                        
+                        <?php if ($bisa_ganti_foto): ?>
+                            <a href="home-admin.php?page=form-ganti-foto&id_peg=<?= urlencode($peg['id_peg']) ?>" title="Klik untuk ganti foto">
+                                <img class="profile-user-img img-fluid img-circle"
+                                     src="<?php echo $src_foto; ?>?time=<?php echo time(); ?>"
+                                     onerror="this.src='<?php echo $avatar_def; ?>';">
+                                <div class="mt-1"><small class="text-primary"><i class="fas fa-camera"></i> Ubah Foto</small></div>
+                            </a>
+                        <?php else: ?>
                             <img class="profile-user-img img-fluid img-circle"
                                  src="<?php echo $src_foto; ?>?time=<?php echo time(); ?>"
                                  onerror="this.src='<?php echo $avatar_def; ?>';">
-                        </a>
+                        <?php endif; ?>
+
                         <h4 class="mt-3 mb-1 font-weight-bold"><?php echo $peg['nama']; ?></h4>
                         <p class="text-muted mb-2 small"><?php echo $peg['id_peg']; ?></p>
                         <span class="badge badge-primary px-3 py-1 rounded-pill mb-4"><?php echo $peg['status_kepeg']; ?></span>
@@ -153,37 +173,41 @@ $src_foto   = (!empty($foto_db) && file_exists($path_foto)) ? $path_foto : $avat
                                 <table class="table-detail w-100">
                                     <tr><td>NIK</td><td>: <?php echo $peg['nip']; ?></td></tr>
                                     <tr><td>Nama Lengkap</td><td>: <?php echo $peg['nama']; ?></td></tr>
-                                    <tr><td>TTL</td><td>: <?php echo $peg['tempat_lhr'] . ', ' . date('d-m-Y', strtotime($peg['tgl_lhr'])); ?></td></tr>
+                                    <tr><td>TTL</td><td>: <?php echo $peg['tempat_lhr'] . ', ' . ($peg['tgl_lhr'] ? date('d-m-Y', strtotime($peg['tgl_lhr'])) : '-'); ?></td></tr>
                                     <tr><td>Jenis Kelamin</td><td>: <?php echo $peg['jk']; ?></td></tr>
                                     <tr><td>Agama</td><td>: <?php echo $peg['agama']; ?></td></tr>
                                     <tr><td>Golongan Darah</td><td>: <?php echo $peg['gol_darah']; ?></td></tr>
                                     <tr><td>Status Nikah</td><td>: <?php echo $peg['status_nikah']; ?></td></tr>
                                     <tr><td>Alamat</td><td>: <?php echo $peg['alamat']; ?></td></tr>
                                 </table>
-                                <?php if($can_edit): ?>
+                                
+                                <?php if($bisa_edit_data): ?>
                                 <div class="mt-4 text-right">
                                     <a href="home-admin.php?page=form-master-data-pegawai&mode=edit&id=<?= $peg['id_peg']; ?>" class="btn btn-warning shadow-sm"><i class="fa fa-edit"></i> Edit Biodata</a>
                                     <a href="./pages/report/print-biodata-pegawai.php?id_peg=<?= $id_peg ?>" target="_blank" class="btn btn-primary shadow-sm ml-2"><i class="fas fa-print"></i> Cetak CV</a>
                                 </div>
+                                <?php else: ?>
+                                    <div class="mt-4 text-right">
+                                        <a href="./pages/report/print-biodata-pegawai.php?id_peg=<?= $id_peg ?>" target="_blank" class="btn btn-primary shadow-sm ml-2"><i class="fas fa-print"></i> Cetak CV</a>
+                                    </div>
                                 <?php endif; ?>
                             </div>
 
                             <div class="tab-pane fade" id="keluarga" role="tabpanel">
-                                
                                 <h6 class="font-weight-bold text-primary border-bottom pb-2 mb-3">Pasangan (Suami/Istri)</h6>
                                 <div class="table-responsive mb-4">
                                     <table class="table table-bordered table-sm">
-                                        <thead class="bg-light"><tr><th>Nama</th><th>TTL</th><th>Pekerjaan</th><th>Status</th><?php if($can_edit) echo '<th>Aksi</th>'; ?></tr></thead>
+                                        <thead class="bg-light"><tr><th>Nama</th><th>TTL</th><th>Pekerjaan</th><th>Status</th><?php if($bisa_edit_data) echo '<th>Aksi</th>'; ?></tr></thead>
                                         <tbody>
-                                            <?php $qSi = mysqli_query($conn,"SELECT a.*, (SELECT desc_pekerjaan FROM tb_master_pekerjaan WHERE id_pekerjaan=a.id_pekerjaan) as nm_kerja FROM tb_suamiistri a WHERE id_peg='$id_peg'");
+                                            <?php 
+                                            $qSi = mysqli_query($conn,"SELECT a.*, (SELECT desc_pekerjaan FROM tb_master_pekerjaan WHERE id_pekerjaan=a.id_pekerjaan) as nm_kerja FROM tb_suamiistri a WHERE id_peg='$id_peg'");
                                             if(mysqli_num_rows($qSi)>0) {
                                                 while($si=mysqli_fetch_array($qSi)){ 
-                                                    // FIX ID_SI
                                                     $id_si = isset($si['id_si']) ? $si['id_si'] : (isset($si['id']) ? $si['id'] : 0);
                                                 ?>
                                                 <tr>
                                                     <td><?=$si['nama']?></td><td><?=$si['tmp_lhr']?>, <?=$si['tgl_lhr']?></td><td><?=$si['nm_kerja']?></td><td><?=$si['status_hub']?></td>
-                                                    <?php if($can_edit): ?>
+                                                    <?php if($bisa_edit_data): ?>
                                                     <td class="text-center">
                                                         <a href="home-admin.php?page=form-edit-data-suami-istri&id_si=<?=$id_si?>" class="btn btn-xs btn-info" title="Edit"><i class="fa fa-edit"></i></a>
                                                     </td>
@@ -197,17 +221,16 @@ $src_foto   = (!empty($foto_db) && file_exists($path_foto)) ? $path_foto : $avat
                                 <h6 class="font-weight-bold text-primary border-bottom pb-2 mb-3">Anak</h6>
                                 <div class="table-responsive mb-4">
                                     <table class="table table-bordered table-sm">
-                                        <thead class="bg-light"><tr><th>Nama</th><th>TTL</th><th>Pendidikan</th><th>Anak Ke</th><?php if($can_edit) echo '<th>Aksi</th>'; ?></tr></thead>
+                                        <thead class="bg-light"><tr><th>Nama</th><th>TTL</th><th>Pendidikan</th><th>Anak Ke</th><?php if($bisa_edit_data) echo '<th>Aksi</th>'; ?></tr></thead>
                                         <tbody>
                                             <?php $qAnak = mysqli_query($conn,"SELECT * FROM tb_anak WHERE id_peg='$id_peg' ORDER BY anak_ke");
                                             if(mysqli_num_rows($qAnak)>0) {
                                                 while($ak=mysqli_fetch_array($qAnak)){ 
-                                                    // FIX ID_ANAK
                                                     $id_ak = isset($ak['id_anak']) ? $ak['id_anak'] : (isset($ak['id']) ? $ak['id'] : 0);
                                                 ?>
                                                 <tr>
                                                     <td><?=$ak['nama']?></td><td><?=$ak['tmp_lhr']?>, <?=$ak['tgl_lhr']?></td><td><?=$ak['pendidikan']?></td><td><?=$ak['anak_ke']?></td>
-                                                    <?php if($can_edit): ?>
+                                                    <?php if($bisa_edit_data): ?>
                                                     <td class="text-center">
                                                         <a href="home-admin.php?page=form-edit-data-anak&id_anak=<?=$id_ak?>" class="btn btn-xs btn-info" title="Edit"><i class="fa fa-edit"></i></a>
                                                     </td>
@@ -221,17 +244,16 @@ $src_foto   = (!empty($foto_db) && file_exists($path_foto)) ? $path_foto : $avat
                                 <h6 class="font-weight-bold text-primary border-bottom pb-2 mb-3">Orang Tua</h6>
                                 <div class="table-responsive">
                                     <table class="table table-bordered table-sm">
-                                        <thead class="bg-light"><tr><th>Nama</th><th>TTL</th><th>Hubungan</th><?php if($can_edit) echo '<th>Aksi</th>'; ?></tr></thead>
+                                        <thead class="bg-light"><tr><th>Nama</th><th>TTL</th><th>Hubungan</th><?php if($bisa_edit_data) echo '<th>Aksi</th>'; ?></tr></thead>
                                         <tbody>
                                             <?php $qOrtu = mysqli_query($conn,"SELECT * FROM tb_ortu WHERE id_peg='$id_peg'");
                                             if(mysqli_num_rows($qOrtu)>0) {
                                                 while($or=mysqli_fetch_array($qOrtu)){ 
-                                                    // FIX ID_ORTU
                                                     $id_or = isset($or['id_ortu']) ? $or['id_ortu'] : (isset($or['id']) ? $or['id'] : 0);
                                                 ?>
                                                 <tr>
                                                     <td><?=$or['nama']?></td><td><?=$or['tmp_lhr']?>, <?=$or['tgl_lhr']?></td><td><?=$or['status_hub']?></td>
-                                                    <?php if($can_edit): ?>
+                                                    <?php if($bisa_edit_data): ?>
                                                     <td class="text-center">
                                                         <a href="home-admin.php?page=form-edit-data-ortu&id_ortu=<?=$id_or?>" class="btn btn-xs btn-info" title="Edit"><i class="fa fa-edit"></i></a>
                                                     </td>
@@ -299,12 +321,12 @@ $src_foto   = (!empty($foto_db) && file_exists($path_foto)) ? $path_foto : $avat
                 <div class="alert alert-info py-2"><strong>Estimasi Naik:</strong> <?php if($peg['tgl_naikpangkat']){ $next = new DateTime($peg['tgl_naikpangkat']); $next->modify('+4 year'); echo $next->format('d-m-Y'); } else { echo "-"; } ?></div>
                 <div class="table-responsive">
                     <table class="table table-bordered table-sm">
-                        <thead class="bg-light"><tr><th>Pangkat</th><th>Gol</th><th>TMT</th><th>SK</th><?php if($can_edit) echo '<th>Aksi</th>'; ?></tr></thead>
+                        <thead class="bg-light"><tr><th>Pangkat</th><th>Gol</th><th>TMT</th><th>SK</th><?php if($bisa_edit_data) echo '<th>Aksi</th>'; ?></tr></thead>
                         <tbody>
                             <?php $qPan = mysqli_query($conn,"SELECT * FROM tb_pangkat WHERE id_peg='$id_peg' ORDER BY tgl_sk DESC"); 
                             while($p=mysqli_fetch_array($qPan)){ $id_p = isset($p['id_pangkat'])?$p['id_pangkat']:$p['id']; ?>
                             <tr><td><?=$p['pangkat']?></td><td><?=$p['gol']?></td><td><?=$p['tmt_pangkat']?></td><td><?=$p['no_sk']?></td>
-                            <?php if($can_edit): ?><td><a href="home-admin.php?page=form-edit-data-pangkat&id_pangkat=<?=$id_p?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a></td><?php endif; ?></tr>
+                            <?php if($bisa_edit_data): ?><td><a href="home-admin.php?page=form-edit-data-pangkat&id_pangkat=<?=$id_p?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a></td><?php endif; ?></tr>
                             <?php } ?>
                         </tbody>
                     </table>
@@ -319,9 +341,9 @@ $src_foto   = (!empty($foto_db) && file_exists($path_foto)) ? $path_foto : $avat
         <div class="modal-content">
             <div class="modal-header bg-primary text-white"><h5 class="modal-title">Bahasa</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div>
             <div class="modal-body">
-                <table class="table table-bordered"><thead><tr><th>Bahasa</th><th>Kemampuan</th><?php if($can_edit) echo '<th>Aksi</th>'; ?></tr></thead><tbody>
+                <table class="table table-bordered"><thead><tr><th>Bahasa</th><th>Kemampuan</th><?php if($bisa_edit_data) echo '<th>Aksi</th>'; ?></tr></thead><tbody>
                     <?php $qBhs = mysqli_query($conn,"SELECT * FROM tb_bahasa WHERE id_peg='$id_peg'"); while($b=mysqli_fetch_array($qBhs)){ $id_b = isset($b['id_bahasa'])?$b['id_bahasa']:$b['id']; ?>
-                    <tr><td><?=$b['bahasa']?></td><td><?=$b['kemampuan']?></td><?php if($can_edit): ?><td><a href="home-admin.php?page=form-edit-data-bahasa&id_bhs=<?=$id_b?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a></td><?php endif; ?></tr>
+                    <tr><td><?=$b['bahasa']?></td><td><?=$b['kemampuan']?></td><?php if($bisa_edit_data): ?><td><a href="home-admin.php?page=form-edit-data-bahasa&id_bhs=<?=$id_b?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a></td><?php endif; ?></tr>
                     <?php } ?>
                 </tbody></table>
             </div>
@@ -334,9 +356,9 @@ $src_foto   = (!empty($foto_db) && file_exists($path_foto)) ? $path_foto : $avat
         <div class="modal-content">
             <div class="modal-header bg-primary text-white"><h5 class="modal-title">Riwayat Pendidikan</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div>
             <div class="modal-body table-responsive">
-                <table class="table table-bordered table-hover"><thead><tr><th>Jenjang</th><th>Nama Sekolah</th><th>Jurusan</th><th>Lulus</th><?php if($can_edit) echo '<th>Aksi</th>'; ?></tr></thead><tbody>
+                <table class="table table-bordered table-hover"><thead><tr><th>Jenjang</th><th>Nama Sekolah</th><th>Jurusan</th><th>Lulus</th><?php if($bisa_edit_data) echo '<th>Aksi</th>'; ?></tr></thead><tbody>
                     <?php $qSek = mysqli_query($conn,"SELECT * FROM tb_pendidikan WHERE id_peg='$id_peg' ORDER BY tgl_ijazah DESC"); while($s=mysqli_fetch_array($qSek)){ $id_s = isset($s['id_sekolah'])?$s['id_sekolah']:$s['id']; ?>
-                    <tr><td><?=$s['jenjang']?></td><td><?=$s['nama_sekolah']?></td><td><?=$s['jurusan']?></td><td><?=$s['tgl_ijazah']?></td><?php if($can_edit): ?><td><a href="home-admin.php?page=form-edit-data-sekolah&id_sekolah=<?=$id_s?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a></td><?php endif; ?></tr>
+                    <tr><td><?=$s['jenjang']?></td><td><?=$s['nama_sekolah']?></td><td><?=$s['jurusan']?></td><td><?=$s['tgl_ijazah']?></td><?php if($bisa_edit_data): ?><td><a href="home-admin.php?page=form-edit-data-sekolah&id_sekolah=<?=$id_s?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a></td><?php endif; ?></tr>
                     <?php } ?>
                 </tbody></table>
             </div>
@@ -348,21 +370,10 @@ $src_foto   = (!empty($foto_db) && file_exists($path_foto)) ? $path_foto : $avat
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white"><h5 class="modal-title">Riwayat Jabatan</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div>
-            <div class="modal-body"><table class="table table-bordered table-striped"><thead><tr><th>Jabatan</th><th>TMT</th><th>Status</th><?php if($can_edit) echo '<th>Aksi</th>'; ?></tr></thead>
+            <div class="modal-body"><table class="table table-bordered table-striped"><thead><tr><th>Jabatan</th><th>TMT</th><th>Status</th><?php if($bisa_edit_data) echo '<th>Aksi</th>'; ?></tr></thead>
             <tbody>
 <?php 
-// Query diganti menggunakan LEFT JOIN berdasarkan NAMA (bukan kode)
-// COALESCE berfungsi: Jika di Master tidak ketemu, tampilkan nama asli dari tb_jabatan
-$qJab = mysqli_query($conn, "SELECT 
-    j.id_jab, 
-    j.tmt_jabatan, 
-    j.status_jab, 
-    COALESCE(m.nama_jabatan, j.jabatan) AS nm_jab 
-FROM tb_jabatan j
-LEFT JOIN tb_master_jabatan m ON j.jabatan = m.nama_jabatan
-WHERE j.id_peg='$id_peg' 
-ORDER BY j.tmt_jabatan DESC");
-
+$qJab = mysqli_query($conn, "SELECT j.id_jab, j.tmt_jabatan, j.status_jab, COALESCE(m.nama_jabatan, j.jabatan) AS nm_jab FROM tb_jabatan j LEFT JOIN tb_master_jabatan m ON j.jabatan = m.nama_jabatan WHERE j.id_peg='$id_peg' ORDER BY j.tmt_jabatan DESC");
 while($j = mysqli_fetch_array($qJab)){ ?>
     <tr>
         <td><?= $j['nm_jab'] ?></td>
@@ -374,12 +385,9 @@ while($j = mysqli_fetch_array($qJab)){ ?>
                 <span class="badge badge-secondary"><?= $j['status_jab'] ?></span>
             <?php endif; ?>
         </td>
-        
-        <?php if($can_edit): ?>
+        <?php if($bisa_edit_data): ?>
             <td>
-                <a href="home-admin.php?page=form-edit-data-jabatan&id_jab=<?= $j['id_jab'] ?>" class="btn btn-xs btn-success" title="Edit">
-                    <i class="fa fa-edit"></i>
-                </a>
+                <a href="home-admin.php?page=form-edit-data-jabatan&id_jab=<?= $j['id_jab'] ?>" class="btn btn-xs btn-success" title="Edit"><i class="fa fa-edit"></i></a>
             </td>
         <?php endif; ?>
     </tr>
@@ -395,18 +403,18 @@ while($j = mysqli_fetch_array($qJab)){ ?>
             <div class="modal-header bg-warning text-white"><h5 class="modal-title">Sasaran Kerja (SKP)</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div>
             <div class="modal-body table-responsive"><table class="table table-bordered table-hover"><thead><tr><th>Periode</th><th>Nilai</th><th>Mutu</th><th>Aksi</th></tr></thead><tbody>
                 <?php $qDp3 = mysqli_query($conn,"SELECT * FROM tb_dp3 WHERE id_peg='$id_peg' ORDER BY periode_akhir DESC"); while($d=mysqli_fetch_array($qDp3)){ $jml = $d['nilai_kesetiaan']+$d['nilai_prestasi']+$d['nilai_tgjwb']+$d['nilai_ketaatan']+$d['nilai_kejujuran']+$d['nilai_kerjasama']+$d['nilai_prakarsa']+$d['nilai_kepemimpinan']; ?>
-                <tr><td><?=$d['periode_akhir']?></td><td><?=$jml?></td><td><?=$d['hasil_penilaian']?></td><td><a href="home-admin.php?page=view-detail-data-dp3&id_dp3=<?=$d['id_dp3']?>" class="btn btn-xs btn-info">Detail</a> <?php if($can_edit): ?><a href="home-admin.php?page=form-edit-data-dp3&id_dp3=<?=$d['id_dp3']?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a><?php endif; ?></td></tr>
+                <tr><td><?=$d['periode_akhir']?></td><td><?=$jml?></td><td><?=$d['hasil_penilaian']?></td><td><a href="home-admin.php?page=view-detail-data-dp3&id_dp3=<?=$d['id_dp3']?>" class="btn btn-xs btn-info">Detail</a> <?php if($bisa_edit_data): ?><a href="home-admin.php?page=form-edit-data-dp3&id_dp3=<?=$d['id_dp3']?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a><?php endif; ?></td></tr>
                 <?php } ?>
             </tbody></table></div>
         </div>
     </div>
 </div>
 
-<div id="pengangkatan" class="modal fade" tabindex="-1" role="dialog"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-primary text-white"><h5 class="modal-title">Riwayat Pengangkatan</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div><div class="modal-body"><table class="table table-bordered"><thead><tr><th>Status</th><th>Tgl</th><th>No SK</th><th>File</th><?php if($can_edit) echo '<th>Aksi</th>'; ?></tr></thead><tbody><?php $qAng = mysqli_query($conn,"SELECT * FROM tb_angkat WHERE id_peg_baru='$id_peg'"); while($a=mysqli_fetch_array($qAng)){ $id_a = isset($a['id_angkat'])?$a['id_angkat']:$a['id']; ?><tr><td><?=$a['jns_mutasi']?></td><td><?=$a['tgl_mutasi']?></td><td><?=$a['no_mutasi']?></td><td><a href="home-admin.php?page=view-pengangkatan&id_angkat=<?=$id_a?>" target="_blank"><i class="fa fa-file-pdf"></i></a></td><?php if($can_edit): ?><td><a href="home-admin.php?page=form-edit-data-angkat&id_angkat=<?=$id_a?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a></td><?php endif; ?></tr><?php } ?></tbody></table></div></div></div></div>
-<div id="mutasi" class="modal fade" tabindex="-1" role="dialog"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-primary text-white"><h5 class="modal-title">Riwayat Mutasi</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div><div class="modal-body"><table class="table table-bordered"><thead><tr><th>Jenis</th><th>Tgl</th><th>No SK</th><?php if($can_edit) echo '<th>Aksi</th>'; ?></tr></thead><tbody><?php $qMut = mysqli_query($conn,"SELECT * FROM tb_mutasi WHERE id_peg='$id_peg'"); while($m=mysqli_fetch_array($qMut)){ $id_m = isset($m['id_mutasi'])?$m['id_mutasi']:$m['id']; ?><tr><td><?=$m['jns_mutasi']?></td><td><?=$m['tgl_mutasi']?></td><td><?=$m['no_mutasi']?></td><?php if($can_edit): ?><td><a href="home-admin.php?page=form-edit-data-mutasi&id_mutasi=<?=$id_m?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a></td><?php endif; ?></tr><?php } ?></tbody></table></div></div></div></div>
-<div id="diklat" class="modal fade" tabindex="-1" role="dialog"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-primary text-white"><h5 class="modal-title">Riwayat Diklat</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div><div class="modal-body"><table class="table table-bordered"><thead><tr><th>Nama</th><th>Penyelenggara</th><th>Tahun</th><?php if($can_edit) echo '<th>Aksi</th>'; ?></tr></thead><tbody><?php $qDik = mysqli_query($conn,"SELECT * FROM tb_diklat WHERE id_peg='$id_peg'"); while($d=mysqli_fetch_array($qDik)){ $id_d = isset($d['id_diklat'])?$d['id_diklat']:$d['id']; ?><tr><td><?=$d['diklat']?></td><td><?=$d['penyelenggara']?></td><td><?=$d['tahun']?></td><?php if($can_edit): ?><td><a href="home-admin.php?page=form-edit-data-diklat&id_diklat=<?=$id_d?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a></td><?php endif; ?></tr><?php } ?></tbody></table></div></div></div></div>
-<div id="sertifikasi" class="modal fade" tabindex="-1" role="dialog"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-primary text-white"><h5 class="modal-title">Riwayat Sertifikasi</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div><div class="modal-body"><table class="table table-bordered"><thead><tr><th>Sertifikasi</th><th>Exp</th><th>Status</th><?php if($can_edit) echo '<th>Aksi</th>'; ?></tr></thead><tbody><?php $qSer = mysqli_query($conn,"SELECT *, DATEDIFF(tgl_expired, CURDATE()) AS selisih FROM tb_sertifikasi WHERE id_peg='$id_peg'"); while($s=mysqli_fetch_array($qSer)){ $id_s = isset($s['id_sertif'])?$s['id_sertif']:$s['id']; ?><tr><td><?=$s['sertifikasi']?></td><td><?=$s['tgl_expired']?></td><td><?= ($s['selisih'] < 0) ? 'Exp' : 'Aktif' ?></td><?php if($can_edit): ?><td><a href="home-admin.php?page=form-edit-data-penugasan&id_penugasan=<?=$id_s?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a></td><?php endif; ?></tr><?php } ?></tbody></table></div></div></div></div>
-<div id="hukum" class="modal fade" tabindex="-1" role="dialog"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-primary text-white"><h5 class="modal-title">Riwayat Pelanggaran</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div><div class="modal-body"><table class="table table-bordered"><thead><tr><th>Hukuman</th><th>Tgl SK</th><?php if($can_edit) echo '<th>Aksi</th>'; ?></tr></thead><tbody><?php $qHuk = mysqli_query($conn,"SELECT * FROM tb_hukuman WHERE id_peg='$id_peg'"); while($h=mysqli_fetch_array($qHuk)){ $id_h = isset($h['id_hukum'])?$h['id_hukum']:$h['id']; ?><tr><td><?=$h['hukuman']?></td><td><?=$h['tgl_sk']?></td><?php if($can_edit): ?><td><a href="home-admin.php?page=form-edit-data-hukuman&id_hukum=<?=$id_h?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a></td><?php endif; ?></tr><?php } ?></tbody></table></div></div></div></div>
+<div id="pengangkatan" class="modal fade" tabindex="-1" role="dialog"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-primary text-white"><h5 class="modal-title">Riwayat Pengangkatan</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div><div class="modal-body"><table class="table table-bordered"><thead><tr><th>Status</th><th>Tgl</th><th>No SK</th><th>File</th><?php if($bisa_edit_data) echo '<th>Aksi</th>'; ?></tr></thead><tbody><?php $qAng = mysqli_query($conn,"SELECT * FROM tb_angkat WHERE id_peg_baru='$id_peg'"); while($a=mysqli_fetch_array($qAng)){ $id_a = isset($a['id_angkat'])?$a['id_angkat']:$a['id']; ?><tr><td><?=$a['jns_mutasi']?></td><td><?=$a['tgl_mutasi']?></td><td><?=$a['no_mutasi']?></td><td><a href="home-admin.php?page=view-pengangkatan&id_angkat=<?=$id_a?>" target="_blank"><i class="fa fa-file-pdf"></i></a></td><?php if($bisa_edit_data): ?><td><a href="home-admin.php?page=form-edit-data-angkat&id_angkat=<?=$id_a?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a></td><?php endif; ?></tr><?php } ?></tbody></table></div></div></div></div>
+<div id="mutasi" class="modal fade" tabindex="-1" role="dialog"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-primary text-white"><h5 class="modal-title">Riwayat Mutasi</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div><div class="modal-body"><table class="table table-bordered"><thead><tr><th>Jenis</th><th>Tgl</th><th>No SK</th><?php if($bisa_edit_data) echo '<th>Aksi</th>'; ?></tr></thead><tbody><?php $qMut = mysqli_query($conn,"SELECT * FROM tb_mutasi WHERE id_peg='$id_peg'"); while($m=mysqli_fetch_array($qMut)){ $id_m = isset($m['id_mutasi'])?$m['id_mutasi']:$m['id']; ?><tr><td><?=$m['jns_mutasi']?></td><td><?=$m['tgl_mutasi']?></td><td><?=$m['no_mutasi']?></td><?php if($bisa_edit_data): ?><td><a href="home-admin.php?page=form-edit-data-mutasi&id_mutasi=<?=$id_m?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a></td><?php endif; ?></tr><?php } ?></tbody></table></div></div></div></div>
+<div id="diklat" class="modal fade" tabindex="-1" role="dialog"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-primary text-white"><h5 class="modal-title">Riwayat Diklat</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div><div class="modal-body"><table class="table table-bordered"><thead><tr><th>Nama</th><th>Penyelenggara</th><th>Tahun</th><?php if($bisa_edit_data) echo '<th>Aksi</th>'; ?></tr></thead><tbody><?php $qDik = mysqli_query($conn,"SELECT * FROM tb_diklat WHERE id_peg='$id_peg'"); while($d=mysqli_fetch_array($qDik)){ $id_d = isset($d['id_diklat'])?$d['id_diklat']:$d['id']; ?><tr><td><?=$d['diklat']?></td><td><?=$d['penyelenggara']?></td><td><?=$d['tahun']?></td><?php if($bisa_edit_data): ?><td><a href="home-admin.php?page=form-edit-data-diklat&id_diklat=<?=$id_d?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a></td><?php endif; ?></tr><?php } ?></tbody></table></div></div></div></div>
+<div id="sertifikasi" class="modal fade" tabindex="-1" role="dialog"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-primary text-white"><h5 class="modal-title">Riwayat Sertifikasi</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div><div class="modal-body"><table class="table table-bordered"><thead><tr><th>Sertifikasi</th><th>Exp</th><th>Status</th><?php if($bisa_edit_data) echo '<th>Aksi</th>'; ?></tr></thead><tbody><?php $qSer = mysqli_query($conn,"SELECT *, DATEDIFF(tgl_expired, CURDATE()) AS selisih FROM tb_sertifikasi WHERE id_peg='$id_peg'"); while($s=mysqli_fetch_array($qSer)){ $id_s = isset($s['id_sertif'])?$s['id_sertif']:$s['id']; ?><tr><td><?=$s['sertifikasi']?></td><td><?=$s['tgl_expired']?></td><td><?= ($s['selisih'] < 0) ? 'Exp' : 'Aktif' ?></td><?php if($bisa_edit_data): ?><td><a href="home-admin.php?page=form-edit-data-penugasan&id_penugasan=<?=$id_s?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a></td><?php endif; ?></tr><?php } ?></tbody></table></div></div></div></div>
+<div id="hukum" class="modal fade" tabindex="-1" role="dialog"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-primary text-white"><h5 class="modal-title">Riwayat Pelanggaran</h5><button type="button" class="close text-white" data-dismiss="modal">&times;</button></div><div class="modal-body"><table class="table table-bordered"><thead><tr><th>Hukuman</th><th>Tgl SK</th><?php if($bisa_edit_data) echo '<th>Aksi</th>'; ?></tr></thead><tbody><?php $qHuk = mysqli_query($conn,"SELECT * FROM tb_hukuman WHERE id_peg='$id_peg'"); while($h=mysqli_fetch_array($qHuk)){ $id_h = isset($h['id_hukum'])?$h['id_hukum']:$h['id']; ?><tr><td><?=$h['hukuman']?></td><td><?=$h['tgl_sk']?></td><?php if($bisa_edit_data): ?><td><a href="home-admin.php?page=form-edit-data-hukuman&id_hukum=<?=$id_h?>" class="btn btn-xs btn-success"><i class="fa fa-edit"></i></a></td><?php endif; ?></tr><?php } ?></tbody></table></div></div></div></div>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="plugins/jquery/jquery.min.js"></script>
+<script src="plugins/bootstrap/js/bootstrap.bundle.min.js"></script>

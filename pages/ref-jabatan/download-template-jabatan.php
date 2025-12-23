@@ -14,7 +14,7 @@ $headers = [
     'Nama Jabatan (Wajib)',  // C (Wajib jika B kosong)
     'Kode Unit Kerja',          // D
     'No SK',                    // E
-    'Tgl SK (YYYY-MM-DD)',      // F
+    'Tgl SK (DD-MM-YYYY)',      // F
     'Status (Aktif/Non)'        // G
 ];
 
@@ -41,7 +41,7 @@ $sheet->setCellValue('B2', '10');
 $sheet->setCellValue('C2', ''); 
 $sheet->setCellValue('D2', '018001');
 $sheet->setCellValue('E2', 'SK/001/2025');
-$sheet->setCellValue('F2', date('Y-m-d'));
+$sheet->setCellValue('F2', date('d-m-Y'));
 $sheet->setCellValue('G2', 'Aktif');
 
 // Baris 3: Isi Nama Saja (Kode Kosong -> Sistem cari kodenya)
@@ -50,7 +50,7 @@ $sheet->setCellValue('B3', '');
 $sheet->setCellValue('C3', 'Kepala Cabang'); // Pastikan ejaan sama persis dengan master
 $sheet->setCellValue('D3', '018001');
 $sheet->setCellValue('E3', 'SK/002/2025');
-$sheet->setCellValue('F3', date('Y-m-d'));
+$sheet->setCellValue('F3', date('d-m-Y'));
 $sheet->setCellValue('G3', 'Aktif');
 
 // Output File

@@ -1,18 +1,24 @@
 <?php
 // pages/diklat/ajax-detail-diklat.php
 
-include '../../dist/koneksi.php'; // Sesuaikan path koneksi jika berbeda
+// 1. SECURITY: CEK LOGIN DULU
+if (session_id() === '') session_start();
+if (empty($_SESSION['id_user'])) {
+    die('<div class="alert alert-danger">Akses ditolak. Silakan login.</div>');
+}
+
+include '../../dist/koneksi.php'; 
 
 if (isset($_POST['diklat'])) {
+    // Sanitasi Input Database (Anti SQL Injection)
     $diklat = mysqli_real_escape_string($conn, $_POST['diklat']);
     $tahun  = mysqli_real_escape_string($conn, $_POST['tahun']);
     $peny   = mysqli_real_escape_string($conn, $_POST['penyelenggara']);
 
-    // Query ambil detail peserta berdasarkan Judul Diklat & Tahun
+    // Query
     $sql = "SELECT d.biaya, p.nama, p.id_peg, k.nama_kantor 
             FROM tb_diklat d
             JOIN tb_pegawai p ON d.id_peg = p.id_peg
-            -- Join ke Jabatan & Kantor untuk tau unit kerja (opsional, biar lengkap)
             LEFT JOIN tb_jabatan j ON p.id_peg = j.id_peg AND j.status_jab = 'Aktif'
             LEFT JOIN tb_kantor k ON j.unit_kerja = k.kode_kantor_detail
             WHERE d.diklat = '$diklat' 
@@ -43,18 +49,21 @@ if (isset($_POST['diklat'])) {
             $total += $r['biaya'];
             $unit = $r['nama_kantor'] ? $r['nama_kantor'] : '-';
             
+            // [SECURITY] Sanitasi Output HTML (Anti XSS)
+            // Semua data dari DB wajib dibungkus htmlspecialchars
+            
             echo '<tr>';
             echo '<td class="text-center">' . $no++ . '</td>';
             echo '<td>
                     <strong>' . htmlspecialchars($r['nama']) . '</strong><br>
-                    <small class="text-muted">NIP: ' . $r['id_peg'] . '</small>
+                    <small class="text-muted">NIP: ' . htmlspecialchars($r['id_peg']) . '</small>
                   </td>';
-            echo '<td>' . $unit . '</td>';
+            echo '<td>' . htmlspecialchars($unit) . '</td>'; 
             echo '<td class="text-right">Rp ' . number_format($r['biaya'], 0, ',', '.') . '</td>';
             echo '</tr>';
         }
         
-        // Baris Total di dalam Modal
+        // Baris Total
         echo '<tr class="font-weight-bold bg-light">';
         echo '<td colspan="3" class="text-right">Total Biaya Kegiatan Ini:</td>';
         echo '<td class="text-right text-primary">Rp ' . number_format($total, 0, ',', '.') . '</td>';

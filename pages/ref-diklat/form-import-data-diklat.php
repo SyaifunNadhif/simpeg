@@ -1,15 +1,10 @@
 <?php
 // ===========================================================
 // FILE: pages/ref-diklat/form-import-data-diklat.php
+// MODULE: Frontend Import Diklat (Versi Aman & Offline)
 // ===========================================================
 
-$page_title = "Import Data";
-$page_subtitle = "Riwayat Diklat";
-$breadcrumbs = [
-  ["label" => "Dashboard", "url" => "home-admin.php"],
-  ["label" => "Import Diklat"]
-];
-include "komponen/header.php";
+
 ?>
 
 <style>
@@ -23,7 +18,7 @@ include "komponen/header.php";
     .step-badge { background: #28a745; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-block; text-align: center; line-height: 28px; font-weight: bold; margin-right: 10px; }
 </style>
 
-<section class="content">
+<section class="content p-3">
   <div class="container-fluid">
     <div class="row justify-content-center">
         <div class="col-md-10">
@@ -63,7 +58,7 @@ include "komponen/header.php";
                                 <h5 class="font-weight-bold text-dark">Klik atau Tarik File ke Sini</h5>
                                 <p class="text-muted mb-0 small">Support: .xlsx, .xls (Maks 5MB)</p>
                             </div>
-                            <input type="file" name="file_excel" id="file_excel" class="file-input-overlay" accept=".xlsx, .xls" required>
+                            <input type="file" name="file_excel" id="file_excel" class="file-input-overlay" accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" required>
                         </div>
                         <div id="filePreview" class="file-preview">
                             <div class="d-flex align-items-center">
@@ -90,9 +85,15 @@ include "komponen/header.php";
   </div>
 </section>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="plugins/sweetalert2/sweetalert2.all.min.js"></script>
+
 <script>
-// UI Logic
+// Fallback jika file lokal tidak ditemukan (Biar gak error blank)
+if (typeof Swal === 'undefined') {
+    alert("Error: File plugins/sweetalert2/sweetalert2.all.min.js tidak ditemukan. Fitur popup mungkin tidak jalan.");
+}
+
+// UI Logic (Drag & Drop)
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('file_excel');
 const filePreview = document.getElementById('filePreview');
@@ -104,13 +105,20 @@ const fileSizeTxt = document.getElementById('fileSize');
 
 fileInput.addEventListener('change', function() {
     if (this.files.length) {
+        // [SECURITY] Validasi Ukuran File di Client Side (Max 5MB)
+        if(this.files[0].size > 5 * 1024 * 1024) {
+            Swal.fire('File Terlalu Besar', 'Maksimal ukuran file adalah 5MB', 'warning');
+            this.value = ""; // Reset input
+            return;
+        }
+
         filePreview.style.display = 'block';
         fileNameTxt.textContent = this.files[0].name;
         fileSizeTxt.textContent = (this.files[0].size / 1024).toFixed(2) + ' KB';
     }
 });
 
-// PREVIEW LOGIC
+// LOGIC 1: PREVIEW DATA
 document.getElementById('uploadForm').addEventListener('submit', function(e) {
     e.preventDefault();
     if (!fileInput.files.length) { Swal.fire('Warning', 'Pilih file dulu!', 'warning'); return; }
@@ -119,7 +127,7 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
     formData.append('file_excel', fileInput.files[0]);
     formData.append('action', 'preview');
 
-    Swal.fire({title: 'Memproses...', didOpen: () => Swal.showLoading()});
+    Swal.fire({title: 'Memproses...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
     fetch('pages/ref-diklat/upload-data-diklat.php', { method: 'POST', body: formData })
     .then(res => res.json())
@@ -132,20 +140,23 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
         } else {
             Swal.fire('Gagal', res.message, 'error');
         }
-    }).catch(err => Swal.fire('Error', 'Server Error', 'error'));
+    }).catch(err => {
+        Swal.close();
+        Swal.fire('Error', 'Terjadi kesalahan server (PHP Error).', 'error');
+    });
 });
 
-// SIMPAN LOGIC
+// LOGIC 2: SIMPAN DATA (Tombol ada di dalam hasil preview)
 document.body.addEventListener('click', function(e) {
     if (e.target && (e.target.id == 'btnSimpanDiklat' || e.target.closest('#btnSimpanDiklat'))) {
         e.preventDefault();
         const textArea = document.getElementById('json_data_diklat');
         
-        if(!textArea) { Swal.fire('Error', 'Data hilang.', 'error'); return; }
+        if(!textArea) { Swal.fire('Error', 'Data preview hilang.', 'error'); return; }
 
         Swal.fire({
             title: 'Simpan Diklat?',
-            text: "Pastikan data sudah benar.",
+            text: "Pastikan data sudah benar sebelum disimpan.",
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#28a745',
@@ -164,7 +175,7 @@ function simpanKeDatabase(jsonData) {
     formData.append('action', 'save');
     formData.append('data_diklat', jsonData); 
 
-    Swal.fire({title: 'Menyimpan...', didOpen: () => Swal.showLoading()});
+    Swal.fire({title: 'Menyimpan...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
     fetch('pages/ref-diklat/upload-data-diklat.php', { method: 'POST', body: formData })
     .then(res => res.json())
@@ -176,6 +187,9 @@ function simpanKeDatabase(jsonData) {
         } else {
             Swal.fire('Gagal', res.message, 'error');
         }
-    }).catch(err => Swal.fire('Error', 'Koneksi Gagal', 'error'));
+    }).catch(err => {
+        Swal.close();
+        Swal.fire('Error', 'Koneksi Gagal', 'error');
+    });
 }
 </script>

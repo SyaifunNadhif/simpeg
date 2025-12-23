@@ -1,106 +1,285 @@
 <?php
-/*********************************************************
- * FILE    : pages/ref-diklat/form-master-data-diklat.php
- * MODULE  : SIMPEG — Data Diklat (Entry)
- * VERSION : v1.0 (PHP 5.6)
- * DATE    : 2025-09-07
- * Fitur   : Select2 picker, SweetAlert duplikat (id_peg+diklat+tahun).
- *********************************************************/
-if (session_id()==='') session_start();
+if (session_id() === '') session_start();
+
+// Koneksi
 @include_once __DIR__ . '/../../dist/koneksi.php';
-@include_once __DIR__ . '/../../dist/functions.php';
-if (!isset($conn) || !$conn) { @include_once __DIR__ . '/../../config/koneksi.php'; if(isset($koneksi)) $conn=$koneksi; }
-function e($s){ return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
-function postv($k,$d=''){ return isset($_POST[$k])?trim($_POST[$k]):$d; }
-function clean($c,$s){ return mysqli_real_escape_string($c, trim($s)); }
-
-$today=date('Y-m-d'); $status=''; $msg='';
-$uid = isset($_GET['uid']) ? preg_replace('~[^A-Za-z0-9_\-]~','', $_GET['uid']) : '';
-$pegawai=null; if($uid!==''){ $q=mysqli_query($conn,"SELECT id_peg,nama FROM tb_pegawai WHERE id_peg='".clean($conn,$uid)."' LIMIT 1"); if($q&&mysqli_num_rows($q)>0)$pegawai=mysqli_fetch_assoc($q); }
-
-if($_SERVER['REQUEST_METHOD']==='POST'){
-  $id_peg=clean($conn,postv('id_peg'));
-  $diklat=clean($conn,postv('diklat'));
-  $penyelenggara=clean($conn,postv('penyelenggara'));
-  $tempat=clean($conn,postv('tempat'));
-  $angkatan=clean($conn,postv('angkatan'));
-  $tahun=clean($conn,postv('tahun'));
-
-  if($id_peg!=='' && $diklat!==''){
-    $qDup=mysqli_query($conn,"SELECT 1 FROM tb_diklat WHERE id_peg='{$id_peg}' AND diklat='{$diklat}' AND tahun='{$tahun}' LIMIT 1");
-    if($qDup && mysqli_num_rows($qDup)>0){ $status='duplikat'; $msg='Data diklat sudah ada untuk tahun tersebut.'; }
-    if($status===''){
-      $sql="INSERT INTO tb_diklat(id_peg,diklat,penyelenggara,tempat,angkatan,tahun,date_reg,created_by)
-            VALUES('{$id_peg}','{$diklat}','{$penyelenggara}','{$tempat}','{$angkatan}','{$tahun}','{$today}','admin')";
-      $ok=mysqli_query($conn,$sql); $status=$ok?'sukses':'gagal'; if(!$ok)$msg='Gagal menyimpan data.';
-    }
-  } else { $status='gagal'; $msg='Pegawai & diklat wajib diisi.'; }
+if (!isset($conn)) {
+    @include_once __DIR__ . '/../../config/koneksi.php';
+    if (isset($koneksi) && $koneksi) $conn = $koneksi;
 }
+
+function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
+
+// Filter options
+$optThn = array();
+$qT = mysqli_query($conn, "SELECT DISTINCT tahun FROM tb_diklat ORDER BY tahun DESC");
+if($qT){ while($r=mysqli_fetch_assoc($qT)) $optThn[] = $r['tahun']; }
+
+$optJns = array();
+$qJ = mysqli_query($conn, "SELECT DISTINCT diklat FROM tb_diklat ORDER BY diklat ASC");
+if($qJ){ while($r=mysqli_fetch_assoc($qJ)) $optJns[] = $r['diklat']; }
+
+$optKtr = array();
+$qK = mysqli_query($conn, "SELECT kode_kantor_detail, nama_kantor FROM tb_kantor ORDER BY nama_kantor ASC");
+if($qK){ while($r=mysqli_fetch_assoc($qK)) $optKtr[] = $r; }
 ?>
-<!DOCTYPE html><html lang="id"><head>
-  <meta charset="utf-8"><title>Entry Diklat</title>
-  <link rel="stylesheet" href="assets/css/bootstrap.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css">
-  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <style>.card{border-radius:14px;border:1px solid rgba(0,0,0,.05);box-shadow:0 6px 24px rgba(0,0,0,.06)}.card-header{background:linear-gradient(90deg,#2563eb,#0ea5e9);color:#fff;border-radius:14px 14px 0 0}</style>
-</head><body>
-<div class="container mt-3">
-  <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <div><h5 class="mb-0">Entry Diklat</h5><small>Lengkapi data diklat pegawai</small></div>
+
+<section class="content-header">
+  <div class="container-fluid">
+    <div class="row mb-2">
+      <div class="col-sm-6">
+        <h1>Daftar Pelatihan & Diklat</h1>
+        <small class="text-muted">Menampilkan seluruh data riwayat pelatihan pegawai.</small>
+      </div>
+      <div class="col-sm-6 text-right">
+        <a class="btn btn-default" href="home-admin.php"><i class="fas fa-home"></i></a>
+        <a class="btn btn-success" href="home-admin.php?page=form-import-data-diklat"><i class="fas fa-file-import"></i> Import</a>
+        <a class="btn btn-primary" href="home-admin.php?page=ref-diklat/form-master"><i class="fas fa-plus"></i> Tambah Data</a>
+      </div>
     </div>
-    <div class="card-body">
-      <?php if($status==='sukses'):?><script>Swal.fire({icon:'success',title:'Tersimpan'}).then(function(){location.href='home-admin.php?page=form-view-data-diklat&uid=<?php echo e($uid); ?>';});</script>
-      <?php elseif($status==='gagal'):?><script>Swal.fire({icon:'error',title:'Gagal',text:<?php echo json_encode($msg?:'Periksa isian.'); ?>});</script>
-      <?php elseif($status==='duplikat'):?><script>Swal.fire({icon:'warning',title:'Duplikat',text:<?php echo json_encode($msg); ?>});</script><?php endif; ?>
+  </div>
+</section>
 
-      <?php if($pegawai): ?>
-        <div class="alert alert-info">Pegawai: <b><?php echo e($pegawai['nama']); ?></b> — ID: <?php echo e($pegawai['id_peg']); ?></div>
-      <?php else: ?>
-        <div class="mb-3">
-          <label class="form-label">Pilih Pegawai</label>
-          <select id="uid_picker" class="form-select" style="width:100%">
-            <option value="">- Pilih Pegawai -</option>
-            <?php $qp=mysqli_query($conn,"SELECT id_peg,nama FROM tb_pegawai WHERE status_aktif='1' ORDER BY nama ASC LIMIT 2000"); if($qp){ while($p=mysqli_fetch_assoc($qp)){ echo '<option value="'.e($p['id_peg']).'">'.e($p['nama'].' — '.$p['id_peg']).'</option>'; } } ?>
-          </select>
-          <script>$(function(){ $('#uid_picker').select2({theme:'bootstrap-5',width:'100%'}).on('select2:select',function(){var v=$(this).val(); if(v){ location.href='home-admin.php?page=form-master-data-diklat&uid='+encodeURIComponent(v); }}); });</script>
-        </div>
-      <?php endif; ?>
+<section class="content">
+  <div class="container-fluid">
 
-      <form method="post" action="" autocomplete="off" id="frmDiklat">
-        <input type="hidden" name="id_peg" value="<?php echo e($uid); ?>">
+    <div class="card card-outline card-primary">
+      <div class="card-body">
         <div class="row">
-          <div class="col-md-6"><label class="form-label">Nama Diklat <span class="text-danger">*</span></label><input name="diklat" id="diklat" class="form-control" required></div>
-          <div class="col-md-6"><label class="form-label">Penyelenggara</label><input name="penyelenggara" class="form-control"></div>
+          <div class="col-md-2">
+            <label>Tahun</label>
+            <select id="f_tahun" class="form-control select2">
+              <option value="">- Semua -</option>
+              <?php foreach($optThn as $t){ echo '<option value="'.h($t).'">'.h($t).'</option>'; } ?>
+            </select>
+          </div>
+
+          <div class="col-md-4">
+            <label>Jenis Diklat</label>
+            <select id="f_diklat" class="form-control select2">
+              <option value="">- Semua Jenis -</option>
+              <?php foreach($optJns as $j){ echo '<option value="'.h($j).'">'.h($j).'</option>'; } ?>
+            </select>
+          </div>
+
+          <div class="col-md-4">
+            <label>Unit Kerja</label>
+            <select id="f_kantor" class="form-control select2">
+              <option value="">- Semua Kantor -</option>
+              <?php foreach($optKtr as $k){ echo '<option value="'.h($k['kode_kantor_detail']).'">'.h($k['nama_kantor']).'</option>'; } ?>
+            </select>
+          </div>
+
+          <div class="col-md-2 d-flex align-items-end">
+            <button id="btnFilter" class="btn btn-primary btn-block">Tampil</button>
+          </div>
         </div>
-        <div class="row mt-2">
-          <div class="col-md-4"><label class="form-label">Tempat</label><input name="tempat" class="form-control"></div>
-          <div class="col-md-4"><label class="form-label">Angkatan</label><input name="angkatan" class="form-control"></div>
-          <div class="col-md-4"><label class="form-label">Tahun</label><input name="tahun" id="tahun" class="form-control" maxlength="4" placeholder="YYYY"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body table-responsive">
+        <!-- Pakai ID yang kamu sering pakai di project: tabelDiklatAjax -->
+        <table id="tabelDiklatAjax" class="table table-hover table-striped" style="width:100%">
+          <thead>
+            <tr>
+              <th width="5%">NO</th>
+              <th width="25%">NAMA PEGAWAI</th>
+              <th width="20%">JENIS DIKLAT</th>
+              <th width="20%">PENYELENGGARA</th>
+              <th width="15%">UNIT KERJA</th>
+              <th width="10%">AKSI</th>
+            </tr>
+          </thead>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- MODAL HAPUS (Bootstrap 4 markup aman) -->
+<div class="modal fade" id="modalHapus" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-danger">
+        <h5 class="modal-title text-white">Konfirmasi Hapus</h5>
+        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <p>Apakah Anda yakin ingin menghapus data ini?</p>
+
+        <div id="dataSummary" class="alert alert-light border">
+          <i class="fas fa-spinner fa-spin"></i> Mengambil info...
         </div>
-        <div class="d-flex justify-content-between mt-3">
-          <a class="btn btn-outline-secondary" href="home-admin.php?page=form-view-data-diklat<?php echo $uid?'&uid='.urlencode($uid):''; ?>">Kembali</a>
-          <button class="btn btn-primary" type="submit" id="btnSimpan">Simpan</button>
+
+        <div class="form-group">
+          <label>Alasan Penghapusan <span class="text-danger">*</span></label>
+          <textarea id="deleteReason" class="form-control" rows="3" placeholder="Wajib diisi (misal: Duplikat, Salah Input)"></textarea>
         </div>
-      </form>
-      <script>
-        $(function(){
-          // Cek duplikat on-blur
-          function cekDup(){
-            var idp=<?php echo json_encode($uid); ?>, d=$.trim($('#diklat').val()), t=$.trim($('#tahun').val());
-            if(!idp || !d) return;
-            $.getJSON('pages/ref-diklat/helper-diklat.php', {mode:'dup', id_peg:idp, diklat:d, tahun:t}, function(r){
-              if(r && r.exists){ Swal.fire({icon:'warning',title:'Duplikat',text:'Diklat sudah ada pada tahun yang sama.'}); $('#btnSimpan').prop('disabled',true); }
-              else { $('#btnSimpan').prop('disabled',false); }
-            });
-          }
-          $('#diklat,#tahun').on('blur', cekDup);
-        });
-      </script>
+
+        <input type="hidden" id="deleteId">
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+        <button type="button" class="btn btn-danger" id="btnConfirmDelete">Hapus ke Recycle Bin</button>
+      </div>
     </div>
   </div>
 </div>
-</body></html>
+
+<script>
+$(document).ready(function(){
+
+  // Select2 (kalau ada)
+  try { $('.select2').select2({ theme: 'bootstrap4', width: '100%' }); } catch(e){}
+
+  // DataTables
+  var tbl = $('#tabelDiklatAjax').DataTable({
+    processing: true,
+    serverSide: true,
+    autoWidth: false,
+    ajax: {
+      url: 'pages/ref-diklat/ajax-data-diklat.php',
+      type: 'GET',
+      data: function(d){
+        // FIX: backend kamu baca param ini: tahun/diklat/kantor :contentReference[oaicite:4]{index=4}
+        d.tahun  = $('#f_tahun').val() || '';
+        d.diklat = $('#f_diklat').val() || '';
+        d.kantor = $('#f_kantor').val() || '';
+      }
+    },
+    columns: [
+      { data: 'no', className: 'text-center', orderable: false },
+      { data: 'nama_peg' },
+      { data: 'diklat' },
+      { data: 'penyelenggara' },
+      { data: 'unit_kerja' },
+      { data: 'aksi', className: 'text-center', orderable: false }
+    ]
+  });
+
+  $('#btnFilter').on('click', function(){
+    tbl.ajax.reload();
+  });
+
+  // Helper modal show/hide (BS4/BS5)
+  function showModal(){
+    // BS5
+    if (window.bootstrap && bootstrap.Modal) {
+      var el = document.getElementById('modalHapus');
+      var inst = bootstrap.Modal.getInstance(el);
+      if (!inst) inst = new bootstrap.Modal(el);
+      inst.show();
+      return true;
+    }
+    // BS4
+    if (window.jQuery && $('#modalHapus').modal) {
+      $('#modalHapus').modal('show');
+      return true;
+    }
+    return false;
+  }
+  function hideModal(){
+    // BS5
+    if (window.bootstrap && bootstrap.Modal) {
+      var el = document.getElementById('modalHapus');
+      var inst = bootstrap.Modal.getInstance(el);
+      if (inst) inst.hide();
+      return;
+    }
+    // BS4
+    if (window.jQuery && $('#modalHapus').modal) {
+      $('#modalHapus').modal('hide');
+      return;
+    }
+  }
+
+  // =========================
+  // FIX UTAMA: click delete pakai delegation GLOBAL
+  // (tidak peduli tabel id apa / DOM DataTables berubah)
+  // =========================
+  $(document).off('click', '.btn-delete').on('click', '.btn-delete', function(e){
+    e.preventDefault();
+
+    var id = $(this).data('id');
+    $('#deleteId').val(id);
+    $('#deleteReason').val('');
+    $('#dataSummary').html('<i class="fas fa-spinner fa-spin"></i> Mengambil info...');
+
+    // Tampilkan modal (kalau modal tidak bisa, fallback Swal)
+    var ok = showModal();
+    if (!ok && window.Swal) {
+      Swal.fire('Error', 'Bootstrap modal tidak aktif di halaman ini. (JS bootstrap belum ke-load)', 'error');
+      return;
+    }
+
+    // Get info untuk isi modal
+    $.ajax({
+      url: 'pages/ref-diklat/process_soft_delete.php',
+      type: 'POST',
+      dataType: 'json',
+      data: { action: 'get_info', id: id },
+      success: function(res){
+        if (res.status === 'success') {
+          $('#dataSummary').html(
+            '<b>Diklat:</b> ' + res.data.diklat + '<br>' +
+            '<b>Pegawai:</b> ' + res.data.nama_peg + '<br>' +
+            '<b>Tahun:</b> ' + res.data.tahun
+          );
+        } else {
+          $('#dataSummary').html('<span class="text-danger">'+(res.message || 'Gagal ambil data')+'</span>');
+        }
+      },
+      error: function(){
+        $('#dataSummary').html('<span class="text-danger">Error koneksi server.</span>');
+      }
+    });
+  });
+
+  // Konfirmasi delete
+  $('#btnConfirmDelete').off('click').on('click', function(){
+    var id = $('#deleteId').val();
+    var reason = $.trim($('#deleteReason').val());
+
+    if (!reason) {
+      if (window.Swal) Swal.fire('Error', 'Alasan wajib diisi!', 'warning');
+      else alert('Alasan wajib diisi!');
+      return;
+    }
+
+    var $btn = $(this);
+    $btn.prop('disabled', true).text('Memproses...');
+
+    $.ajax({
+      url: 'pages/ref-diklat/process_soft_delete.php',
+      type: 'POST',
+      dataType: 'json',
+      data: { action: 'delete', id: id, reason: reason },
+      success: function(res){
+        $btn.prop('disabled', false).text('Hapus ke Recycle Bin');
+        hideModal();
+
+        if (res.status === 'success') {
+          if (window.Swal) Swal.fire('Berhasil', 'Data dipindahkan ke Recycle Bin.', 'success');
+          else alert('Berhasil: data dipindahkan ke Recycle Bin.');
+          tbl.ajax.reload(null, false);
+        } else {
+          if (window.Swal) Swal.fire('Gagal', res.message || 'Gagal hapus', 'error');
+          else alert('Gagal: ' + (res.message || 'Gagal hapus'));
+        }
+      },
+      error: function(){
+        $btn.prop('disabled', false).text('Hapus ke Recycle Bin');
+        if (window.Swal) Swal.fire('Error', 'Terjadi kesalahan server', 'error');
+        else alert('Terjadi kesalahan server');
+      }
+    });
+  });
+
+});
+</script>
