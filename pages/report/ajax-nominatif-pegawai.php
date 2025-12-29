@@ -56,14 +56,14 @@ if ($status_kepeg != '') { $where .= " AND p.status_kepeg = '$status_kepeg'"; }
 
 // 3. SEARCH GLOBAL
 if ($search != '') {
-    $where .= " AND (p.nama LIKE '%$search%' OR p.nip LIKE '%$search%' OR j.jabatan LIKE '%$search%' OR k.nama_kantor LIKE '%$search%')";
+    $where .= " AND (p.nama LIKE '%$search%' OR p.id_peg LIKE '%$search%' OR j.jabatan LIKE '%$search%' OR k.nama_kantor LIKE '%$search%')";
 }
 
 // EKSEKUSI DATA
 $qCount = mysqli_query($conn, "SELECT COUNT(*) AS total $sqlJoin $where");
 $totalData = ($qCount) ? mysqli_fetch_assoc($qCount)['total'] : 0;
 
-$query = "SELECT p.id_peg, p.nama, p.nip, p.status_kepeg, j.jabatan, j.tmt_jabatan, k.nama_kantor, s.nama_sekolah, s.jenjang 
+$query = "SELECT p.id_peg, p.nama, p.id_peg, p.status_kepeg, j.jabatan, j.tmt_jabatan, k.nama_kantor, s.nama_sekolah, s.jenjang 
           $sqlJoin $where 
           ORDER BY p.nama ASC LIMIT $start, $len";
 $q = mysqli_query($conn, $query);
@@ -89,7 +89,7 @@ if($q) {
         $data[] = [
             "no" => $no++,
             "nama" => "<div style='font-weight:700; color:#334155;'>".h($row['nama'])."</div>",
-            "nip" => "<div class='text-muted small font-monospace'>".h($row['nip'])."</div>",
+            "nip" => "<div class='text-muted small font-monospace'>".h($row['id_peg'])."</div>",
             "jabatan" => h($row['jabatan']?:'-'),
             "unit_kerja" => "<span class='text-primary font-weight-bold'>".h($row['nama_kantor']?:'-')."</span>",
             "status" => $status,

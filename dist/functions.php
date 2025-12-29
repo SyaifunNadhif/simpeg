@@ -182,7 +182,7 @@ function getPage($page) {
     'form-view-data-pelanggaran'   => 'pages/ref-pelanggaran/form-view-data-pelanggaran.php',
     'form-edit-data-hukuman'       => 'pages/ref-pelanggaran/form-edit-data-hukuman.php',
     'delete-data-hukuman'          => 'pages/ref-pelanggaran/delete-data-hukuman.php',
-    'form-master-data-hukuman'     => 'pages/ref-pelanggaran/form-master-data-pelanggaran.php',
+    'form-master-data-pelanggaran'     => 'pages/ref-pelanggaran/form-master-data-pelanggaran.php',
     'master-data-hukuman'          => 'pages/ref-pelanggaran/master-data-hukuman.php',
     'form-upload-hukuman'          => 'pages/ref-pelanggaran/form-upload-hukuman.php',
     'proses-upload-hukuman'        => 'pages/ref-pelanggaran/proses-upload-hukuman.php',
@@ -221,8 +221,10 @@ function getPage($page) {
 
     // Laporan
     'nominatif'                    => 'pages/report/nominatif-pegawai.php',
-    'formasi'                      => 'pages/report/formasi.php',
+    'formasi'                      => 'pages/report/formasi-pegawai.php',
     'keadaan-pegawai'              => 'pages/report/keadaan-pegawai.php',
+    'rekap-biaya-diklat'           => 'pages/report/view-rekap.php',
+    // 'rekap-biaya-diklat'           => 'pages/report/rekap-biaya-diklat.php',
 
     // Tambahkan lebih lanjut sesuai kebutuhan Anda...
     
@@ -237,7 +239,7 @@ function getPage($page) {
     'master-data-diklat'        => 'pages/ref-diklat/master-data-diklat.php',
     'form-diklat'               => 'pages/ref-diklat/form-diklat.php',
     'ref-diklat'                => 'pages/ref-diklat/ref-diklat.php',
-    'rekap-biaya-diklat'      => 'pages/ref-diklat/rekap-biaya-diklat.php',
+    // 'rekap-biaya-diklat'      => 'pages/ref-diklat/rekap-biaya-diklat.php',
 
     // User
     'form-view-data-user'          => 'pages/user/form-view-data-user.php',

@@ -106,25 +106,8 @@ if (!$mut) {
     .btn-modern:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
 </style>
 
-<section class="content-header pt-4 pb-2">
-    <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h1 class="m-0 font-weight-bold text-dark" style="font-size: 1.8rem;">Edit Mutasi</h1>
-                <p class="text-muted mb-0">Perbarui data mutasi pegawai</p>
-            </div>
-            <div>
-                <ol class="breadcrumb bg-transparent p-0 m-0 small">
-                    <li class="breadcrumb-item"><a href="home-admin.php">Home</a></li>
-                    <li class="breadcrumb-item"><a href="home-admin.php?page=form-view-data-mutasi">Data Mutasi</a></li>
-                    <li class="breadcrumb-item active">Edit</li>
-                </ol>
-            </div>
-        </div>
-    </div>
-</section>
 
-<section class="content mt-3">
+<section class="content p-3">
     <div class="container-fluid">
         <div class="row justify-content-center">
             <div class="col-md-10">

@@ -102,20 +102,9 @@ if (!$hasil) {
     .date-icon { position: absolute; right: 15px; top: 12px; pointer-events: none; color: #6c757d; }
 </style>
 
-<section class="content-header pt-4 pb-2">
-    <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h1 class="m-0 font-weight-bold text-dark">Edit Pelanggaran</h1>
-            </div>
-            <div>
-                <a href="home-admin.php?page=form-view-data-hukuman" class="btn btn-light rounded-pill border">Kembali</a>
-            </div>
-        </div>
-    </div>
-</section>
 
-<section class="content mt-3">
+
+<section class="content p-3">
     <div class="container-fluid">
         <div class="row justify-content-center">
             <div class="col-md-10">
