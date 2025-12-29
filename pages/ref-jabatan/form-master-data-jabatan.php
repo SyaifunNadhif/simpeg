@@ -1,7 +1,7 @@
 <?php
 /*********************************************************
  * FILE     : pages/ref-jabatan/form-master-data-jabatan.php
- * MODULE   : SIMPEG — Entry Jabatan (Create vs Update vs Mutasi)
+ * MODULE   : SIMPEG — Entry Jabatan (Create Update vs Mutasi)
  *********************************************************/
 
 if (session_id()==='') session_start();
@@ -39,7 +39,7 @@ if ($uid !== '') {
 }
 
 if (!$pegawai) {
-    echo "<script>alert('Data tidak ditemukan!'); window.location='home-admin.php?page=form-view-data-pegawai';</script>";
+    echo "<script>alert('Data tidak ditemukan!'); window.location='home-admin.php?page=form-view-data-jabatan';</script>";
     exit;
 }
 
@@ -166,7 +166,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h4 class="fw-bold text-dark mb-0">Manajemen Jabatan</h4>
-    <a href="home-admin.php?page=form-view-data-pegawai" class="btn btn-outline-secondary rounded-pill px-4">
+    <a href="home-admin.php?page=form-view-data-jabatan" class="btn btn-outline-secondary rounded-pill px-4">
         <i class="fas fa-arrow-left me-2"></i> Kembali
     </a>
   </div>

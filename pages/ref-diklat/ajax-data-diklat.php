@@ -101,6 +101,7 @@ if($q){
         $tempat     = h($r['tempat']);
         $jns_diklat = h($r['diklat']);
         $kantor     = h($r['nama_kantor']);
+        $tahun      = h($r['tahun']);
         $id_diklat  = h($r['id_diklat']);
 
         // Format HTML (Aman karena variabel sudah di-escape di atas)
@@ -126,6 +127,7 @@ if($q){
             'diklat'        => $jns_diklat,
             'penyelenggara' => $lokasi_html,
             'unit_kerja'    => $kantor ?: '-',
+            'tahun'         => $tahun,
             'aksi'          => $aksi_html
         );
     }

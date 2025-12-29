@@ -199,6 +199,7 @@ function getPage($page) {
     'form-master-data-jabatan'      => 'pages/ref-jabatan/form-master-data-jabatan.php',
     'form-import-jabatan'           => 'pages/ref-jabatan/form-import-jabatan.php',
     'form-add-master-data-jabatan'  => 'pages/ref-jabatan/form-add-master-data-jabatan.php',
+    'form-master-create-history-jabatan' => 'pages/ref-jabatan/form-master-create-history-jabatan.php',
 
     // Kantor
     'form-view-data-kantor'        => 'pages/kantor/form-view-data-kantor.php',

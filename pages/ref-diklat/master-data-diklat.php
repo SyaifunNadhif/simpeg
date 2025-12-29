@@ -1,26 +1,26 @@
 <?php
 /*********************************************************
  * FILE    : pages/diklat/master-data-diklat.php
- * UPDATE  : Fix Modal Close & Hak Akses (Admin Only)
+ * MODULE  : Daftar Diklat (Final Fix: Admin Only Actions)
  *********************************************************/
 
 // Session & Koneksi
 if (session_id() == '') session_start();
 include "dist/koneksi.php";
 
-// Hak Akses
-// Pastikan session ini sesuai dengan login sistem Abang
-$hak_akses   = isset($_SESSION['hak_akses']) ? strtolower($_SESSION['hak_akses']) : 'user';
+// 1. CEK HAK AKSES (Strict Mode)
+// Pastikan huruf kecil semua dan trim spasi agar akurat
+$hak_akses   = isset($_SESSION['hak_akses']) ? strtolower(trim($_SESSION['hak_akses'])) : 'user';
 $kode_kantor = isset($_SESSION['kode_kantor']) ? $_SESSION['kode_kantor'] : '';
 
-// Cek apakah user adalah ADMIN (Bisa disesuaikan jika ada level lain misal 'superadmin')
+// Definisi Admin: Hanya 'admin' dan 'superadmin' yang punya akses penuh
 $is_admin    = ($hak_akses == 'admin' || $hak_akses == 'superadmin');
 $is_kepala   = ($hak_akses == 'kepala');
 
 // Filter Default
 $tahun_default = date('Y');
 
-// Query Dropdown Awal
+// Query Dropdown Filter
 $qTahun  = mysqli_query($conn, "SELECT DISTINCT tahun FROM tb_diklat WHERE tahun != '' ORDER BY tahun DESC");
 $qDiklat = mysqli_query($conn, "SELECT DISTINCT diklat FROM tb_diklat WHERE tahun = '$tahun_default' ORDER BY diklat ASC");
 $qKantor = mysqli_query($conn, "SELECT * FROM tb_kantor WHERE level IN ('KC','KP') ORDER BY nama_kantor ASC");
@@ -32,29 +32,28 @@ $qKantor = mysqli_query($conn, "SELECT * FROM tb_kantor WHERE level IN ('KC','KP
     .card-header-clean { background-color: #fff; border-bottom: 1px solid #f1f3f9; padding: 20px 25px; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
     .title-text { font-size: 1.25rem; font-weight: 700; color: #2e343a; margin: 0; }
     .subtitle-text { font-size: 0.85rem; color: #858796; margin-top: 4px; display: block; }
+    
+    /* Tombol Custom */
     .btn-custom-home { background: #fff; border: 1px solid #d1d3e2; color: #5a5c69; padding: 7px 12px; border-radius: 8px; }
     .btn-custom-import { background-color: #1cc88a; border: none; color: white; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 0.9rem; }
     .btn-custom-add { background-color: #4e73df; border: none; color: white; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 0.9rem; }
     .btn-custom-import:hover { background-color: #17a673; color: white; }
     .btn-custom-add:hover { background-color: #2e59d9; color: white; }
+    
     .label-filter { font-size: 0.7rem; font-weight: 700; color: #b7b9cc; text-transform: uppercase; margin-bottom: 5px; display: block; letter-spacing: 0.5px; }
     .form-control-clean { border-radius: 6px; height: 38px; border: 1px solid #d1d3e2; font-size: 0.85rem; color: #6e707e; }
+    
+    /* Table Styling */
     table.dataTable thead th { background-color: #fff; color: #5a5c69; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; border-bottom: 2px solid #e3e6f0 !important; padding: 15px !important; }
     table.dataTable tbody td { padding: 12px 15px !important; vertical-align: middle; font-size: 0.9rem; color: #5a5c69; border-top: 1px solid #f1f3f9; }
-    .dataTables_wrapper .row:first-child { align-items: center; margin-bottom: 10px; padding: 0 5px; }
-    div.dataTables_wrapper div.dataTables_length label { font-weight: normal; text-align: left; white-space: nowrap; margin-bottom: 0; display: flex; align-items: center; }
-    div.dataTables_wrapper div.dataTables_length select { width: 60px; margin: 0 8px; border-radius: 4px; border: 1px solid #d1d3e2; padding: 4px; }
-    div.dataTables_wrapper div.dataTables_filter input { border-radius: 6px; border: 1px solid #d1d3e2; padding: 6px 12px; outline: none; margin-left: 0.5em; width: 200px; }
+    
+    /* DataTables Controls Hidden Default Search */
+    .dataTables_wrapper .dataTables_filter { display: none; } 
     
     @media (max-width: 768px) {
         .card-header-clean { padding: 15px; flex-direction: column; align-items: flex-start; }
         .header-actions { width: 100%; margin-top: 15px; display: flex; gap: 8px; }
         .btn-custom-import, .btn-custom-add { flex: 1; text-align: center; font-size: 0.8rem; }
-        .filter-grid-mobile { padding-right: 5px !important; }
-        .filter-grid-mobile:last-child { padding-left: 5px !important; padding-right: 15px !important; }
-        div.dataTables_wrapper div.dataTables_filter { text-align: left !important; margin-top: 10px; }
-        div.dataTables_wrapper div.dataTables_filter input { width: 100% !important; margin-left: 0 !important; display: block; }
-        div.dataTables_wrapper div.dataTables_length { text-align: left !important; }
     }
 </style>
 
@@ -69,9 +68,9 @@ $qKantor = mysqli_query($conn, "SELECT * FROM tb_kantor WHERE level IN ('KC','KP
                 <span class="subtitle-text pl-1">Menampilkan seluruh data riwayat pelatihan pegawai.</span>
             </div>
             <div class="header-actions">
-                <a href="home-admin.php" class="btn btn-custom-home shadow-sm" title="Dashboard"><i class="fa fa-home"></i></a>
                 
-                <?php if($is_admin): // HANYA ADMIN YANG LIHAT IMPORT & TAMBAH ?>
+                <?php if($is_admin): ?>
+                <a href="home-admin.php" class="btn btn-custom-home shadow-sm" title="Dashboard"><i class="fa fa-home"></i></a>
                 <a href="home-admin.php?page=form-import-data-diklat" class="btn btn-custom-import shadow-sm"><i class="fas fa-file-excel mr-1"></i> Import</a>
                 <a href="home-admin.php?page=form-diklat" class="btn btn-custom-add shadow-sm"><i class="fas fa-plus mr-1"></i> Tambah Data</a>
                 <?php endif; ?>
@@ -80,16 +79,17 @@ $qKantor = mysqli_query($conn, "SELECT * FROM tb_kantor WHERE level IN ('KC','KP
         </div>
 
         <div class="card-body">
-            <div class="row mb-3">
-                <div class="col-6 col-md-2 mb-2 filter-grid-mobile">
+            <div class="row mb-3 align-items-end">
+                <div class="col-6 col-md-2 mb-2">
                     <span class="label-filter">Tahun</span>
                     <select id="filter_tahun" class="form-control form-control-clean select2bs4">
+                        <option value="">- Semua -</option>
                         <?php while ($t = mysqli_fetch_assoc($qTahun)) { ?>
                             <option value="<?= $t['tahun'] ?>" <?= ($tahun_default == $t['tahun']) ? 'selected' : '' ?>><?= $t['tahun'] ?></option>
                         <?php } ?>
                     </select>
                 </div>
-                <div class="col-6 col-md-3 mb-2 filter-grid-mobile">
+                <div class="col-6 col-md-3 mb-2">
                     <span class="label-filter">Jenis Diklat</span>
                     <select id="filter_diklat" class="form-control form-control-clean select2bs4">
                         <option value="">- Semua Jenis -</option>
@@ -108,6 +108,10 @@ $qKantor = mysqli_query($conn, "SELECT * FROM tb_kantor WHERE level IN ('KC','KP
                     </select>
                     <?php if($is_kepala): ?><input type="hidden" id="hidden_kantor" value="<?= $kode_kantor ?>"><?php endif; ?>
                 </div>
+                <div class="col-12 col-md-3 mb-2">
+                    <span class="label-filter">Pencarian</span>
+                    <input type="text" id="customSearch" class="form-control form-control-clean" placeholder="Cari Nama Pegawai / Diklat...">
+                </div>
             </div>
 
             <div class="table-responsive">
@@ -119,7 +123,11 @@ $qKantor = mysqli_query($conn, "SELECT * FROM tb_kantor WHERE level IN ('KC','KP
                             <th>Jenis Diklat</th>
                             <th>Penyelenggara</th>
                             <th>Unit Kerja</th>
+                            <th>Tahun</th>
+                            
+                            <?php if($is_admin): ?>
                             <th class="text-center" width="8%">Aksi</th>
+                            <?php endif; ?>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -129,6 +137,7 @@ $qKantor = mysqli_query($conn, "SELECT * FROM tb_kantor WHERE level IN ('KC','KP
     </div>
 </div>
 
+<?php if($is_admin): ?>
 <div class="modal fade" id="modalHapus" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
@@ -139,13 +148,13 @@ $qKantor = mysqli_query($conn, "SELECT * FROM tb_kantor WHERE level IN ('KC','KP
                 </button>
             </div>
             <div class="modal-body">
-                <p>Apakah Anda yakin ingin menghapus data ini?</p>
-                <div id="dataSummary" class="alert alert-light border">
+                <p>Apakah Anda yakin ingin menghapus data ini ke <b>Recycle Bin</b>?</p>
+                <div id="dataSummary" class="alert alert-light border small">
                     <i class="fas fa-spinner fa-spin text-primary"></i> Mengambil info data...
                 </div>
                 <div class="form-group mt-3">
-                    <label class="font-weight-bold">Alasan Penghapusan <span class="text-danger">*</span></label>
-                    <textarea id="deleteReason" class="form-control" rows="3" placeholder="Contoh: Duplikat, Salah Input, dll..."></textarea>
+                    <label class="font-weight-bold small text-uppercase text-secondary">Alasan Penghapusan <span class="text-danger">*</span></label>
+                    <textarea id="deleteReason" class="form-control" rows="3" placeholder="Contoh: Duplikat, Salah Input..."></textarea>
                 </div>
                 <input type="hidden" id="deleteId">
             </div>
@@ -156,6 +165,7 @@ $qKantor = mysqli_query($conn, "SELECT * FROM tb_kantor WHERE level IN ('KC','KP
         </div>
     </div>
 </div>
+<?php endif; ?>
 
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap4.min.css">
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -171,14 +181,12 @@ $qKantor = mysqli_query($conn, "SELECT * FROM tb_kantor WHERE level IN ('KC','KP
 
 <script>
 $(document).ready(function() {
-    // 1. Init Select2
     $('.select2bs4').select2({ theme: 'bootstrap4', width: '100%' });
 
-    // 2. Init DataTable
     var table = $('#tabelDiklatAjax').DataTable({
         "processing": true,
         "serverSide": true,
-        "ordering": false,
+        "ordering": false, // Matikan sorting server-side sementara agar query simple
         "ajax": {
             "url": "pages/ref-diklat/ajax-data-diklat.php",
             "type": "GET",
@@ -196,39 +204,30 @@ $(document).ready(function() {
             { "data": "diklat" },
             { "data": "penyelenggara" },
             { "data": "unit_kerja" },
+            { "data": "tahun", "className": "text-center" },
+            
+            // LOGIC KOLOM AKSI (HANYA RENDER JIKA ADMIN)
+            <?php if($is_admin): ?>
             { "data": "aksi", "className": "text-center" }
+            <?php endif; ?>
         ],
-        // ... (sisanya sama seperti sebelumnya)
         "language": {
             "search": "", 
-            "searchPlaceholder": "Cari data...",
             "zeroRecords": "Data tidak ditemukan",
-            "lengthMenu": "Tampil _MENU_",
-            "info": "_START_ - _END_ dari _TOTAL_",
-            "processing": "<div class='spinner-border text-primary' role='status'><span class='sr-only'>...</span></div>"
+            "processing": "<div class='spinner-border text-primary' role='status'><span class='sr-only'>Loading...</span></div>",
+            "info": "Hal _PAGE_ dari _PAGES_",
+            "infoEmpty": "Kosong"
         },
-        "dom": "<'row'<'col-6 col-md-6'l><'col-12 col-md-6'f>>" +
-               "<'row'<'col-sm-12'tr>>" +
-               "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
-
-        // SCRIPT TAMBAHAN: Sembunyikan tombol Delete di JS jika bukan admin
-        "drawCallback": function(settings) {
-            var isAdmin = <?php echo $is_admin ? 'true' : 'false'; ?>;
-            if (!isAdmin) {
-                // Sembunyikan semua elemen dengan class .btn-delete dan tombol edit jika perlu
-                $('.btn-delete').hide(); 
-                // Opsional: Kalau mau hidden tombol edit juga, pakai ini:
-                // $('.btn-edit').hide(); 
-            }
-        }
+        "dom": "rtip" // Hilangkan search bawaan, pakai custom search
     });
 
-    // ... (Event Listener Lainnya: Filter, Delete, Close Modal, Confirm Delete - TETAP SAMA) ...
-
-    // 3. Auto Filter
+    // Custom Search
+    $('#customSearch').on('keyup', function() { table.search(this.value).draw(); });
+    
+    // Auto Filter Change
     $('#filter_diklat, #filter_kantor').change(function(){ table.ajax.reload(); });
 
-    // 4. Dinamis Tahun -> Diklat
+    // Dinamis Tahun -> Dropdown Diklat
     $('#filter_tahun').change(function(){
         var tahunDipilih = $(this).val();
         $('#filter_diklat').prop('disabled', true).html('<option>Loading...</option>');
@@ -243,19 +242,25 @@ $(document).ready(function() {
         });
     });
 
-    // 5. LOGIK HAPUS DATA (SOFT DELETE)
+    // --- LOGIC HAPUS (HANYA AKTIF JIKA ADMIN) ---
+    <?php if($is_admin): ?>
+    
+    // Fungsi Tutup Modal Manual (Fix Stuck)
+    function closeModalHapus() {
+        $('#modalHapus').modal('hide');
+        $('.modal-backdrop').remove(); // Hapus layar hitam paksa
+        $('body').removeClass('modal-open');
+    }
+
     $('body').on('click', '.btn-delete', function(e) {
         e.preventDefault();
         var id = $(this).data('id');
-        
         $('#deleteId').val(id);
         $('#deleteReason').val('');
         $('#dataSummary').html('<i class="fas fa-spinner fa-spin text-primary"></i> Sedang mengambil data...');
-        
-        // Tampilkan Modal
         $('#modalHapus').modal('show');
 
-        // Ambil Data Info
+        // Ajax Get Info
         $.ajax({
             url: 'pages/ref-diklat/process_soft_delete.php',
             type: 'POST',
@@ -269,33 +274,22 @@ $(document).ready(function() {
                         '<b>Tahun:</b> ' + res.data.tahun
                     );
                 } else {
-                    $('#dataSummary').html('<span class="text-danger">Gagal mengambil info data.</span>');
+                    $('#dataSummary').html('<span class="text-danger">Gagal info data.</span>');
                 }
             }
         });
     });
 
-    // 1. Klik Tombol X atau Batal
+    // Event Tutup Modal (Tombol X dan Batal)
     $('body').on('click', '.btn-close-modal', function() {
-        $('#modalHapus').modal('hide');
+        closeModalHapus();
     });
 
-    // 2. Klik di luar modal (Backdrop)
-    $('#modalHapus').on('click', function(e) {
-        if ($(e.target).hasClass('modal')) {
-            $('#modalHapus').modal('hide');
-        }
-    });
-
-    // 6. Konfirmasi Hapus
     $('#btnConfirmDelete').click(function() {
         var id = $('#deleteId').val();
         var reason = $.trim($('#deleteReason').val());
 
-        if (reason == '') {
-            Swal.fire('Peringatan', 'Mohon isi alasan penghapusan!', 'warning');
-            return;
-        }
+        if (reason == '') { Swal.fire('Warning', 'Isi alasan hapus!', 'warning'); return; }
 
         var btn = $(this);
         btn.prop('disabled', true).text('Menghapus...');
@@ -307,20 +301,10 @@ $(document).ready(function() {
             dataType: 'json',
             success: function(res) {
                 btn.prop('disabled', false).text('Ya, Hapus');
-                
-                // Hide Modal Manual & Bersihkan Backdrop
-                $('#modalHapus').modal('hide');
-                $('.modal-backdrop').remove(); 
-                $('body').removeClass('modal-open');
+                closeModalHapus(); // Tutup modal bersih
 
                 if (res.status == 'success') {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Berhasil',
-                        text: 'Data dipindahkan ke Recycle Bin',
-                        timer: 1500,
-                        showConfirmButton: false
-                    });
+                    Swal.fire({ icon: 'success', title: 'Berhasil', text: 'Data masuk Recycle Bin', timer: 1500, showConfirmButton: false });
                     table.ajax.reload(null, false);
                 } else {
                     Swal.fire('Gagal', res.message, 'error');
@@ -328,9 +312,10 @@ $(document).ready(function() {
             },
             error: function() {
                 btn.prop('disabled', false).text('Ya, Hapus');
-                Swal.fire('Error', 'Terjadi kesalahan server.', 'error');
+                Swal.fire('Error', 'Server Error', 'error');
             }
         });
     });
+    <?php endif; ?>
 });
 </script>

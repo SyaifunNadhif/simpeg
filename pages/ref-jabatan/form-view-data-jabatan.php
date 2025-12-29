@@ -83,7 +83,7 @@ if($conn){
       <div class="d-flex gap-2">
         <a href="home-admin.php" class="btn-custom btn-light-soft"><i class="fas fa-home"></i></a>
         <a href="home-admin.php?page=form-import-jabatan" class="btn-custom btn-success-soft"><i class="fas fa-file-excel"></i> Import</a>
-        <a href="home-admin.php?page=form-master-data-jabatan&mode=add" class="btn-custom btn-primary-soft"><i class="fas fa-plus"></i> Tambah Data</a>
+        <a href="home-admin.php?page=form-master-create-history-jabatan" class="btn-custom btn-primary-soft"><i class="fas fa-plus"></i> Tambah Data</a>
       </div>
     </div>
 
