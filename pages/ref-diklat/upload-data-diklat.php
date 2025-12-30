@@ -1,7 +1,7 @@
 <?php
 // =============================================================
 // FILE: pages/ref-diklat/upload-data-diklat.php
-// MODULE: Backend Import Diklat (Smart Update & Date Parser)
+// MODULE: Backend Import Diklat (Linux Safe & Smart Update)
 // =============================================================
 
 require '../../vendor/autoload.php';
@@ -9,10 +9,16 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 session_start();
+
+// [CONFIG] : Matikan batasan memory & waktu untuk data banyak
+ini_set('memory_limit', '-1'); 
+set_time_limit(0); 
+
+// [CONFIG] : Matikan error display agar JSON tidak rusak
 error_reporting(0);
 ini_set('display_errors', 0);
 
-while (ob_get_level()) ob_end_clean();
+ob_start();
 header('Content-Type: application/json; charset=utf-8');
 
 // SECURITY
@@ -21,10 +27,27 @@ if (empty($_SESSION['id_user'])) {
     exit;
 }
 
-// --- FUNGSI TANGGAL SAKTI (Handle Excel Serial, ID, EN) ---
+// --- HELPER SQL VALUE (PENTING BUAT LINUX) ---
+function getSqlVal($conn, $val, $type = 'string') {
+    if ($val === '' || $val === null || $val === false || $val === 'NULL') {
+        return "NULL";
+    }
+    
+    $safe = mysqli_real_escape_string($conn, $val);
+    
+    if ($type === 'int') {
+        // Bersihkan Rp, titik, koma -> Ambil angka saja
+        $num = preg_replace('/[^0-9]/', '', $val);
+        return ($num === '') ? "NULL" : "'$num'";
+    }
+    
+    return "'$safe'";
+}
+
+// --- FUNGSI TANGGAL SAKTI ---
 function parseTanggalSakti($val) {
     $val = trim($val);
-    if (empty($val) || $val == '-' || $val == '0000-00-00') return date('Y-m-d');
+    if (empty($val) || $val == '-' || $val == '0000-00-00') return NULL;
 
     // 1. Cek Excel Serial Number
     if (is_numeric($val) && $val > 1000) {
@@ -33,17 +56,16 @@ function parseTanggalSakti($val) {
         } catch (Exception $e) { return date('Y-m-d'); }
     }
 
-    // 2. Cek Format Y-m-d (Database Standard)
+    // 2. Cek Format Y-m-d
     if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $val)) return $val;
 
-    // 3. Cek Format d/m/Y atau d-m-Y (Indonesia)
-    // Ubah semua separator jadi dash (-)
+    // 3. Cek Format Indonesia
     $val = str_replace(['/', '.'], '-', $val);
     $ts = strtotime($val);
     
     if ($ts !== false && $ts > 0) return date('Y-m-d', $ts);
 
-    return date('Y-m-d'); // Default hari ini jika gagal total
+    return date('Y-m-d'); 
 }
 
 try {
@@ -63,6 +85,9 @@ try {
     
     if (!$conn) throw new Exception("Koneksi Database Gagal.");
 
+    // [BARIS SAKTI] : SOLUSI LINUX
+    mysqli_query($conn, "SET SESSION sql_mode = ''");
+
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') throw new Exception("Invalid Request Method");
     $action = isset($_POST['action']) ? $_POST['action'] : '';
 
@@ -78,10 +103,9 @@ try {
 
         $spreadsheet = IOFactory::load($file['tmp_name']);
         $sheet = $spreadsheet->getActiveSheet();
-        // Ambil data (raw=true) agar format tanggal tidak otomatis dikonversi jadi string aneh
         $rows = $sheet->toArray(null, true, true, true); 
 
-        $header = array_shift($rows); // Buang Header
+        $header = array_shift($rows); 
 
         // HTML Table Header
         $html = '<div class="table-responsive">';
@@ -102,11 +126,11 @@ try {
             $diklat        = trim($row['B']);
             $penyelenggara = trim($row['C']);
             $tempat        = trim($row['D']);
-            $biaya         = preg_replace('/[^0-9]/', '', $row['E']); // Hapus 'Rp', '.', ','
+            // Bersihkan Biaya dari Rp dan titik
+            $biaya         = preg_replace('/[^0-9]/', '', $row['E']); 
             $angkatan      = trim($row['F']);
             $tahun         = trim($row['G']);
             
-            // Parsing Tanggal Cerdas
             $tgl_mulai_db  = parseTanggalSakti($row['H']);
 
             // --- SMART LOGIC: CEK APAKAH DATA SUDAH ADA? ---
@@ -161,7 +185,6 @@ try {
         $html .= '<button type="button" class="btn btn-primary px-4 rounded-pill shadow-sm" id="btnSimpanDiklat"><i class="fas fa-save mr-2"></i> Proses Simpan</button>';
         $html .= '</div>';
         
-        // Simpan JSON Raw Data
         $json_rows = json_encode($previewData);
         $html .= '<textarea id="json_data_diklat" style="display:none;">' . htmlspecialchars($json_rows) . '</textarea>';
 
@@ -171,7 +194,7 @@ try {
     }
 
     // =========================================================
-    // BAGIAN B: SIMPAN DATA (INSERT OR UPDATE)
+    // BAGIAN B: SIMPAN DATA (INSERT OR UPDATE - LINUX SAFE)
     // =========================================================
     elseif ($action === 'save') {
         if (!isset($_POST['data_diklat'])) throw new Exception("Data tidak diterima");
@@ -186,23 +209,36 @@ try {
         $gagal  = 0;
 
         foreach ($data as $row) {
-            // Index Array sesuai urutan di PreviewData[]
-            $id_peg        = mysqli_real_escape_string($conn, $row[0]);
-            $diklat        = mysqli_real_escape_string($conn, $row[1]);
-            $penyelenggara = mysqli_real_escape_string($conn, $row[2]);
-            $tempat        = mysqli_real_escape_string($conn, $row[3]);
-            $biaya         = $row[4]; // Sudah bersih angka
-            $angkatan      = mysqli_real_escape_string($conn, $row[5]);
-            $tahun         = mysqli_real_escape_string($conn, $row[6]);
-            $date_reg      = $row[7]; // Sudah format Y-m-d
+            // [0] ID Pegawai, [1] Diklat, dll (Sesuai PreviewData)
+            
+            // Siapkan Variabel Safe SQL
+            $id_peg_raw      = isset($row[0]) ? trim($row[0]) : '';
+            $diklat_raw      = isset($row[1]) ? trim($row[1]) : '';
+            $tahun_raw       = isset($row[6]) ? trim($row[6]) : '';
 
-            if(empty($id_peg) || empty($diklat)) { $gagal++; continue; }
+            if(empty($id_peg_raw) || empty($diklat_raw)) { $gagal++; continue; }
 
-            // LOGIC CEK DUPLIKAT (SAMA DENGAN PREVIEW)
+            // Gunakan getSqlVal untuk semua field yang mau di-Insert/Update
+            $sql_id_peg        = getSqlVal($conn, $id_peg_raw);
+            $sql_diklat        = getSqlVal($conn, $diklat_raw);
+            $sql_penyelenggara = getSqlVal($conn, isset($row[2]) ? $row[2] : '');
+            $sql_tempat        = getSqlVal($conn, isset($row[3]) ? $row[3] : '');
+            $sql_biaya         = getSqlVal($conn, isset($row[4]) ? $row[4] : '', 'int'); // Mode Int
+            $sql_angkatan      = getSqlVal($conn, isset($row[5]) ? $row[5] : '');
+            $sql_tahun         = getSqlVal($conn, $tahun_raw);
+            
+            $tgl_raw           = isset($row[7]) ? $row[7] : NULL;
+            $sql_date_reg      = ($tgl_raw) ? "'$tgl_raw'" : "NULL";
+
+            // LOGIC CEK DUPLIKAT (Gunakan Raw Value + Escape manual untuk WHERE clause)
+            $safe_id    = mysqli_real_escape_string($conn, $id_peg_raw);
+            $safe_diklat= mysqli_real_escape_string($conn, $diklat_raw);
+            $safe_tahun = mysqli_real_escape_string($conn, $tahun_raw);
+
             $sqlCek = "SELECT id_diklat FROM tb_diklat 
-                       WHERE id_peg = '$id_peg' 
-                       AND TRIM(LOWER(diklat)) = TRIM(LOWER('$diklat'))
-                       AND tahun = '$tahun'"; // Cek Tahun juga biar aman
+                       WHERE id_peg = '$safe_id' 
+                       AND TRIM(LOWER(diklat)) = TRIM(LOWER('$safe_diklat'))
+                       AND tahun = '$safe_tahun'";
 
             $resCek = mysqli_query($conn, $sqlCek);
 
@@ -212,13 +248,13 @@ try {
                 $id_diklat_exist = $rDup['id_diklat'];
 
                 $sqlUpdate = "UPDATE tb_diklat SET 
-                              penyelenggara = '$penyelenggara',
-                              tempat        = '$tempat',
-                              biaya         = '$biaya',
-                              angkatan      = '$angkatan',
-                              date_reg      = '$date_reg', 
-                              updated_by    = '$user_log',
-                              updated_at    = NOW()
+                                penyelenggara = $sql_penyelenggara,
+                                tempat        = $sql_tempat,
+                                biaya         = $sql_biaya,
+                                angkatan      = $sql_angkatan,
+                                date_reg      = $sql_date_reg, 
+                                updated_by    = '$user_log',
+                                updated_at    = NOW()
                               WHERE id_diklat = '$id_diklat_exist'";
                 
                 if(mysqli_query($conn, $sqlUpdate)) { $update++; } else { $gagal++; }
@@ -228,7 +264,7 @@ try {
                 $sqlInsert = "INSERT INTO tb_diklat (
                     id_peg, diklat, penyelenggara, tempat, biaya, angkatan, tahun, date_reg, created_by
                 ) VALUES (
-                    '$id_peg', '$diklat', '$penyelenggara', '$tempat', '$biaya', '$angkatan', '$tahun', '$date_reg', '$user_log'
+                    $sql_id_peg, $sql_diklat, $sql_penyelenggara, $sql_tempat, $sql_biaya, $sql_angkatan, $sql_tahun, $sql_date_reg, '$user_log'
                 )";
                 
                 if(mysqli_query($conn, $sqlInsert)) { $insert++; } else { $gagal++; }

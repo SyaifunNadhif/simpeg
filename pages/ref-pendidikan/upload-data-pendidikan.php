@@ -2,22 +2,43 @@
 // =============================================================
 // FILE: pages/ref-pendidikan/upload-data-pendidikan.php
 // LOGIC: Smart Upsert (ID_PEG + JENJANG + NAMA_SEKOLAH)
+// LINUX READY: Strict Mode OFF, NULL Handling, Resource Limit OFF
 // =============================================================
 
 require '../../vendor/autoload.php';
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 
-// 1. SETUP ENVIRONMENT
-session_start();
-error_reporting(0); // Matikan error warning PHP agar JSON bersih
+// [CONFIG] : Matikan batasan memory & waktu untuk data banyak
+ini_set('memory_limit', '-1'); 
+set_time_limit(0); 
+
+// [CONFIG] : Matikan error display agar JSON tidak rusak
+error_reporting(0);
 ini_set('display_errors', 0);
 
 // Buffer & Header JSON
 while (ob_get_level()) ob_end_clean();
 header('Content-Type: application/json; charset=utf-8');
+session_start();
 
-// --- HELPER: FORMAT TANGGAL CERDAS (Sama seperti Sertifikasi) ---
+// --- HELPER SQL VALUE (PENTING BUAT LINUX) ---
+function getSqlVal($conn, $val, $type = 'string') {
+    if ($val === '' || $val === null || $val === false || $val === 'NULL') {
+        return "NULL";
+    }
+    
+    $safe = mysqli_real_escape_string($conn, $val);
+    
+    if ($type === 'int') {
+        $num = preg_replace('/[^0-9]/', '', $val);
+        return ($num === '') ? "NULL" : "'$num'";
+    }
+    
+    return "'$safe'";
+}
+
+// --- HELPER: FORMAT TANGGAL CERDAS ---
 function formatTanggal($val) {
     $val = trim($val);
     if (empty($val) || $val == '-' || $val == '' || $val == '0000-00-00') return NULL;
@@ -35,7 +56,6 @@ function formatTanggal($val) {
     }
 
     // C. Cek Format d/m/Y atau d-m-Y (Indonesia)
-    // Ubah separator / atau . menjadi -
     $val = str_replace(['/', '.', ' '], '-', $val);
     $ts = strtotime($val);
     
@@ -43,7 +63,7 @@ function formatTanggal($val) {
         return date('Y-m-d', $ts);
     }
 
-    return NULL; // Gagal parsing
+    return NULL; 
 }
 
 // --- HELPER: KIRIM JSON ---
@@ -60,6 +80,9 @@ try {
     include $path_koneksi;
 
     if (!$conn) throw new Exception("Koneksi database gagal.");
+
+    // [BARIS SAKTI] : SOLUSI AGAR LINUX TIDAK ERROR KARENA DATA KOSONG
+    mysqli_query($conn, "SET SESSION sql_mode = ''"); 
 
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') throw new Exception("Invalid Request Method");
     $action = isset($_POST['action']) ? $_POST['action'] : '';
@@ -88,7 +111,7 @@ try {
         $html = '<div class="table-responsive"><table class="table table-bordered table-striped table-sm text-nowrap" style="font-size:0.85em;">';
         $html .= '<thead class="bg-primary text-white"><tr><th width="10%">Status</th>';
         
-        // Mapping Header Manual biar rapi (Opsional, atau pakai loop header excel)
+        // Mapping Header Manual biar rapi
         $html .= '<th>ID Pegawai</th><th>Jenjang</th><th>Nama Sekolah</th><th>Lokasi</th><th>Jurusan</th><th>No Ijazah</th><th>Tgl Ijazah</th>';
         $html .= '</tr></thead><tbody>';
 
@@ -117,9 +140,9 @@ try {
             $th_lulus     = trim($row['L']);
 
             // --- CEK STATUS DATA DI DB ---
-            $id_peg_esc = mysqli_real_escape_string($conn, $id_peg);
-            $jenjang_esc = mysqli_real_escape_string($conn, $jenjang);
-            $sekolah_esc = mysqli_real_escape_string($conn, $nama_sekolah);
+            $id_peg_esc   = mysqli_real_escape_string($conn, $id_peg);
+            $jenjang_esc  = mysqli_real_escape_string($conn, $jenjang);
+            $sekolah_esc  = mysqli_real_escape_string($conn, $nama_sekolah);
 
             $qCek = mysqli_query($conn, "SELECT id_pendidikan FROM tb_pendidikan WHERE id_peg='$id_peg_esc' AND jenjang='$jenjang_esc' AND nama_sekolah='$sekolah_esc'");
             
@@ -166,7 +189,7 @@ try {
     }
 
     // ============================================================
-    // ACTION: SAVE (UPSERT LOGIC)
+    // ACTION: SAVE (UPSERT LOGIC - LINUX SAFE)
     // ============================================================
     elseif ($action === 'save') {
         if (!isset($_POST['data_pendidikan'])) throw new Exception("Data tidak diterima");
@@ -179,32 +202,44 @@ try {
 
         foreach ($data as $row) {
             // Mapping Data (Sesuai urutan di PreviewData[])
-            $id_peg       = isset($row[0]) ? mysqli_real_escape_string($conn, trim($row[0])) : '';
-            if(empty($id_peg)) { $gagal++; continue; }
+            $id_peg_raw = isset($row[0]) ? trim($row[0]) : '';
+            if(empty($id_peg_raw)) { $gagal++; continue; }
+            
+            $v_id_peg = mysqli_real_escape_string($conn, $id_peg_raw);
 
             // Cek apakah pegawai ada di database?
-            $cek_peg = mysqli_query($conn, "SELECT id_peg FROM tb_pegawai WHERE id_peg = '$id_peg'");
+            $cek_peg = mysqli_query($conn, "SELECT id_peg FROM tb_pegawai WHERE id_peg = '$v_id_peg'");
             if (mysqli_num_rows($cek_peg) > 0) {
 
-                $id_sekolah   = isset($row[1]) ? mysqli_real_escape_string($conn, $row[1]) : '';
-                $jenjang      = isset($row[2]) ? mysqli_real_escape_string($conn, $row[2]) : '';
-                $nama_sekolah = isset($row[3]) ? mysqli_real_escape_string($conn, $row[3]) : '';
-                $lokasi       = isset($row[4]) ? mysqli_real_escape_string($conn, $row[4]) : '';
-                $jurusan      = isset($row[5]) ? mysqli_real_escape_string($conn, $row[5]) : '';
-                $no_ijazah    = isset($row[6]) ? mysqli_real_escape_string($conn, $row[6]) : '';
+                // Prepare SQL Values
+                $sql_id_sekolah   = getSqlVal($conn, isset($row[1]) ? $row[1] : '');
                 
-                // Tanggal sudah diformat di tahap Preview, jadi tinggal pakai
-                $tgl_ijazah   = isset($row[7]) ? $row[7] : NULL;
-                $val_tgl      = ($tgl_ijazah) ? "'$tgl_ijazah'" : "NULL";
+                $raw_jenjang      = isset($row[2]) ? trim($row[2]) : '';
+                $sql_jenjang      = getSqlVal($conn, $raw_jenjang);
+                
+                $raw_sekolah      = isset($row[3]) ? trim($row[3]) : '';
+                $sql_nama_sekolah = getSqlVal($conn, $raw_sekolah);
+                
+                $sql_lokasi       = getSqlVal($conn, isset($row[4]) ? $row[4] : '');
+                $sql_jurusan      = getSqlVal($conn, isset($row[5]) ? $row[5] : '');
+                $sql_no_ijazah    = getSqlVal($conn, isset($row[6]) ? $row[6] : '');
+                
+                // Tanggal sudah diformat di tahap Preview
+                $tgl_ijazah       = isset($row[7]) ? $row[7] : NULL;
+                $sql_tgl_ijazah   = ($tgl_ijazah) ? "'$tgl_ijazah'" : "NULL";
 
-                $kepala       = isset($row[8]) ? mysqli_real_escape_string($conn, $row[8]) : '';
-                $status       = isset($row[9]) ? mysqli_real_escape_string($conn, $row[9]) : '';
-                $th_masuk     = isset($row[10]) ? mysqli_real_escape_string($conn, $row[10]) : '';
-                $th_lulus     = isset($row[11]) ? mysqli_real_escape_string($conn, $row[11]) : '';
+                $sql_kepala       = getSqlVal($conn, isset($row[8]) ? $row[8] : '');
+                $sql_status       = getSqlVal($conn, isset($row[9]) ? $row[9] : '');
+                $sql_th_masuk     = getSqlVal($conn, isset($row[10]) ? $row[10] : '');
+                $sql_th_lulus     = getSqlVal($conn, isset($row[11]) ? $row[11] : '');
 
                 // LOGIKA UTAMA: Cek ID Peg + Jenjang + Nama Sekolah
+                // Gunakan raw values yg di-escape manual untuk pencarian
+                $safe_jenjang = mysqli_real_escape_string($conn, $raw_jenjang);
+                $safe_sekolah = mysqli_real_escape_string($conn, $raw_sekolah);
+
                 $sqlCek = "SELECT id_pendidikan FROM tb_pendidikan 
-                           WHERE id_peg='$id_peg' AND jenjang='$jenjang' AND nama_sekolah='$nama_sekolah'";
+                           WHERE id_peg='$v_id_peg' AND jenjang='$safe_jenjang' AND nama_sekolah='$safe_sekolah'";
                 
                 $resCek = mysqli_query($conn, $sqlCek);
 
@@ -214,32 +249,32 @@ try {
                     $id_target = $rowOld['id_pendidikan'];
 
                     $qry = "UPDATE tb_pendidikan SET 
-                            id_sekolah='$id_sekolah', 
-                            lokasi='$lokasi', 
-                            jurusan='$jurusan',
-                            no_ijazah='$no_ijazah', 
-                            tgl_ijazah=$val_tgl, 
-                            kepala='$kepala', 
-                            status='$status',
-                            th_masuk='$th_masuk', 
-                            th_lulus='$th_lulus', 
-                            updated_at=NOW(), 
-                            updated_by='$created_by'
-                            WHERE id_pendidikan='$id_target'";
+                            id_sekolah   = $sql_id_sekolah, 
+                            lokasi       = $sql_lokasi, 
+                            jurusan      = $sql_jurusan,
+                            no_ijazah    = $sql_no_ijazah, 
+                            tgl_ijazah   = $sql_tgl_ijazah, 
+                            kepala       = $sql_kepala, 
+                            status       = $sql_status,
+                            th_masuk     = $sql_th_masuk, 
+                            th_lulus     = $sql_th_lulus, 
+                            updated_at   = NOW(), 
+                            updated_by   = '$created_by'
+                            WHERE id_pendidikan = '$id_target'";
                     
                     if (mysqli_query($conn, $qry)) $update++; else $gagal++;
 
                 } else {
                     // --- INSERT (Jika Data Baru) ---
                     $qry = "INSERT INTO tb_pendidikan (
-                            id_peg, id_sekolah, jenjang, nama_sekolah, lokasi, jurusan, 
-                            no_ijazah, tgl_ijazah, kepala, status, th_masuk, th_lulus, 
-                            created_by, date_reg
-                        ) VALUES (
-                            '$id_peg', '$id_sekolah', '$jenjang', '$nama_sekolah', '$lokasi', '$jurusan',
-                            '$no_ijazah', $val_tgl, '$kepala', '$status', '$th_masuk', '$th_lulus',
-                            '$created_by', NOW()
-                        )";
+                                id_peg, id_sekolah, jenjang, nama_sekolah, lokasi, jurusan, 
+                                no_ijazah, tgl_ijazah, kepala, status, th_masuk, th_lulus, 
+                                created_by, date_reg
+                            ) VALUES (
+                                '$v_id_peg', $sql_id_sekolah, $sql_jenjang, $sql_nama_sekolah, $sql_lokasi, $sql_jurusan,
+                                $sql_no_ijazah, $sql_tgl_ijazah, $sql_kepala, $sql_status, $sql_th_masuk, $sql_th_lulus,
+                                '$created_by', NOW()
+                            )";
                     
                     if (mysqli_query($conn, $qry)) $berhasil++; else $gagal++;
                 }

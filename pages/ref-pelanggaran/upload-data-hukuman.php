@@ -2,7 +2,7 @@
 // =============================================================
 // FILE: pages/ref-pelanggaran/upload-data-hukuman.php
 // LOGIC: Smart Upsert (ID_PEG + HUKUMAN + NO_SK)
-// COLUMNS: id_peg, hukuman, pejabat_sk, jabatan_sk, no_sk, tgl_sk, dokumen, keterangan
+// LINUX READY: Strict Mode OFF, NULL Handling, Resource Limit OFF
 // =============================================================
 
 require '../../vendor/autoload.php';
@@ -10,23 +10,49 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 session_start();
+
+// [CONFIG] : Matikan batasan memory & waktu untuk data banyak
+ini_set('memory_limit', '-1'); 
+set_time_limit(0); 
+
+// [CONFIG] : Matikan error display agar JSON tidak rusak
 error_reporting(0);
 ini_set('display_errors', 0);
 
 while (ob_get_level()) ob_end_clean();
 header('Content-Type: application/json; charset=utf-8');
 
+// --- HELPER SQL VALUE (PENTING BUAT LINUX) ---
+function getSqlVal($conn, $val, $type = 'string') {
+    if ($val === '' || $val === null || $val === false || $val === 'NULL') {
+        return "NULL";
+    }
+    
+    $safe = mysqli_real_escape_string($conn, $val);
+    
+    if ($type === 'int') {
+        $num = preg_replace('/[^0-9]/', '', $val);
+        return ($num === '') ? "NULL" : "'$num'";
+    }
+    
+    return "'$safe'";
+}
+
 // --- HELPER FORMAT TANGGAL ---
 function formatTanggal($val) {
     $val = trim($val);
     if (empty($val) || $val == '-' || $val == '' || $val == '0000-00-00') return NULL;
+    
     if (is_numeric($val) && $val > 1000) {
         try { return Date::excelToDateTimeObject($val)->format('Y-m-d'); } catch (Exception $e) { return NULL; }
     }
+    
     if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $val)) return $val;
+    
     $val = str_replace(['/', '.', ' '], '-', $val);
     $ts = strtotime($val);
     if ($ts !== false && $ts > 0) return date('Y-m-d', $ts);
+    
     return NULL;
 }
 
@@ -37,9 +63,13 @@ function kirimJson($status, $msg, $html = '') {
 }
 
 try {
+    // 1. KONEKSI
     $path_koneksi = '../../dist/koneksi.php'; 
     if (!file_exists($path_koneksi)) throw new Exception("File Koneksi tidak ditemukan.");
     include $path_koneksi;
+
+    // [BARIS SAKTI] : SOLUSI AGAR LINUX TIDAK ERROR KARENA DATA KOSONG
+    mysqli_query($conn, "SET SESSION sql_mode = ''"); 
 
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') throw new Exception("Invalid Request");
     $action = isset($_POST['action']) ? $_POST['action'] : '';
@@ -74,13 +104,13 @@ try {
             // Mapping Kolom Excel (A-H)
             $hukuman    = trim($row['B']);
             $pejabat_sk = trim($row['C']);
-            $jabatan_sk = trim($row['D']); // NEW
+            $jabatan_sk = trim($row['D']); 
             $no_sk      = trim($row['E']);
             
             $tgl_sk_raw = $row['F'];
             $tgl_sk_db  = formatTanggal($tgl_sk_raw);
 
-            $dokumen    = trim($row['G']); // NEW
+            $dokumen    = trim($row['G']); 
             $keterangan = trim($row['H']);
 
             // Cek Database (Kunci Unik: ID + Hukuman + No SK)
@@ -139,24 +169,37 @@ try {
         $berhasil = 0; $update = 0; $gagal = 0;
 
         foreach ($data as $row) {
-            // Ambil Data dari JSON Array (Urutan sesuai previewData[])
-            $id_peg     = isset($row[0]) ? mysqli_real_escape_string($conn, trim($row[0])) : '';
-            if(empty($id_peg)) { $gagal++; continue; }
+            // Ambil Data dari JSON Array
+            $id_peg_raw = isset($row[0]) ? trim($row[0]) : '';
+            if(empty($id_peg_raw)) { $gagal++; continue; }
+            
+            $v_id_peg = mysqli_real_escape_string($conn, $id_peg_raw);
 
             // Cek Pegawai Exist
-            $cek_peg = mysqli_query($conn, "SELECT id_peg FROM tb_pegawai WHERE id_peg = '$id_peg'");
+            $cek_peg = mysqli_query($conn, "SELECT id_peg FROM tb_pegawai WHERE id_peg = '$v_id_peg'");
+            
             if (mysqli_num_rows($cek_peg) > 0) {
+                // --- PREPARE DATA DENGAN getSqlVal (AMAN LINUX) ---
+                $raw_hukuman    = isset($row[1]) ? trim($row[1]) : '';
+                $raw_no_sk      = isset($row[4]) ? trim($row[4]) : '';
 
-                $hukuman    = mysqli_real_escape_string($conn, $row[1]);
-                $pejabat_sk = mysqli_real_escape_string($conn, $row[2]);
-                $jabatan_sk = mysqli_real_escape_string($conn, $row[3]); // NEW
-                $no_sk      = mysqli_real_escape_string($conn, $row[4]);
-                $val_tgl    = ($row[5]) ? "'$row[5]'" : "NULL";
-                $dokumen    = mysqli_real_escape_string($conn, $row[6]); // NEW
-                $keterangan = mysqli_real_escape_string($conn, $row[7]);
+                $sql_hukuman    = getSqlVal($conn, $raw_hukuman);
+                $sql_pejabat_sk = getSqlVal($conn, isset($row[2]) ? $row[2] : '');
+                $sql_jabatan_sk = getSqlVal($conn, isset($row[3]) ? $row[3] : '');
+                $sql_no_sk      = getSqlVal($conn, $raw_no_sk);
+                
+                $tgl_sk         = isset($row[5]) ? $row[5] : NULL;
+                $sql_tgl_sk     = ($tgl_sk) ? "'$tgl_sk'" : "NULL";
+                
+                $sql_dokumen    = getSqlVal($conn, isset($row[6]) ? $row[6] : '');
+                $sql_keterangan = getSqlVal($conn, isset($row[7]) ? $row[7] : '');
 
-                // Cek Existing Data (Kunci Unik)
-                $sqlCek = "SELECT id_hukum FROM tb_hukuman WHERE id_peg='$id_peg' AND hukuman='$hukuman' AND no_sk='$no_sk'";
+                // Cek Existing Data (Kunci Unik: ID + Hukuman + No SK)
+                // Kita gunakan raw value yg di-escape manual untuk pencarian
+                $safe_hukuman = mysqli_real_escape_string($conn, $raw_hukuman);
+                $safe_no_sk   = mysqli_real_escape_string($conn, $raw_no_sk);
+
+                $sqlCek = "SELECT id_hukum FROM tb_hukuman WHERE id_peg='$v_id_peg' AND hukuman='$safe_hukuman' AND no_sk='$safe_no_sk'";
                 $resCek = mysqli_query($conn, $sqlCek);
 
                 if (mysqli_num_rows($resCek) > 0) {
@@ -165,19 +208,23 @@ try {
                     $id_target = $rOld['id_hukum'];
                     
                     $qry = "UPDATE tb_hukuman SET 
-                            pejabat_sk='$pejabat_sk', 
-                            jabatan_sk='$jabatan_sk', 
-                            tgl_sk=$val_tgl, 
-                            dokumen='$dokumen',
-                            keterangan='$keterangan', 
-                            date_reg=NOW() 
-                            WHERE id_hukum='$id_target'";
+                            pejabat_sk = $sql_pejabat_sk, 
+                            jabatan_sk = $sql_jabatan_sk, 
+                            tgl_sk     = $sql_tgl_sk, 
+                            dokumen    = $sql_dokumen,
+                            keterangan = $sql_keterangan, 
+                            date_reg   = NOW() 
+                            WHERE id_hukum = '$id_target'";
                             
                     if (mysqli_query($conn, $qry)) $update++; else $gagal++;
+
                 } else {
                     // INSERT
-                    $qry = "INSERT INTO tb_hukuman (id_peg, hukuman, pejabat_sk, jabatan_sk, no_sk, tgl_sk, dokumen, keterangan, date_reg) 
-                            VALUES ('$id_peg', '$hukuman', '$pejabat_sk', '$jabatan_sk', '$no_sk', $val_tgl, '$dokumen', '$keterangan', NOW())";
+                    $qry = "INSERT INTO tb_hukuman (
+                                id_peg, hukuman, pejabat_sk, jabatan_sk, no_sk, tgl_sk, dokumen, keterangan, date_reg
+                            ) VALUES (
+                                '$v_id_peg', $sql_hukuman, $sql_pejabat_sk, $sql_jabatan_sk, $sql_no_sk, $sql_tgl_sk, $sql_dokumen, $sql_keterangan, NOW()
+                            )";
                             
                     if (mysqli_query($conn, $qry)) $berhasil++; else $gagal++;
                 }
