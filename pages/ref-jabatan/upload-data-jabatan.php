@@ -1,13 +1,18 @@
 <?php
 // =============================================================
 // FILE: pages/ref-jabatan/upload-data-jabatan.php
-// MODULE: Backend Import Jabatan (Fix Date Reg & Smart History)
+// MODULE: Backend Import Jabatan (Check by ID & Nama Jabatan)
 // =============================================================
 
 require '../../vendor/autoload.php';
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 
+// [CONFIG] : Matikan batasan memory & waktu untuk data banyak
+ini_set('memory_limit', '-1'); 
+set_time_limit(0); 
+
+// [CONFIG] : Matikan error display agar JSON tidak rusak
 ini_set('display_errors', 0);
 error_reporting(E_ALL);
 
@@ -23,12 +28,32 @@ function kirimJson($status, $msg, $html = '') {
     exit;
 }
 
+// --- Helper SQL Value (PENTING BUAT LINUX) ---
+function getSqlVal($conn, $val, $type = 'string') {
+    if ($val === '' || $val === null || $val === false || $val === 'NULL') {
+        return "NULL";
+    }
+    
+    $safe = mysqli_real_escape_string($conn, $val);
+    
+    if ($type === 'int') {
+        $num = preg_replace('/[^0-9]/', '', $val);
+        return ($num === '') ? "NULL" : "'$num'";
+    }
+    
+    return "'$safe'";
+}
+
 try {
+    // 1. KONEKSI DATABASE
     $path_koneksi = '../../dist/koneksi.php'; 
     if (!file_exists($path_koneksi)) throw new Exception("File Koneksi tidak ditemukan.");
     include $path_koneksi;
 
     if (!$conn) throw new Exception("Koneksi database gagal.");
+
+    // [BARIS SAKTI] : SOLUSI AGAR LINUX TIDAK ERROR KARENA DATA KOSONG
+    mysqli_query($conn, "SET SESSION sql_mode = ''"); 
 
     // --- FUNGSI FORMAT TANGGAL CERDAS ---
     function formatTanggal($val) {
@@ -80,9 +105,6 @@ try {
             // 3. Pastikan jabatan PALING BARU (Terakhir) itu Kosong tanggal sampainya
             $last = $data[$total - 1];
             mysqli_query($conn, "UPDATE tb_jabatan SET sampai_tgl='0000-00-00' WHERE id_jab='".$last['id_jab']."'");
-            
-            // Opsional: Set status Aktif untuk yang paling baru (jika diinginkan)
-            // mysqli_query($conn, "UPDATE tb_jabatan SET status_jab='Aktif' WHERE id_jab='".$last['id_jab']."'");
         }
     }
 
@@ -104,6 +126,9 @@ try {
         if (!isset($_FILES['file_excel'])) throw new Exception("File belum dipilih");
         
         $file = $_FILES['file_excel'];
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        if (!in_array($ext, ['xlsx', 'xls', 'csv'])) throw new Exception("Format file harus Excel (.xlsx/.xls)");
+
         $spreadsheet = IOFactory::load($file['tmp_name']);
         $rows = $spreadsheet->getActiveSheet()->toArray(null, true, true, true);
         
@@ -128,10 +153,11 @@ try {
             ];
         }
 
+        // Generate HTML
         $html = '<div class="table-responsive"><table class="table table-bordered table-striped table-sm text-nowrap" style="font-size:0.85em;">';
         $html .= '<thead class="bg-primary text-white"><tr><th>Status System</th><th>ID Pegawai</th><th>Kode Jabatan</th><th>Nama Jabatan</th><th>Unit Kerja</th><th>No SK</th><th>Tgl SK / TMT</th><th>Status Jab</th></tr></thead><tbody>';
 
-        $count = 0; $limit = 10;
+        $count = 0; $limit = 15; // Limit preview
         $jsonArray = [];
 
         foreach ($groupedData as $id_peg => $items) {
@@ -151,16 +177,8 @@ try {
                     $status_badge = '<span class="badge bg-info">'.$status_final.'</span>';
                 }
 
-                // Cek DB untuk Badge Update/Baru
-                $id_peg_esc = mysqli_real_escape_string($conn, $id_peg);
-                $no_sk_esc  = mysqli_real_escape_string($conn, isset($row['E']) ? $row['E'] : '');
-                $tmt_esc    = $tgl_fix; 
-
-                $qCek = mysqli_query($conn, "SELECT id_jab FROM tb_jabatan WHERE id_peg='$id_peg_esc' AND no_sk='$no_sk_esc' AND tmt_jabatan='$tmt_esc'");
-                $upsert_badge = (mysqli_num_rows($qCek) > 0) ? '<span class="badge bg-warning text-dark">Update</span>' : '<span class="badge bg-primary">Baru</span>';
-
                 $html .= '<tr>';
-                $html .= '<td>' . $upsert_badge . ' ' . $status_badge . '</td>';
+                $html .= '<td>' . $status_badge . '</td>';
                 $html .= '<td>' . htmlspecialchars($id_peg) . '</td>';
                 $html .= '<td>' . htmlspecialchars($row['B']) . '</td>';
                 $html .= '<td>' . htmlspecialchars($row['C']) . '</td>';
@@ -177,79 +195,120 @@ try {
             }
         }
         $html .= '</tbody></table></div>';
-        $html .= '<div class="alert alert-info small mt-2">Menampilkan max 50 data. Data akan diproses dengan logika: <b>Update jika ada, Insert jika baru</b> + <b>Auto Set Tanggal Akhir (H-1)</b>.</div>';
+        
+        $total_rows = 0;
+        foreach($groupedData as $g) $total_rows += count($g);
+
+        $html .= '<div class="alert alert-info small mt-2">Menampilkan preview 15 dari '.$total_rows.' data. Data akan diproses dengan logika: <b>Update jika ID & Nama Jabatan Sama</b>.</div>';
         $html .= '<hr><div class="text-right"><button type="button" class="btn btn-success" id="btnSimpanJabatan"><i class="fas fa-save"></i> Proses Import</button></div>';
         
-        $json_data = json_encode($jsonArray);
+        // RE-LOOP untuk Full JSON
+        $jsonFull = [];
+        foreach ($groupedData as $id_peg => $items) {
+             usort($items, 'compareJabatanDate');
+             foreach ($items as $idx => $item) {
+                 $row = $item['raw'];
+                 $status_final = empty($item['status_raw']) ? (($idx === 0) ? 'Aktif' : 'Non') : $item['status_raw'];
+                 $jsonFull[] = [
+                    $id_peg, 
+                    isset($row['B'])?$row['B']:'', 
+                    isset($row['C'])?$row['C']:'', 
+                    isset($row['D'])?$row['D']:'', 
+                    isset($row['E'])?$row['E']:'', 
+                    $item['tgl_sk_fix'], 
+                    $status_final
+                 ];
+             }
+        }
+
+        $json_data = json_encode($jsonFull);
         kirimJson('success', '', $html . '<textarea id="json_data_jabatan" style="display:none;">' . $json_data . '</textarea>');
     }
 
     // ============================================================
-    // ACTION: SAVE (SMART HISTORY & UPSERT)
+    // ACTION: SAVE (SMART HISTORY & UPSERT BY ID+NAMA)
     // ============================================================
     elseif ($action === 'save') {
         if (!isset($_POST['data_jabatan'])) throw new Exception("Data JSON tidak diterima.");
         $data_raw = json_decode($_POST['data_jabatan'], true);
-        if (!$data_raw) throw new Exception("Gagal decode JSON data.");
+        if (!$data_raw) throw new Exception("Gagal decode JSON data. File mungkin terlalu besar.");
 
         $created_by = isset($_SESSION['nama_user']) ? mysqli_real_escape_string($conn, $_SESSION['nama_user']) : 'System';
         
         $berhasil = 0; $update = 0; $gagal = 0;
-        $processed_pegawai = []; // Untuk list pegawai yang akan dirapikan history-nya
+        $processed_pegawai = []; 
 
         foreach ($data_raw as $row) {
             $id_peg       = isset($row[0]) ? trim($row[0]) : '';
             $kode_jab_xls = isset($row[1]) ? trim($row[1]) : '';
             $nama_jab_xls = isset($row[2]) ? trim($row[2]) : '';
-            $unit_kerja   = isset($row[3]) ? mysqli_real_escape_string($conn, $row[3]) : '';
-            $no_sk        = isset($row[4]) ? mysqli_real_escape_string($conn, $row[4]) : '';
+            
+            // Variabel SQL Aman
+            $unit_kerja   = getSqlVal($conn, isset($row[3]) ? $row[3] : '');
+            $no_sk        = getSqlVal($conn, isset($row[4]) ? $row[4] : '');
+            
             $tgl_sk       = isset($row[5]) ? $row[5] : NULL;
-            $status_jab   = isset($row[6]) ? trim($row[6]) : 'Non';
+            $status_jab   = getSqlVal($conn, isset($row[6]) ? trim($row[6]) : 'Non');
 
             if (empty($id_peg) || empty($tgl_sk)) { $gagal++; continue; }
 
-            // Simpan ID Pegawai untuk proses perapian history nanti
+            // Simpan ID untuk post-processing
             $processed_pegawai[$id_peg] = true;
 
-            // 1. Lookup Kode Jabatan
-            $final_kode = ""; $final_nama = "";
+            // 1. Lookup Kode Jabatan (Logic Bisnis)
+            $final_kode_raw = ""; $final_nama_raw = "";
+            
             if (!empty($kode_jab_xls)) {
-                $final_kode = mysqli_real_escape_string($conn, $kode_jab_xls);
-                $qCek = mysqli_query($conn, "SELECT nama_jabatan FROM tb_master_jabatan WHERE kode_jabatan = '$final_kode'");
+                $chk_kode = mysqli_real_escape_string($conn, $kode_jab_xls);
+                $qCek = mysqli_query($conn, "SELECT nama_jabatan FROM tb_master_jabatan WHERE kode_jabatan = '$chk_kode'");
                 if ($rCek = mysqli_fetch_assoc($qCek)) {
-                    $final_nama = mysqli_real_escape_string($conn, $rCek['nama_jabatan']);
+                    $final_kode_raw = $chk_kode;
+                    $final_nama_raw = $rCek['nama_jabatan'];
                 } else {
-                    $final_nama = !empty($nama_jab_xls) ? mysqli_real_escape_string($conn, $nama_jab_xls) : "Unknown ($final_kode)";
+                    $final_kode_raw = $chk_kode;
+                    $final_nama_raw = !empty($nama_jab_xls) ? $nama_jab_xls : "Unknown ($chk_kode)";
                 }
             } elseif (!empty($nama_jab_xls)) {
-                $final_nama = mysqli_real_escape_string($conn, $nama_jab_xls);
-                $qCek = mysqli_query($conn, "SELECT kode_jabatan FROM tb_master_jabatan WHERE nama_jabatan = '$final_nama'");
+                $chk_nama = mysqli_real_escape_string($conn, $nama_jab_xls);
+                $qCek = mysqli_query($conn, "SELECT kode_jabatan FROM tb_master_jabatan WHERE nama_jabatan = '$chk_nama'");
                 if ($rCek = mysqli_fetch_assoc($qCek)) {
-                    $final_kode = $rCek['kode_jabatan'];
+                    $final_kode_raw = $rCek['kode_jabatan'];
+                    $final_nama_raw = $nama_jab_xls;
                 } else {
-                    $gagal++; continue; 
+                    $gagal++; continue; // Skip jika master tidak ketemu
                 }
             } else {
                 $gagal++; continue;
             }
 
-            $tmt_jabatan = $tgl_sk; 
+            // Bungkus hasil lookup dengan getSqlVal
+            $sql_kode_jab = getSqlVal($conn, $final_kode_raw);
+            $sql_nama_jab = getSqlVal($conn, $final_nama_raw);
+            $sql_tgl_sk   = ($tgl_sk) ? "'$tgl_sk'" : "NULL";
+            $sql_tmt      = $sql_tgl_sk; 
 
-            // 2. LOGIC UPSERT (Check Data Kembar)
-            // Cek apakah data persis sama sudah ada
-            $cekAda = mysqli_query($conn, "SELECT id_jab FROM tb_jabatan WHERE id_peg='$id_peg' AND no_sk='$no_sk' AND tmt_jabatan='$tmt_jabatan'");
+            // 2. LOGIC UPSERT (CHECK DUPLIKAT: ID + NAMA JABATAN)
+            $v_id_peg = mysqli_real_escape_string($conn, $id_peg);
+            
+            // Perubahan Logic Disini: Cek jika ID Pegawai & Nama Jabatan sama persis
+            // (Tidak peduli TMT atau No SK, kalau nama jabatan sama, kita update datanya)
+            $qCekDuplikat = "SELECT id_jab FROM tb_jabatan WHERE id_peg='$v_id_peg' AND jabatan = $sql_nama_jab LIMIT 1";
+            
+            $cekAda = mysqli_query($conn, $qCekDuplikat);
             
             if (mysqli_num_rows($cekAda) > 0) {
-                // --- UPDATE ---
+                // --- UPDATE (Data Lama Ditimpa) ---
                 $rowOld = mysqli_fetch_assoc($cekAda);
                 $id_target = $rowOld['id_jab'];
 
                 $query = "UPDATE tb_jabatan SET 
-                            kode_jabatan = '$final_kode',
-                            jabatan      = '$final_nama',
-                            unit_kerja   = '$unit_kerja',
-                            tgl_sk       = '$tgl_sk',
-                            status_jab   = '$status_jab',
+                            kode_jabatan = $sql_kode_jab,
+                            jabatan      = $sql_nama_jab,
+                            unit_kerja   = $unit_kerja,
+                            no_sk        = $no_sk,
+                            tgl_sk       = $sql_tgl_sk,
+                            tmt_jabatan  = $sql_tmt,
+                            status_jab   = $status_jab,
                             updated_at   = NOW(),
                             updated_by   = '$created_by'
                           WHERE id_jab   = '$id_target'";
@@ -257,20 +316,18 @@ try {
                 if (mysqli_query($conn, $query)) $update++; else $gagal++;
 
             } else {
-                // --- INSERT ---
-                // FIX: Menggunakan kolom 'date_reg' (sesuai database) dan diisi NOW()
+                // --- INSERT (Data Baru) ---
                 $query = "INSERT INTO tb_jabatan (
                     id_peg, kode_jabatan, jabatan, unit_kerja, no_sk, tgl_sk, tmt_jabatan, status_jab, created_by, date_reg
                 ) VALUES (
-                    '$id_peg', '$final_kode', '$final_nama', '$unit_kerja', '$no_sk', '$tgl_sk', '$tmt_jabatan', '$status_jab', '$created_by', NOW()
+                    '$v_id_peg', $sql_kode_jab, $sql_nama_jab, $unit_kerja, $no_sk, $sql_tgl_sk, $sql_tmt, $status_jab, '$created_by', NOW()
                 )";
 
                 if (mysqli_query($conn, $query)) $berhasil++; else $gagal++;
             }
         }
 
-        // 3. STEP TERAKHIR: PERBAIKI HISTORY (SAMPAI_TGL H-1)
-        // Kita hanya jalankan untuk pegawai yang datanya baru saja disentuh
+        // 3. STEP TERAKHIR: PERBAIKI HISTORY
         foreach (array_keys($processed_pegawai) as $id_peg_fix) {
             perbaikiHistoryJabatan($conn, $id_peg_fix);
         }
