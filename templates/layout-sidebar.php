@@ -294,12 +294,12 @@
                         </li>
                         <li class="nav-item">
                             <a href="home-admin.php?page=rekap-biaya-diklat" class="nav-link <?php echo ($page == 'rekap-biaya-diklat') ? 'active' : ''; ?>">
-                                <i class="far fa-circle nav-icon"></i> <p>Biaya Diklat (Org)</p>
+                                <i class="far fa-circle nav-icon"></i> <p>Diklat</p>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a href="home-admin.php?page=view-rekap-biaya" class="nav-link <?php echo ($page == 'rekap-biaya-pendidikan') ? 'active' : ''; ?>">
-                                <i class="far fa-circle nav-icon"></i> <p>Biaya Pendidikan SDM</p>
+                                <i class="far fa-circle nav-icon"></i> <p>Biaya Pendidikan</p>
                             </a>
                         </li>
                     </ul>
