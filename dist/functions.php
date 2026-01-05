@@ -244,7 +244,14 @@ function getPage($page) {
 
     // User
     'form-view-data-user'          => 'pages/user/form-view-data-user.php',
-    'form-master-data-user'        => 'pages/user/form-master-data-user.php'
+    'form-master-data-user'        => 'pages/user/form-master-data-user.php',
+
+
+    // biaya-pendidikan
+    'view-data-biaya-pendidikan'          => 'pages/ref-biaya-pendidikan/view-data-biaya-pendidikan.php',
+    'form-biaya-pendidikan'               => 'pages/ref-biaya-pendidikan/form-biaya-pendidikan.php',
+    'form-upload-data-biaya-pendidikan'   => 'pages/ref-biaya-pendidikan/form-upload-biaya-pendidikan.php',
+    'view-rekap-biaya'                    => 'pages/report/view-rekap-biaya.php'
 
   ];
 

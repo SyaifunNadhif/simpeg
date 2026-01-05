@@ -254,6 +254,11 @@
                             </a>
                         </li> 
                         <li class="nav-item">
+                            <a href="home-admin.php?page=view-data-biaya-pendidikan" class="nav-link <?php echo ($page == 'view-data-biaya-pendidikan') ? 'active' : ''; ?>">
+                                <i class="far fa-circle nav-icon"></i> <p>Biaya Pendidikan</p>
+                            </a>
+                        </li> 
+                        <li class="nav-item">
                             <a href="home-admin.php?page=master-data-diklat" class="nav-link <?php echo ($page == 'master-data-diklat') ? 'active' : ''; ?>">
                                 <i class="far fa-circle nav-icon"></i> <p>Pelatihan</p>
                             </a>
@@ -289,7 +294,12 @@
                         </li>
                         <li class="nav-item">
                             <a href="home-admin.php?page=rekap-biaya-diklat" class="nav-link <?php echo ($page == 'rekap-biaya-diklat') ? 'active' : ''; ?>">
-                                <i class="far fa-circle nav-icon"></i> <p>Biaya Diklat</p>
+                                <i class="far fa-circle nav-icon"></i> <p>Biaya Diklat (Org)</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="home-admin.php?page=view-rekap-biaya" class="nav-link <?php echo ($page == 'rekap-biaya-pendidikan') ? 'active' : ''; ?>">
+                                <i class="far fa-circle nav-icon"></i> <p>Biaya Pendidikan SDM</p>
                             </a>
                         </li>
                     </ul>

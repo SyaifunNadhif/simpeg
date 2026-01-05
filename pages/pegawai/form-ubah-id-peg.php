@@ -65,7 +65,7 @@ $qPegawai = mysqli_query($conn, $sqlPegawai);
                         
                         <div class="card-ref-header">
                             <h5>Pengangkatan Pegawai</h5>
-                            <small>Form perubahan status dan ID pegawai (K/O menjadi Tetap)</small>
+                            <small>Form Pengangkatan Pegawai</small>
                         </div>
 
                         <div class="card-body p-4">
@@ -88,7 +88,7 @@ $qPegawai = mysqli_query($conn, $sqlPegawai);
                                     <select name="jns_mutasi" class="form-control-ref" required>
                                         <option value="">- Pilih -</option>
                                         <option value="Calon Pegawai">Calon Pegawai</option>
-                                        <option value="Pegawai Tetap">Pegawai Tetap</option>
+                                        <!-- <option value="Pegawai Tetap">Pegawai Tetap</option> -->
                                         <option value="Perubahan NIP">Perubahan NIP</option>
                                     </select>
                                 </div>
@@ -157,4 +157,4 @@ $qPegawai = mysqli_query($conn, $sqlPegawai);
             $(this).siblings(".custom-file-label").addClass("selected").html(fileName);
         });
     });
-</script>     mmmm
+</script>     
