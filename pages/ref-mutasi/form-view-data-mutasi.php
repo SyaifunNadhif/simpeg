@@ -90,9 +90,9 @@ $tampilMutasi = mysqli_query($conn, $sql);
             <div>
                 <div class="d-flex align-items-center">
                     <i class="fas fa-exchange-alt text-primary fa-lg mr-3"></i>
-                    <h1 class="text-title">Data Mutasi</h1>
+                    <h1 class="text-title">Penonaktifan Pegawai</h1>
                 </div>
-                <span class="text-subtitle pl-1">Rekapitulasi riwayat mutasi jabatan & unit kerja pegawai.</span>
+                <span class="text-subtitle pl-1">(Data Pegawai Pensiun, PTDH, dll)</span>
             </div>
             <div class="d-flex align-items-center">
                 <div class="search-box d-none d-md-block">

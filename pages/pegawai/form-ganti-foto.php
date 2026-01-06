@@ -1,5 +1,10 @@
 <?php
 // pages/pegawai/form-ganti-foto.php
+
+// Matikan error display agar tidak merusak output JSON/Redirect
+ini_set('display_errors', 0);
+error_reporting(0);
+
 include __DIR__ . '/../../dist/koneksi.php';
 
 // Validasi ID Pegawai
@@ -7,89 +12,116 @@ if (!isset($_GET['id_peg'])) die("Error. No Kode Selected!");
 $id_peg = mysqli_real_escape_string($conn, $_GET['id_peg']);
 
 // --- HANDLE POST REQUEST (PROSES SIMPAN) ---
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cropped_image'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
-    // Ambil URL Redirect dari Hidden Input
+    // Ambil URL Redirect
     $redirect_url = isset($_POST['redirect_back']) && !empty($_POST['redirect_back']) 
                     ? $_POST['redirect_back'] 
-                    : 'home-admin.php?page=profil-pegawai'; // Default jika kosong
+                    : 'home-admin.php?page=profil-pegawai';
+
+    // Validasi Data Gambar
+    if (!isset($_POST['cropped_image']) || empty($_POST['cropped_image'])) {
+        echo_swal('Gagal!', 'Data gambar tidak ditemukan.', 'error');
+        exit;
+    }
 
     $dataURL = $_POST['cropped_image'];
 
     // 1. Validasi Ukuran (Max 3MB)
+    // Hitung ukuran base64 string secara kasar
     $sizeInBytes = (strlen($dataURL) * 3 / 4) - substr_count(substr($dataURL, -2), '=');
     $maxSizeMB = 3;
     $maxSizeBytes = $maxSizeMB * 1024 * 1024;
 
-    // Helper output SweetAlert
-    $swalHeader = '<!DOCTYPE html><html><head><script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script></head><body style="background:#f4f6f9">';
-    $swalFooter = '</body></html>';
-
     if ($sizeInBytes > $maxSizeBytes) {
-        echo $swalHeader;
-        echo "<script>Swal.fire('File Terlalu Besar', 'Maksimal 3MB.', 'error').then(() => { history.back(); });</script>";
-        echo $swalFooter;
+        echo_swal('File Terlalu Besar', 'Maksimal 3MB.', 'error');
         exit;
     }
 
-    // 2. Proses Simpan
+    // 2. Proses Decode Base64
     $parts = explode(',', $dataURL);
-    if (count($parts) === 2) {
-        $data = base64_decode($parts[1]);
-        $nama_file_baru = 'foto_' . $id_peg . '_' . time() . '.jpg';
-        $path_tujuan = __DIR__ . '/../../pages/assets/foto/' . $nama_file_baru; 
+    if (count($parts) !== 2) {
+        echo_swal('Error!', 'Format data gambar salah.', 'error');
+        exit;
+    }
 
-        // Cek folder & permission
-        if (!is_dir(dirname($path_tujuan))) mkdir(dirname($path_tujuan), 0755, true);
-        
-        if (file_put_contents($path_tujuan, $data)) {
-            // Hapus foto lama
-            $qLama = mysqli_query($conn, "SELECT foto FROM tb_pegawai WHERE id_peg='$id_peg'");
-            $rLama = mysqli_fetch_assoc($qLama);
-            $fileLama = __DIR__ . '/../../pages/assets/foto/' . $rLama['foto'];
-            if (!empty($rLama['foto']) && file_exists($fileLama) && is_file($fileLama)) {
-                unlink($fileLama);
-            }
+    $data = base64_decode($parts[1]);
+    if ($data === false) {
+        echo_swal('Error!', 'Gagal decode gambar.', 'error');
+        exit;
+    }
 
-            // Update DB
-            mysqli_query($conn, "UPDATE tb_pegawai SET foto='$nama_file_baru' WHERE id_peg='$id_peg'");
-            
-            // SUKSES - Redirect ke URL Asal
-            echo $swalHeader;
-            echo "<script>
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Berhasil!',
-                    text: 'Foto pegawai telah diperbarui.',
-                    showConfirmButton: false,
-                    timer: 1500
-                }).then(() => {
-                    window.location.href = '$redirect_url';
-                });
-            </script>";
-            echo $swalFooter;
-            exit;
-        } else {
-            echo $swalHeader;
-            echo "<script>Swal.fire('Gagal!', 'Gagal menyimpan file.', 'error').then(() => { history.back(); });</script>";
-            echo $swalFooter;
+    // 3. Persiapan File
+    $nama_file_baru = 'foto_' . $id_peg . '_' . time() . '.jpg';
+    $folder_tujuan  = __DIR__ . '/../../pages/assets/foto/'; // Path absolut folder
+    $path_tujuan    = $folder_tujuan . $nama_file_baru;
+
+    // Cek apakah folder ada dan bisa ditulisi
+    if (!is_dir($folder_tujuan)) {
+        if (!mkdir($folder_tujuan, 0755, true)) {
+            echo_swal('Error Server', 'Gagal membuat folder upload.', 'error');
             exit;
         }
+    }
+
+    if (!is_writable($folder_tujuan)) {
+        echo_swal('Error Permission', 'Folder upload tidak bisa ditulisi (Permission Denied). Hubungi Admin.', 'error');
+        exit;
+    }
+    
+    // 4. Simpan File Baru
+    if (file_put_contents($path_tujuan, $data)) {
+        
+        // Hapus foto lama jika ada
+        $qLama = mysqli_query($conn, "SELECT foto FROM tb_pegawai WHERE id_peg='$id_peg'");
+        if ($qLama && mysqli_num_rows($qLama) > 0) {
+            $rLama = mysqli_fetch_assoc($qLama);
+            $fileLama = $folder_tujuan . $rLama['foto'];
+            if (!empty($rLama['foto']) && file_exists($fileLama) && is_file($fileLama)) {
+                @unlink($fileLama); // Pakai @ biar gak error warning
+            }
+        }
+
+        // Update Database
+        $update = mysqli_query($conn, "UPDATE tb_pegawai SET foto='$nama_file_baru' WHERE id_peg='$id_peg'");
+        
+        if ($update) {
+            echo_swal('Berhasil!', 'Foto pegawai telah diperbarui.', 'success', $redirect_url);
+            exit;
+        } else {
+            // Jika DB gagal update, hapus file yg baru diupload biar ga nyampah
+            @unlink($path_tujuan); 
+            echo_swal('Gagal DB!', 'Gagal update database: ' . mysqli_error($conn), 'error');
+            exit;
+        }
+
     } else {
-        echo $swalHeader;
-        echo "<script>Swal.fire('Error!', 'Data gambar invalid.', 'error').then(() => { history.back(); });</script>";
-        echo $swalFooter;
+        echo_swal('Gagal Simpan!', 'Gagal menulis file ke server.', 'error');
         exit;
     }
 }
 
+// Helper Function untuk Output SweetAlert
+function echo_swal($title, $text, $icon, $redirect = null) {
+    echo '<!DOCTYPE html><html><head><script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script></head><body style="background:#f4f6f9">';
+    echo "<script>
+        Swal.fire({
+            title: '$title',
+            text: '$text',
+            icon: '$icon',
+            showConfirmButton: false,
+            timer: 1500
+        }).then(() => {
+            " . ($redirect ? "window.location.href = '$redirect';" : "history.back();") . "
+        });
+    </script>";
+    echo '</body></html>';
+}
+
 // --- TAMPILAN FORM (METHOD GET) ---
 
-// 1. Tentukan URL Kembali (Referer)
-// Jika ada referer dari server, pakai itu. Jika tidak, default ke Profil.
 $redirect_back = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : 'home-admin.php?page=profil-pegawai';
 
-// Ambil Data Pegawai
 $q = mysqli_query($conn, "SELECT nama, foto FROM tb_pegawai WHERE id_peg = '$id_peg'");
 if (!$q || mysqli_num_rows($q) == 0) {
     echo "<div class='alert alert-warning'>Data pegawai tidak ditemukan.</div>";
@@ -99,11 +131,15 @@ $peg = mysqli_fetch_assoc($q);
 $nama = htmlspecialchars($peg['nama'], ENT_QUOTES, 'UTF-8');
 $foto_file = trim($peg['foto']);
 
-// Path Foto
-$uploadRel = 'pages/assets/foto/';
-$foto_display = (!empty($foto_file) && file_exists(__DIR__ . '/../../' . $uploadRel . $foto_file))
-    ? $uploadRel . $foto_file
-    : 'dist/img/avatar5.png'; 
+// Path Foto Display
+$foto_display = 'dist/img/avatar5.png'; // Default
+if (!empty($foto_file)) {
+    $path_fisik = __DIR__ . '/../../pages/assets/foto/' . $foto_file;
+    if (file_exists($path_fisik)) {
+        // Tambah time() biar cache browser ke-refresh
+        $foto_display = 'pages/assets/foto/' . $foto_file . '?v=' . time(); 
+    }
+}
 ?>
 
 <style>
@@ -191,6 +227,7 @@ $foto_display = (!empty($foto_file) && file_exists(__DIR__ . '/../../' . $upload
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+// JAVASCRIPT LOGIC (SAMA SEPERTI YANG KAMU PUNYA, CUMA SAYA RAPIKAN DIKIT)
 document.addEventListener('DOMContentLoaded', function() {
     const cropBox   = document.getElementById('cropBox');
     const img       = document.getElementById('cropImage');
@@ -296,11 +333,6 @@ document.addEventListener('DOMContentLoaded', function() {
             outCtx.drawImage(img, 0, 0, state.imgWidth, state.imgHeight, dX, dY, dW, dH);
             const dataURL = outCanvas.toDataURL('image/jpeg', 0.9); 
             
-            const sizeInBytes = (dataURL.length * 3 / 4) - (dataURL.indexOf('=') > 0 ? (dataURL.length - dataURL.indexOf('=')) : 0);
-            if(sizeInBytes > 3 * 1024 * 1024) {
-                Swal.fire('Gagal', 'Hasil crop terlalu besar (>3MB).', 'error');
-                return;
-            }
             hiddenInput.value = dataURL;
             postForm.submit();
         }, 300);

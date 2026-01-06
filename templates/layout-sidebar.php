@@ -209,6 +209,11 @@
                                 <i class="far fa-circle nav-icon"></i> <p>Import Excel</p>
                             </a>
                         </li>
+                                                <li class="nav-item">
+                            <a href="home-admin.php?page=form-view-data-mutasi" class="nav-link <?php echo ($page == 'form-view-data-mutasi') ? 'active' : ''; ?>">
+                                <i class="far fa-circle nav-icon"></i> <p>Penonaktifan</p>
+                            </a>
+                        </li>
                     </ul>
                 </li>
                 
