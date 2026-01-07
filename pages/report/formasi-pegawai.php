@@ -1,6 +1,6 @@
 <?php
 // FILE: pages/report/formasi.php
-// VERSI: FINAL LENGKAP (Semua - Pusat - List Cabang)
+// VERSI: FINAL LENGKAP + FIX ORDER (Non-Master Paling Bawah)
 
 if (session_id() == '') session_start();
 include "dist/koneksi.php";
@@ -8,70 +8,69 @@ include "dist/koneksi.php";
 // --- 1. LOGIC FILTER ---
 $kode_cabang = isset($_GET['kode_cabang']) ? mysqli_real_escape_string($conn, $_GET['kode_cabang']) : '';
 
-// Variable Filter Query
 $where_master_lingkup = "";
 $join_filter_cabang = "";
 
-// LOGIC UTAMA (3 TINGKATAN):
 if ($kode_cabang == 'PUSAT') {
-    // 1. JIKA PILIH "PUSAT" (KP & KANWIL)
     $where_master_lingkup = "WHERE m.lingkup IN ('KP', 'KANWIL')";
-    $join_filter_cabang   = ""; // Ambil semua pegawai yang jabatannya sesuai lingkup KP/KANWIL
+    $join_filter_cabang   = ""; 
 } 
 elseif ($kode_cabang != '') {
-    // 2. JIKA PILIH "CABANG SPESIFIK" (KC & KK)
     $where_master_lingkup = "WHERE m.lingkup IN ('KC', 'KK')";
     $join_filter_cabang   = "AND j.unit_kerja = '$kode_cabang'";
 } 
 else {
-    // 3. JIKA PILIH "SEMUA" (GLOBAL)
-    // Tampilkan semua jabatan (KP, KANWIL, KC, KK)
     $where_master_lingkup = ""; 
     $join_filter_cabang   = ""; 
 }
 
 // --- 2. QUERY UTAMA ---
-$query = "SELECT 
-            m.nama_jabatan, 
-            m.kuota,
-            COUNT(DISTINCT p.id_peg) AS terisi,
-            (m.kuota - COUNT(DISTINCT p.id_peg)) AS kosong,
-            'Master' as sumber
-          FROM tb_master_jabatan m
-          
-          -- Join Jabatan
-          LEFT JOIN tb_jabatan j ON j.jabatan = m.nama_jabatan 
-                                 AND j.status_jab = 'Aktif' 
-                                 $join_filter_cabang
-          
-          -- Join Pegawai (HANYA YANG STATUS AKTIF = 1)
-          LEFT JOIN tb_pegawai p ON p.id_peg = j.id_peg AND p.status_aktif = '1'
-          
-          $where_master_lingkup
-          
-          GROUP BY m.nama_jabatan, m.kuota
+$query = "SELECT * FROM (
+            -- BAGIAN 1: JABATAN DARI MASTER (Normal)
+            SELECT 
+                m.nama_jabatan, 
+                m.kuota,
+                COUNT(DISTINCT p.id_peg) AS terisi,
+                (m.kuota - COUNT(DISTINCT p.id_peg)) AS kosong,
+                'Master' as sumber,
+                1 as urutan_prioritas  -- Prioritas UTAMA (Tampil Duluan)
+            FROM tb_master_jabatan m
+            
+            LEFT JOIN tb_jabatan j ON j.jabatan = m.nama_jabatan 
+                                   AND j.status_jab = 'Aktif' 
+                                   $join_filter_cabang
+            
+            LEFT JOIN tb_pegawai p ON p.id_peg = j.id_peg AND p.status_aktif = '1'
+            
+            $where_master_lingkup
+            
+            GROUP BY m.nama_jabatan, m.kuota
 
-          UNION ALL
+            UNION ALL
 
-          -- BAGIAN 2: JABATAN NON-MASTER (Anomali)
-          SELECT 
-            j.jabatan as nama_jabatan, 
-            0 as kuota, 
-            COUNT(DISTINCT p.id_peg) AS terisi,
-            (0 - COUNT(DISTINCT p.id_peg)) AS kosong,
-            'NonMaster' as sumber
-          FROM tb_jabatan j
-          JOIN tb_pegawai p ON p.id_peg = j.id_peg AND p.status_aktif = '1'
-          LEFT JOIN tb_master_jabatan m ON m.nama_jabatan = j.jabatan
-          WHERE m.nama_jabatan IS NULL 
-          AND j.status_jab = 'Aktif'
-          $join_filter_cabang
-          GROUP BY j.jabatan
-
-          ORDER BY nama_jabatan ASC";
+            -- BAGIAN 2: JABATAN NON-MASTER (Anomali / Tidak Terdaftar)
+            SELECT 
+                j.jabatan as nama_jabatan, 
+                0 as kuota, 
+                COUNT(DISTINCT p.id_peg) AS terisi,
+                (0 - COUNT(DISTINCT p.id_peg)) AS kosong,
+                'NonMaster' as sumber,
+                2 as urutan_prioritas  -- Prioritas KEDUA (Tampil Belakangan)
+            FROM tb_jabatan j
+            JOIN tb_pegawai p ON p.id_peg = j.id_peg AND p.status_aktif = '1'
+            LEFT JOIN tb_master_jabatan m ON m.nama_jabatan = j.jabatan
+            WHERE m.nama_jabatan IS NULL 
+            AND j.status_jab = 'Aktif'
+            $join_filter_cabang
+            GROUP BY j.jabatan
+          ) AS gabungan
+          
+          -- ORDER BY yang sudah diperbaiki:
+          -- 1. Berdasarkan Prioritas (Master=1, NonMaster=2)
+          -- 2. Berdasarkan Abjad Nama Jabatan
+          ORDER BY urutan_prioritas ASC, nama_jabatan ASC";
 
 $result = mysqli_query($conn, $query);
-
 $params_export = "kode_cabang=" . $kode_cabang;
 ?>
 
@@ -82,7 +81,6 @@ $params_export = "kode_cabang=" . $kode_cabang;
     .card-modern { border: none; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); background: #fff; margin-bottom: 20px; }
     .form-control-modern { border-radius: 8px; border: 1px solid #ddd; padding: 10px 15px; font-size: 0.9rem; }
     
-    /* BUTTON STYLES FIXED */
     .btn-modern { 
         border-radius: 8px; padding: 10px 20px; font-weight: 600; font-size: 0.9rem; border: none; 
         display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s ease; 
@@ -90,9 +88,9 @@ $params_export = "kode_cabang=" . $kode_cabang;
     }
     .btn-modern:hover { transform: translateY(-2px); text-decoration: none; box-shadow: 0 4px 10px rgba(0,0,0,0.15); color: #fff !important; filter: brightness(110%); }
 
-    .btn-filter-m { background-color: #2a5298 !important; } /* Biru */
-    .btn-pdf-m    { background-color: #d32f2f !important; } /* Merah */
-    .btn-excel-m  { background-color: #1D6F42 !important; } /* Hijau */
+    .btn-filter-m { background-color: #2a5298 !important; }
+    .btn-pdf-m    { background-color: #d32f2f !important; }
+    .btn-excel-m  { background-color: #1D6F42 !important; }
 
     .table-modern { width: 100%; border-collapse: separate; border-spacing: 0; }
     .table-modern thead th { background: linear-gradient(45deg, #1e3c72, #2a5298); color: white; padding: 15px; border: none; text-transform: uppercase; vertical-align: middle; }
@@ -127,15 +125,12 @@ $params_export = "kode_cabang=" . $kode_cabang;
                                     <span class="input-group-text bg-light border-0"><i class="fas fa-building text-muted"></i></span>
                                 </div>
                                 <select name="kode_cabang" class="form-control form-control-modern border-left-0 pl-0">
-                                    
                                     <option value="" <?= $kode_cabang == '' ? 'selected' : '' ?>>
                                         -- SEMUA KANTOR / GLOBAL (GABUNGAN) --
                                     </option>
-                                    
                                     <option value="PUSAT" <?= $kode_cabang == 'PUSAT' ? 'selected' : '' ?>>
                                         KANTOR PUSAT (KP & KANWIL)
                                     </option>
-                                    
                                     <?php
                                     $qc = mysqli_query($conn, "SELECT kode_kantor_detail, nama_kantor FROM tb_kantor WHERE level = 'KC' ORDER BY nama_kantor");
                                     while ($c = mysqli_fetch_array($qc)) {
@@ -151,11 +146,9 @@ $params_export = "kode_cabang=" . $kode_cabang;
                             <button type="submit" class="btn btn-modern btn-filter-m">
                                 <i class="fas fa-filter"></i> Terapkan
                             </button>
-                            
                             <a href="pages/report/print-formasi.php?<?= $params_export ?>" target="_blank" class="btn btn-modern btn-pdf-m">
                                 <i class="fas fa-file-pdf"></i> Download PDF
                             </a>
-
                             <a href="pages/report/export-formasi.php?<?= $params_export ?>" class="btn btn-modern btn-excel-m">
                                 <i class="fas fa-file-excel"></i> Excel
                             </a>
@@ -215,8 +208,11 @@ $params_export = "kode_cabang=" . $kode_cabang;
                                 }
                                 
                                 $warningIcon = ($sumber == 'NonMaster') ? '<i class="fas fa-exclamation-triangle text-warning mr-1" title="Jabatan Tidak Terdaftar di Master"></i>' : '';
+                                
+                                // Style baris khusus untuk anomali biar makin kelihatan
+                                $rowStyle = ($sumber == 'NonMaster') ? "background-color: #fffbf0;" : "";
                         ?>
-                            <tr>
+                            <tr style="<?= $rowStyle ?>">
                                 <td align="center" style="font-weight: 600; color:#888;"><?= $no++ ?>.</td>
                                 <td style="font-weight: 500; color: #2c3e50;"><?= $warningIcon ?> <?= $nama_jabatan ?></td>
                                 <td align="center"><span style="background:#eee; padding:5px 10px; border-radius:6px; font-weight:bold; color:#555;"><?= $kuota ?></span></td>

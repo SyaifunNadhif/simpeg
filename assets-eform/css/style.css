@@ -1,0 +1,31 @@
+body { background-color: #f3f4f6; padding: 20px; font-family: 'Inter', sans-serif; }
+.hd-wrap { width: 100%; max-width: 900px; margin: 0 auto; }
+.hd-card { background: #fff; border-radius: 14px; padding: 28px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+.policy-title { font-size: 24px; font-weight: 800; color: #0b3b66; margin-bottom: 5px; }
+.hd-hidden { display: none !important; }
+
+/* Grid & Inputs */
+.hd-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px; }
+.hd-input, .ts-control { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; margin-top: 5px; box-sizing: border-box;}
+.hd-input:focus { border-color: #d69a3a; outline: none; }
+label { font-weight: 600; font-size: 14px; color: #333; }
+.hd-section-title { font-size: 16px; font-weight: 700; color: #0b3b66; border-bottom: 2px solid #eee; padding-bottom: 8px; margin: 20px 0 15px 0; }
+
+/* Buttons */
+.hd-btn { padding: 10px 20px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; transition:0.2s; }
+.hd-btn-primary { background: #d69a3a; color: #fff; }
+.hd-btn-ghost { background: #fff; border: 1px solid #ccc; }
+.hd-btn-warning { background: #f59e0b; color: #fff; border-radius: 50px; font-size: 13px; box-shadow: 0 4px 6px rgba(245, 158, 11, 0.3); }
+.hd-btn-warning:hover { background: #d97706; transform: scale(1.05); }
+
+/* Toast & Modal */
+.hd-toast-wrap { position: fixed; right: 20px; bottom: 20px; z-index: 9999; }
+.hd-toast { background: #111827; color: #fff; padding: 12px 20px; border-radius: 8px; margin-top: 10px; opacity: 0; transition: 0.3s; display: flex; gap: 10px;}
+.hd-toast.show { opacity: 1; }
+.hd-toast.error { background: #ef4444; }
+
+.hd-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: 0.2s; z-index: 10000; }
+.hd-modal-overlay.show { opacity: 1; pointer-events: auto; }
+.hd-modal { background: #fff; padding: 30px; border-radius: 12px; text-align: center; width: 90%; max-width: 400px; transform: translateY(10px); transition: 0.2s; }
+.hd-modal-overlay.show .hd-modal { transform: translateY(0); }
+.hd-ticket-box { background: #f0f0f0; padding: 10px; font-family: monospace; font-size: 18px; margin: 15px 0; border: 2px dashed #ccc; font-weight: bold; color: #0b3b66;}

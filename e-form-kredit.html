@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form Pengajuan Kredit</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.default.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="assets-eform/css/style.css">
+</head>
+<body>
+
+<div class="hd-wrap">
+  <div class="hd-card">
+    <h2 class="policy-title">Layanan Kredit Mandiri</h2>
+    <p style="margin:0 0 20px 0; color:#666;">Ajukan kredit atau cek status pengajuan Anda.</p>
+
+    <div style="background:#f8f9fa; padding:15px; border-radius:10px; border:1px solid #eee; margin-bottom:20px;">
+        <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content: space-between; align-items: center;">
+            <button id="btnToggleForm" class="hd-btn hd-btn-primary" type="button">BUAT PENGAJUAN BARU</button>
+            
+            <div style="display:flex; gap:8px; flex:1; min-width: 280px; justify-content: flex-end;">
+                <input type="text" id="searchCode" class="hd-input" placeholder="Masukkan Kode (Cth: REG-8821)" style="margin:0; max-width: 250px;">
+                <button id="btnSearch" class="hd-btn hd-btn-warning" type="button">CEK STATUS</button>
+            </div>
+        </div>
+    </div>
+
+    <form id="loanForm" class="hd-hidden" enctype="multipart/form-data">
+      
+      <div class="hd-section-title">I. DATA PRIBADI</div>
+      <div class="hd-grid-2">
+        <label>Nama Lengkap <span style="color:red">*</span><input type="text" name="nama_lengkap" class="hd-input" required></label>
+        <label>No. KTP / NIK <span style="color:red">*</span>
+          <input type="text" name="no_ktp" id="id_ktp" class="hd-input" maxlength="16" required>
+          <small id="ktp-error" style="color:red; display:none;">KTP harus 16 digit!</small>
+        </label>
+      </div>
+
+      <div class="hd-section-title">II. DATA WILAYAH & DOMISILI</div>
+      <div style="margin-bottom:12px;">
+         <label>Provinsi <span style="color:red">*</span></label>
+         <select id="select-provinsi" required placeholder="Cari Provinsi..."></select>
+         <input type="hidden" name="nama_provinsi" id="val_provinsi">
+      </div>
+      <div class="hd-grid-2">
+         <div>
+            <label>Kabupaten/Kota <span style="color:red">*</span></label>
+            <select id="select-kota" required disabled></select>
+            <input type="hidden" name="nama_kota" id="val_kota">
+         </div>
+         <div>
+            <label>Kecamatan <span style="color:red">*</span></label>
+            <select id="select-kecamatan" required disabled></select>
+            <input type="hidden" name="nama_kecamatan" id="val_kecamatan">
+         </div>
+      </div>
+      <div class="hd-grid-2" style="margin-top:12px;">
+         <div>
+            <label>Kelurahan <span style="color:red">*</span></label>
+            <select id="select-kelurahan" required disabled></select>
+            <input type="hidden" name="nama_kelurahan" id="val_kelurahan">
+         </div>
+      </div>
+
+      <div class="hd-section-title">III. DATA PENGAJUAN</div>
+      <div class="hd-grid-2">
+        <label>Pilih Produk Kredit <span style="color:red">*</span>
+            <select id="product_type" name="jenis_produk" class="hd-input" required>
+                <option value="">-- Pilih Produk Sesuai SK --</option>
+                <option value="kmb">Kredit Mikro BKK (KMB)</option>
+                <option value="joglo">Kredit BKK Joglo</option>
+                <option value="sinden">Kredit BKK Sinden</option>
+                <option value="korporasi">Kredit BKK Korporasi</option>
+                <option value="k3">Kredit Kolektif Karyawan (K3)</option>
+            </select>
+        </label>
+        <label>Bunga (% per tahun)
+            <input type="text" id="loan_interest" class="hd-input" readonly style="background:#eee;">
+        </label>
+      </div>
+
+      <div class="hd-grid-2" style="margin-top:12px;">
+          <div>
+              <label>Besar Pinjaman (Rp) <span style="color:red">*</span></label>
+              <input type="text" id="input-rupiah" name="besar_pinjaman" class="hd-input" disabled required>
+              <small id="error-plafon" style="color:red; font-size:12px; display:none;">⚠️ Nominal salah!</small>
+          </div>
+          <div>
+              <label>Jangka Waktu (Bulan) <span style="color:red">*</span></label>
+              <input type="number" id="input-tenor" name="jangka_waktu" class="hd-input" disabled required>
+              <small id="error-tenor" style="color:red; font-size:12px; display:none;">⚠️ Tenor salah!</small>
+          </div>
+      </div>
+
+      <div style="margin-top: 10px; text-align: right;">
+          <button type="button" id="btnHitung" class="hd-btn hd-btn-warning" style="display:none;">🧮 Hitung Angsuran</button>
+      </div>
+
+      <div style="margin-top:24px; display:flex; gap:10px; border-top:1px solid #eee; padding-top:20px;">
+        <button type="button" id="btnResetForm" class="hd-btn hd-btn-ghost">Reset</button>
+        <button type="submit" id="btnSubmit" class="hd-btn hd-btn-primary" style="flex:1;">KIRIM PENGAJUAN</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="modalSimulasi" class="hd-modal-overlay">
+  <div class="hd-modal" style="max-width: 400px; text-align:left;">
+    <h3 style="margin-top:0; color:#0b3b66; border-bottom:1px solid #ddd; padding-bottom:10px;">Simulasi Angsuran</h3>
+    <div style="background:#f9fafb; padding:15px; border-radius:8px; font-size:14px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+            <span style="color:#666;">Pokok Pinjaman:</span><strong id="sim-pokok">Rp 0</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+            <span style="color:#666;">Bunga Setahun:</span><strong id="sim-bunga">Rp 0</strong>
+        </div>
+        <div style="border-top:1px dashed #ccc; margin:10px 0;"></div>
+        <div style="display:flex; justify-content:space-between; font-size:16px; color:#d69a3a;">
+            <span>Angsuran/Bulan:</span><strong id="sim-cicilan">Rp 0</strong>
+        </div>
+    </div>
+    <div style="margin-top:20px; text-align:right;">
+        <button type="button" class="hd-btn hd-btn-ghost" onclick="document.getElementById('modalSimulasi').classList.remove('show')">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<div id="modalStatus" class="hd-modal-overlay">
+    <div class="hd-modal" style="max-width: 500px; text-align:left;">
+      <div style="text-align:center; margin-bottom:20px;">
+          <h3 style="margin:0; color:#0b3b66;">Detail Pengajuan</h3>
+          <span id="st-ticket" style="background:#0b3b66; color:#fff; padding:4px 10px; border-radius:4px; font-size:12px; letter-spacing:1px;">CODE</span>
+      </div>
+      
+      <table style="width:100%; font-size:14px; border-collapse: collapse;">
+          <tr style="border-bottom:1px solid #eee;"><td style="padding:8px; color:#666;">Nama Pemohon</td><td style="padding:8px; font-weight:bold;" id="st-nama">-</td></tr>
+          <tr style="border-bottom:1px solid #eee;"><td style="padding:8px; color:#666;">Produk</td><td style="padding:8px; font-weight:bold;" id="st-produk">-</td></tr>
+          <tr style="border-bottom:1px solid #eee;"><td style="padding:8px; color:#666;">Plafon</td><td style="padding:8px; font-weight:bold;" id="st-plafon">-</td></tr>
+          <tr style="border-bottom:1px solid #eee;"><td style="padding:8px; color:#666;">Tenor</td><td style="padding:8px; font-weight:bold;" id="st-tenor">-</td></tr>
+          <tr style="border-bottom:1px solid #eee;"><td style="padding:8px; color:#666;">Tanggal Input</td><td style="padding:8px;" id="st-tanggal">-</td></tr>
+          <tr>
+              <td style="padding:8px; color:#666;">Status Terkini</td>
+              <td style="padding:8px;">
+                  <span style="background:#fff7ed; color:#c2410c; padding:5px 10px; border-radius:20px; font-weight:bold; font-size:12px; border:1px solid #fdba74;">
+                     ⏳ Menunggu Verifikasi Admin
+                  </span>
+              </td>
+          </tr>
+      </table>
+  
+      <div style="margin-top:20px; text-align:right;">
+          <button type="button" class="hd-btn hd-btn-ghost" onclick="document.getElementById('modalStatus').classList.remove('show')">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+<script src="assets-eform/js/config.js"></script>
+<script src="assets-eform/js/helper.js"></script>
+<script src="assets-eform/js/api-wilayah.js"></script>
+<script src="assets-eform/js/logic-produk.js"></script>
+<script src="assets-eform/js/main.js"></script>
+
+</body>
+</html>

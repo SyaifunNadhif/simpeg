@@ -1,7 +1,7 @@
 <?php
 /*********************************************************
  * FILE     : pages/user/form-view-data-user.php
- * MODULE   : Manajemen User (Secure & Modern UI)
+ * MODULE   : Manajemen User (Supervisor Label Logic)
  *********************************************************/
 
 if (session_id() == '') session_start();
@@ -24,6 +24,9 @@ if (!isset($_SESSION['hak_akses']) || ($_SESSION['hak_akses'] != 'admin' && $_SE
     .btn-action-rounded { border-radius: 50px; padding: 8px 20px; font-weight: 600; font-size: 0.85rem; }
     table.dataTable thead th { background-color: #fff; color: #64748b; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; border-bottom: 2px solid #f1f5f9 !important; padding: 15px 20px; }
     table.dataTable tbody td { padding: 15px 20px; vertical-align: middle; border-bottom: 1px solid #f8fafc; color: #334155; font-size: 0.9rem; }
+    
+    /* Badge Custom buat Role */
+    .badge-role { padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
 </style>
 
 <section class="content pt-4 px-3">
@@ -51,8 +54,7 @@ if (!isset($_SESSION['hak_akses']) || ($_SESSION['hak_akses'] != 'admin' && $_SE
                     <select id="filter_role" class="form-control">
                         <option value="">- Semua Role -</option>
                         <option value="admin">Admin</option>
-                        <option value="kepala">Kepala</option>
-                        <option value="user">User</option>
+                        <option value="kepala">Supervisor</option> <option value="user">User</option>
                     </select>
                 </div>
             </div>
@@ -126,7 +128,21 @@ $(document).ready(function() {
             { "data": "no", "className": "text-center font-weight-bold" },
             { "data": "user_info" },
             { "data": "jabatan" },
-            { "data": "role", "className": "text-center" },
+            // MODIFIKASI KOLOM ROLE DI SINI
+            { 
+                "data": "role", 
+                "className": "text-center",
+                "render": function(data, type, row) {
+                    // Jika data dari database 'kepala', tampilkan 'Supervisor'
+                    if (data === 'kepala') {
+                        return '<span class="badge badge-success badge-role">Supervisor</span>';
+                    } else if (data === 'admin') {
+                        return '<span class="badge badge-primary badge-role">Admin</span>';
+                    } else {
+                        return '<span class="badge badge-secondary badge-role">User</span>';
+                    }
+                }
+            },
             { "data": "status", "className": "text-center" },
             { "data": "aksi", "className": "text-center" }
         ],
@@ -142,7 +158,7 @@ $(document).ready(function() {
 
     $('#filter_role').change(function(){ table.ajax.reload(); });
 
-    // Logic Hapus
+    // ... (Sisa script hapus sama persis seperti sebelumnya) ...
     $('body').on('click', '.btn-delete', function(e) {
         e.preventDefault();
         var id = $(this).data('id');
