@@ -2,6 +2,22 @@ const CONFIG = {
     // URL API Wilayah (Tetap)
     baseUrlWilayah: "https://www.emsifa.com/api-wilayah-indonesia/api",
 
+
+
+
+    // --- DATA CABANG (Edit disini jika ada penambahan) ---
+    DATA_CABANG: [
+        { code: "KP", name: "Kantor Pusat (Semarang)" },
+        { code: "KC_BANYUMANIK", name: "Cabang Banyumanik" },
+        { code: "KC_UNGARAN", name: "Cabang Ungaran" },
+        { code: "KC_SALATIGA", name: "Cabang Salatiga" },
+        { code: "KC_SOLO", name: "Cabang Solo" },
+        { code: "KK_PEDURUNGAN", name: "Kantor Kas Pedurungan" },
+        { code: "KK_NGALIYAN", name: "Kantor Kas Ngaliyan" },
+        { code: "KK_AMBARAWA", name: "Kantor Kas Ambarawa" },
+        { code: "KK_MRANGGEN", name: "Kantor Kas Mranggen" }
+    ],
+
     // DATABASE PRODUK SESUAI SK (Excel)
     products: {
         "kmb": {
