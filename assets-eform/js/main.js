@@ -95,7 +95,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Cek validasi manual (Plafon)
             if(document.getElementById('error-plafon') && document.getElementById('error-plafon').style.display === 'block') {
-                UI.showToast("Perbaiki nominal pinjaman!", "error"); return;
+                if(typeof UI !== 'undefined') UI.showToast("Perbaiki nominal pinjaman!", "error");
+                else alert("Perbaiki nominal pinjaman!");
+                return;
             }
 
             const btn = document.getElementById('btnSubmit');
@@ -189,5 +191,3 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
 });
-
-
