@@ -201,7 +201,7 @@
                         </li>
                         <li class="nav-item">
                             <a href="home-admin.php?page=form-ubah-id-peg" class="nav-link <?php echo ($page == 'form-ubah-id-peg') ? 'active' : ''; ?>">
-                                <i class="far fa-circle nav-icon"></i> <p>Ubah ID Pegawai</p>
+                                <i class="far fa-circle nav-icon"></i> <p>Pengakatan Pegawai</p>
                             </a>
                         </li>
                         <li class="nav-item">
@@ -260,7 +260,7 @@
                         </li> 
                         <li class="nav-item">
                             <a href="home-admin.php?page=view-data-biaya-pendidikan" class="nav-link <?php echo ($page == 'view-data-biaya-pendidikan') ? 'active' : ''; ?>">
-                                <i class="far fa-circle nav-icon"></i> <p>Biaya Pendidikan</p>
+                                <i class="far fa-circle nav-icon"></i> <p>Daftar Kegiatan Diklat</p>
                             </a>
                         </li> 
                         <li class="nav-item">

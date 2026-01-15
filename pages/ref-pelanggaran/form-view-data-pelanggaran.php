@@ -107,7 +107,7 @@ $tampilJudge = mysqli_query($conn, $sql);
                 </div>
                 
                 <?php if($is_admin): ?>
-                <a href="home-admin.php?page=form-master-data-hukuman" class="btn btn-add-modern">
+                <a href="home-admin.php?page=form-master-data-pelanggaran" class="btn btn-add-modern">
                     <i class="fa fa-plus mr-2"></i> Tambah
                 </a>
                 <?php endif; ?>
@@ -165,7 +165,7 @@ $tampilJudge = mysqli_query($conn, $sql);
                                     <?php endif; ?>
 
                                     <?php if($is_admin): ?>
-                                        <a href="home-admin.php?page=form-master-data-hukuman&id_hukum=<?=$peg['id_hukum']?>" class="btn-action btn-edit" title="Edit Data">
+                                        <a href="home-admin.php?page=form-master-data-pelanggaran&id_hukum=<?=$peg['id_hukum']?>" class="btn-action btn-edit" title="Edit Data">
                                             <i class="fa fa-pen"></i>
                                         </a>
 
