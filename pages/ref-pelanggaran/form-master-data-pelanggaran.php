@@ -26,16 +26,27 @@ if (isset($_GET['id_hukum'])) {
 }
 
 // --- 2. AMBIL DATA PEJABAT (GROUP 'PE') ---
+// --- 2. AMBIL DATA PEJABAT KHUSUS (Direktur Ops & Kadiv SDM) ---
 $listPejabat = [];
+
+// Array Jabatan yang Diizinkan (Bisa disesuaikan text-nya dengan database kamu)
+$allowed_jabatan = "('Direktur Operasional', 'Kepala Divisi SDM dan Umum')";
+
 $qPejabat = mysqli_query($conn, "
     SELECT p.nama, j.jabatan 
     FROM tb_pegawai p
     JOIN tb_jabatan j ON p.id_peg = j.id_peg 
-    JOIN tb_master_jabatan m ON j.kode_jabatan = m.kode_jabatan
-    WHERE m.group_jabatan = 'PE' AND j.status_jab = 'Aktif'
-    ORDER BY p.nama ASC
+    
+    -- Filter hanya jabatan yang aktif & sesuai nama jabatan
+    WHERE j.status_jab = 'Aktif' 
+    AND j.jabatan IN $allowed_jabatan
+    
+    ORDER BY j.jabatan ASC, p.nama ASC
 ");
-while ($r = mysqli_fetch_assoc($qPejabat)) { $listPejabat[] = $r; }
+
+while ($r = mysqli_fetch_assoc($qPejabat)) { 
+    $listPejabat[] = $r; 
+}
 
 // --- 3. SET VALUE DEFAULT ---
 $id_peg        = isset($data_edit['id_peg']) ? $data_edit['id_peg'] : '';
