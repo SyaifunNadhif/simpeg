@@ -153,6 +153,7 @@ $src_foto   = (!empty($foto_db) && file_exists($path_foto)) ? $path_foto : $avat
                                     <tr><td>Status Nikah</td><td>: <?php echo htmlspecialchars($peg['status_nikah']); ?></td></tr>
                                     <tr><td>Alamat</td><td>: <?php echo htmlspecialchars($peg['alamat']); ?></td></tr>
                                     <tr><td>No BPJS TK</td><td>: <?php echo htmlspecialchars($peg['bpjstk']); ?></td></tr>
+                                    <tr><td>Tgl Masuk Kerja</td><td>: <?php echo date('d-m-Y', strtotime($peg['tmt_kerja'])); ?></td></tr>
                                 </table>
                                 
                                 <?php if($can_edit): ?>

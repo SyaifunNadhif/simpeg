@@ -194,7 +194,7 @@ function simpanKeDatabase(jsonData) {
             Swal.fire({
                 icon: 'success', 
                 title: 'Import Berhasil!', 
-                text: res.message,
+                html: res.message,
                 confirmButtonText: 'OK'
             }).then(() => {
                 window.location.href = "home-admin.php?page=form-view-data-sertifikasi"; 
