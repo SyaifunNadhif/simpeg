@@ -44,7 +44,7 @@ while($r = mysqli_fetch_assoc($qT)){ $optTahun[] = $r['th']; }
     <section class="content-header pt-3 pb-3">
         <div class="container-fluid">
             <h1 style="font-weight: 700; color: #2c3e50; font-size: 1.5rem;">
-                <i class="fas fa-money-check-alt mr-2 text-primary"></i> Rekap Biaya Pendidikan
+                <i class="fas fa-money-check-alt mr-2 text-primary"></i> Rekap Daftar Diklat
             </h1>
         </div>
     </section>

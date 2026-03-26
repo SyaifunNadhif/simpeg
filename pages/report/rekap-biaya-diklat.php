@@ -60,7 +60,7 @@ include 'pages/report/logic-rekap.php';
     <section class="content-header pt-3 pb-3">
         <div class="container-fluid">
             <h1 style="font-weight: 700; color: #2c3e50; font-size: 1.5rem;">
-                <i class="fas fa-money-check-alt mr-2 text-primary"></i> Rekapitulasi Biaya Diklat
+                <i class="fas fa-money-check-alt mr-2 text-primary"></i> Rekap Pelatihan
             </h1>
         </div>
     </section>
