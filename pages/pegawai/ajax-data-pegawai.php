@@ -16,11 +16,30 @@ function resolve_foto_url($filename, $jk){
     $newUrlBase = "uploads/foto/"; 
     $oldUrlBase = "pages/assets/foto/";
 
+    // Daftar ekstensi yang akan dicoba
+    $extensions = ['.jpg', '.jpeg', '.png', '.JPG', '.PNG'];
+
     if ($filename && trim($filename) !== '') {
+        foreach ($extensions as $ext) {
+            // Cek di folder baru (uploads/foto/)
+            if (file_exists($newFs . $filename . $ext)) {
+                return $newUrlBase . $filename . $ext;
+            }
+            // Cek di folder lama (pages/assets/foto/)
+            if (file_exists($oldFs . $filename . $ext)) {
+                return $oldUrlBase . $filename . $ext;
+            }
+        }
+        
+        /* Tambahan: Jika ternyata di database nama filenya 
+           SUDAH ada ekstensinya (misal lama belum terupdate), 
+           kita tetap cek kondisi aslinya agar aman.
+        */
         if (file_exists($newFs . $filename)) return $newUrlBase . $filename;
         if (file_exists($oldFs . $filename)) return $oldUrlBase . $filename;
     }
     
+    // Jika tidak ditemukan sama sekali, pakai fallback (foto default)
     $fallback = ($jk === 'Laki-laki') ? 'no-foto-male.png' : 'no-foto-female.png';
     if (file_exists($oldFs . $fallback)) {
         return $oldUrlBase . $fallback;

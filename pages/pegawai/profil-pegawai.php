@@ -54,13 +54,30 @@ if (mysqli_num_rows($tampilPeg) == 0) {
 $peg = mysqli_fetch_array($tampilPeg);
 
 // --- 4. ASSETS FOTO ---
+// --- 4. ASSETS FOTO ---
 $foto_db    = isset($peg['foto']) ? trim($peg['foto']) : '';
 $jk         = isset($peg['jk']) ? strtolower(trim($peg['jk'])) : '';
 $avatar_def = ($jk == 'laki-laki' || $jk == 'l') ? 'dist/img/avatar5.png' : 'dist/img/avatar3.png';
-$path_foto  = 'pages/assets/foto/' . $foto_db;
 
-// Cek fisik file
-$src_foto   = (!empty($foto_db) && file_exists($path_foto)) ? $path_foto : $avatar_def;
+$src_foto   = $avatar_def; // Default awal ke avatar
+
+if (!empty($foto_db)) {
+    $folder_path = 'pages/assets/foto/';
+    $extensions  = ['.jpg', '.jpeg', '.png', '.JPG', '.JPEG', '.PNG'];
+    
+    // Cek apakah di DB sudah ada ekstensinya (jaga-jaga data lama)
+    if (file_exists($folder_path . $foto_db)) {
+        $src_foto = $folder_path . $foto_db;
+    } else {
+        // Jika tidak ada ekstensi, looping cari filenya
+        foreach ($extensions as $ext) {
+            if (file_exists($folder_path . $foto_db . $ext)) {
+                $src_foto = $folder_path . $foto_db . $ext;
+                break; // Stop jika sudah ketemu
+            }
+        }
+    }
+}
 ?>
 
 <style>

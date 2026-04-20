@@ -2,11 +2,17 @@
 // dist/koneksi.php
 
 // Gunakan 127.0.0.1 supaya selalu pakai TCP (bukan socket)
-$host = '127.0.0.1';
+// $host = '127.0.0.1';
+// $user = 'root';
+// $pass = '';
+// $db   = 'masq2971_simpeg_dummy';
+// $port = 3307;  // Sesuaikan dengan port MySQL Anda (3306/3307)
+
+$host = '10.0.2.2';
 $user = 'root';
-$pass = '';
+$pass = 'JzxT8zHj2r5JGRDN';
 $db   = 'masq2971_simpeg_dummy';
-$port = 3307;  // Sesuaikan dengan port MySQL Anda (3306/3307)
+$port = 23036;  // Sesuaikan dengan port MySQL Anda (3306/3307)
 
 // Buat koneksi MySQLi procedural
 $conn = mysqli_connect($host, $user, $pass, $db, $port);
