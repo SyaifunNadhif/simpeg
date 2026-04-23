@@ -16,30 +16,27 @@ function resolve_foto_url($filename, $jk){
     $newUrlBase = "uploads/foto/"; 
     $oldUrlBase = "pages/assets/foto/";
 
-    // Daftar ekstensi yang akan dicoba
-    $extensions = ['.jpg', '.jpeg', '.png', '.JPG', '.PNG'];
+    // 1. Daftar variasi ekstensi (PENTING: Linux bedakan .jpg dan .JPG)
+    $exts = ['.jpg', '.jpeg', '.png', '.JPG', '.JPEG', '.PNG'];
 
     if ($filename && trim($filename) !== '') {
-        foreach ($extensions as $ext) {
-            // Cek di folder baru (uploads/foto/)
+        // 2. Looping untuk mencari file dengan ekstensi
+        foreach ($exts as $ext) {
+            // Cek di folder baru
             if (file_exists($newFs . $filename . $ext)) {
                 return $newUrlBase . $filename . $ext;
             }
-            // Cek di folder lama (pages/assets/foto/)
+            // Cek di folder lama
             if (file_exists($oldFs . $filename . $ext)) {
                 return $oldUrlBase . $filename . $ext;
             }
         }
-        
-        /* Tambahan: Jika ternyata di database nama filenya 
-           SUDAH ada ekstensinya (misal lama belum terupdate), 
-           kita tetap cek kondisi aslinya agar aman.
-        */
+
+        // 3. Jaga-jaga kalau di DB sudah ada ekstensinya (data lama)
         if (file_exists($newFs . $filename)) return $newUrlBase . $filename;
         if (file_exists($oldFs . $filename)) return $oldUrlBase . $filename;
     }
     
-    // Jika tidak ditemukan sama sekali, pakai fallback (foto default)
     $fallback = ($jk === 'Laki-laki') ? 'no-foto-male.png' : 'no-foto-female.png';
     if (file_exists($oldFs . $fallback)) {
         return $oldUrlBase . $fallback;
@@ -47,7 +44,6 @@ function resolve_foto_url($filename, $jk){
         return $oldUrlBase . 'default-user.png'; 
     }
 }
-
 // --- PARAMETER & SANITASI ---
 $columnsDB = [ 0 => 'p.nama', 1 => 'p.tgl_lhr', 2 => 'j.jabatan', 3 => 'p.tmt_kerja', 4 => 'p.telp' ];
 $orderColumnIndex = isset($_GET['order'][0]['column']) ? intval($_GET['order'][0]['column']) : 0;
